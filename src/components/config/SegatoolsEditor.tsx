@@ -296,7 +296,7 @@ function SegatoolsEditor({ config, onChange, activeGame }: Props) {
   return (
     <div style={{ display: 'grid', gap: 10 }}>
       {visibleSections.map((section) => (
-        <SectionAccordion key={section.key as string} title={t(`segatools.${section.key}.title`, section.key as string)}>
+        <SectionAccordion key={section.key as string} title={t([`segatools.${section.key}.sectionTitle`, `segatools.${section.key}.title`], section.key as string)}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px 24px', alignItems: 'start' }}>
             {section.fields.map((field) => (
               <OptionField

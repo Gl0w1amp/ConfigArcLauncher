@@ -183,6 +183,7 @@
       }
     },
     "dns": {
+      "sectionTitle": "DNS",
       "title": {
         "label": "Title server",
         "desc": "Rewrites the title server hostname for certain games."

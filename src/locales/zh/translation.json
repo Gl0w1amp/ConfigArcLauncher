@@ -89,511 +89,512 @@
     "aimeio": {
       "title": "aimeio",
       "path": {
-        "label": "Driver path",
-        "desc": "Specify a path for a third-party card reader driver DLL. Default is empty (use built-in emulation based on text files and keyboard input)."
+        "label": "驱动路径",
+        "desc": "指定第三方读卡器驱动 DLL 的路径。默认为空（使用基于文本文件和键盘输入的内置模拟）。"
       }
     },
     "mai2io": {
       "title": "mai2io",
       "path": {
-        "label": "Driver path",
-        "desc": "Specify a path for a third-party maimai DX IO driver DLL."
+        "label": "驱动路径",
+        "desc": "指定第三方 maimai DX IO 驱动 DLL 的路径。"
       }
     },
     "aime": {
       "title": "aime",
       "enable": {
-        "label": "Enable Aime emulation",
-        "desc": "Enable Aime card reader assembly emulation. Disable to use a real SEGA Aime reader."
+        "label": "启用 Aime 模拟",
+        "desc": "启用 Aime 读卡器组件模拟。禁用以使用真实的 SEGA Aime 读卡器。"
       },
       "portNo": {
-        "label": "COM port",
-        "desc": "Sets the COM port to use for the aime card reader assembly."
+        "label": "COM 端口",
+        "desc": "设置 Aime 读卡器组件使用的 COM 端口。"
       },
       "highBaud": {
-        "label": "High baud (115200)",
-        "desc": "Enables the high baudrate of the Aime card reader to be 115200 (instead of 38400). Required for some games (e.g. Chunithm)."
+        "label": "高波特率 (115200)",
+        "desc": "启用 Aime 读卡器的高波特率为 115200（而不是 38400）。某些游戏（例如 Chunithm）需要此项。"
       },
       "gen": {
-        "label": "Generation",
-        "desc": "Changes the Aime card reader generation (1, 2, or 3)."
+        "label": "代数",
+        "desc": "更改 Aime 读卡器代数（1、2 或 3）。"
       },
       "aimePath": {
-        "label": "Aime card file",
-        "desc": "Path to a text file containing a classic Aime IC card ID."
+        "label": "Aime 卡文件",
+        "desc": "包含经典 Aime IC 卡 ID 的文本文件路径。"
       },
       "aimeGen": {
-        "label": "Generate Aime ID",
-        "desc": "Whether to generate a random AiMe ID if the file at aimePath does not exist."
+        "label": "生成 Aime ID",
+        "desc": "如果 aimePath 处的文件不存在，是否生成随机 Aime ID。"
       },
       "felicaPath": {
-        "label": "FeliCa file",
-        "desc": "Path to a text file containing a FeliCa e-cash card IDm serial number."
+        "label": "FeliCa 文件",
+        "desc": "包含 FeliCa 电子现金卡 IDm 序列号的文本文件路径。"
       },
       "felicaGen": {
-        "label": "Generate FeliCa ID",
-        "desc": "Whether to generate a random FeliCa ID if the file at felicaPath does not exist."
+        "label": "生成 FeliCa ID",
+        "desc": "如果 felicaPath 处的文件不存在，是否生成随机 FeliCa ID。"
       },
       "scan": {
-        "label": "Scan key (VK code)",
-        "desc": "Virtual-key code. If this button is held then the emulated IC card reader emulates an IC card in its proximity."
+        "label": "扫描键 (VK 代码)",
+        "desc": "虚拟键代码。如果按住此按钮，则模拟的 IC 读卡器会模拟其附近的 IC 卡。"
       },
       "proxyFlag": {
-        "label": "Proxy flag"
+        "label": "代理标志"
       },
       "authdataPath": {
-        "label": "Auth data path"
+        "label": "认证数据路径"
       }
     },
     "vfd": {
       "title": "vfd",
       "enable": {
-        "label": "Enable VFD emulation",
-        "desc": "Enable VFD emulation. Disable to use a real VFD GP1232A02A FUTABA assembly."
+        "label": "启用 VFD 模拟",
+        "desc": "启用 VFD 模拟。禁用以使用真实的 VFD GP1232A02A FUTABA 组件。"
       },
       "portNo": {
-        "label": "COM port",
-        "desc": "Sets the COM port to use for the VFD."
+        "label": "COM 端口",
+        "desc": "设置 VFD 使用的 COM 端口。"
       },
       "utfConversion": {
-        "label": "Convert to UTF",
-        "desc": "Converts the strings from the VFD from their respective encoding to UTF."
+        "label": "转换为 UTF",
+        "desc": "将 VFD 中的字符串从其各自的编码转换为 UTF。"
       }
     },
     "amvideo": {
       "title": "amvideo",
       "enable": {
-        "label": "Enable amvideo stub",
-        "desc": "Enable stub amvideo.dll. Disable to use a real amvideo.dll build."
+        "label": "启用 amvideo 存根",
+        "desc": "启用存根 amvideo.dll。禁用以使用真实的 amvideo.dll 构建。"
       }
     },
     "clock": {
       "title": "clock",
       "timezone": {
-        "label": "Force JST timezone",
-        "desc": "Make the system time zone appear to be JST. SEGA games malfunction if the system time zone is not JST."
+        "label": "强制 JST 时区",
+        "desc": "使系统时区显示为 JST。如果系统时区不是 JST，SEGA 游戏会出现故障。"
       },
       "timewarp": {
-        "label": "Time warp",
-        "desc": "Experimental time-of-day warping hook that skips over the hardcoded server maintenance period."
+        "label": "时间扭曲",
+        "desc": "实验性的一天时间扭曲钩子，可跳过硬编码的服务器维护期。"
       },
       "writeable": {
-        "label": "Allow clock writes",
-        "desc": "Allow game to adjust system clock and time zone settings."
+        "label": "允许时钟写入",
+        "desc": "允许游戏调整系统时钟和时区设置。"
       }
     },
     "dns": {
+      "sectionTitle": "DNS",
       "title": {
-        "label": "Title server",
-        "desc": "Rewrites the title server hostname for certain games."
+        "label": "标题服务器",
+        "desc": "重写某些游戏的标题服务器主机名。"
       },
       "default": {
-        "label": "Default host",
-        "desc": "Controls hostname of all of the common network services servers."
+        "label": "默认主机",
+        "desc": "控制所有公共网络服务服务器的主机名。"
       },
       "router": {
-        "label": "Router override",
-        "desc": "Overrides the target of the tenporouter.loc and bbrouter.loc hostname lookups."
+        "label": "路由器覆盖",
+        "desc": "覆盖 tenporouter.loc 和 bbrouter.loc 主机名查找的目标。"
       },
       "startup": {
-        "label": "Startup host",
-        "desc": "Overrides the target of the naominet.jp host lookup."
+        "label": "启动主机",
+        "desc": "覆盖 naominet.jp 主机查找的目标。"
       },
       "billing": {
-        "label": "Billing host",
-        "desc": "Overrides the target of the ib.naominet.jp host lookup."
+        "label": "计费主机",
+        "desc": "覆盖 ib.naominet.jp 主机查找的目标。"
       },
       "aimedb": {
-        "label": "AimeDB host",
-        "desc": "Overrides the target of the aime.naominet.jp host lookup."
+        "label": "AimeDB 主机",
+        "desc": "覆盖 aime.naominet.jp 主机查找的目标。"
       },
       "replaceHost": {
-        "label": "Replace HTTP Host header",
-        "desc": "Replace the HOST field in HTTP request headers with the settings above."
+        "label": "替换 HTTP Host 头",
+        "desc": "将 HTTP 请求头中的 HOST 字段替换为上述设置。"
       },
       "startupPort": {
-        "label": "Startup port",
-        "desc": "Overrides the port of connections to the startup server."
+        "label": "启动端口",
+        "desc": "覆盖到启动服务器的连接端口。"
       },
       "billingPort": {
-        "label": "Billing port",
-        "desc": "Overrides the port of connections to the billing server."
+        "label": "计费端口",
+        "desc": "覆盖到计费服务器的连接端口。"
       },
       "aimedbPort": {
-        "label": "AimeDB port",
-        "desc": "Overrides the port of connections to the aimedb server."
+        "label": "AimeDB 端口",
+        "desc": "覆盖到 aimedb 服务器的连接端口。"
       }
     },
     "ds": {
       "title": "ds",
       "enable": {
-        "label": "Enable DS EEPROM",
-        "desc": "Enable DS EEPROM emulation. Disable to use the DS EEPROM chip on a real AMEX."
+        "label": "启用 DS EEPROM",
+        "desc": "启用 DS EEPROM 模拟。禁用以使用真实 AMEX 上的 DS EEPROM 芯片。"
       },
       "region": {
-        "label": "Region mask",
-        "desc": "AMEX Board region code (1: Japan, 4: Export, 8: China)."
+        "label": "区域掩码",
+        "desc": "AMEX 板区域代码（1：日本，4：出口，8：中国）。"
       },
       "serialNo": {
         "label": "MAIN ID",
-        "desc": "\"MAIN ID\" serial number."
+        "desc": "\"MAIN ID\" 序列号。"
       }
     },
     "eeprom": {
       "title": "eeprom",
       "enable": {
-        "label": "Enable EEPROM",
-        "desc": "Enable bulk EEPROM emulation. Disable to use the bulk EEPROM chip on a real AMEX."
+        "label": "启用 EEPROM",
+        "desc": "启用批量 EEPROM 模拟。禁用以使用真实 AMEX 上的批量 EEPROM 芯片。"
       },
       "path": {
-        "label": "EEPROM path",
-        "desc": "Path to the storage file for EEPROM emulation."
+        "label": "EEPROM 路径",
+        "desc": "EEPROM 模拟的存储文件路径。"
       }
     },
     "gpio": {
       "title": "gpio",
       "enable": {
-        "label": "Enable GPIO",
-        "desc": "Enable GPIO emulation. Disable to use the GPIO controller on a real AMEX."
+        "label": "启用 GPIO",
+        "desc": "启用 GPIO 模拟。禁用以使用真实 AMEX 上的 GPIO 控制器。"
       },
       "sw1": {
-        "label": "SW1 key",
-        "desc": "Keyboard binding for Nu chassis SW1 button (alternative Test)."
+        "label": "SW1 键",
+        "desc": "Nu 机箱 SW1 按钮的键盘绑定（替代测试）。"
       },
       "sw2": {
-        "label": "SW2 key",
-        "desc": "Keyboard binding for Nu chassis SW2 button (alternative Service)."
+        "label": "SW2 键",
+        "desc": "Nu 机箱 SW2 按钮的键盘绑定（替代服务）。"
       },
       "dipsw1": {
         "label": "DIP 1",
-        "desc": "Nu chassis DIP switch 1."
+        "desc": "Nu 机箱 DIP 开关 1。"
       },
       "dipsw2": {
         "label": "DIP 2",
-        "desc": "Nu chassis DIP switch 2."
+        "desc": "Nu 机箱 DIP 开关 2。"
       },
       "dipsw3": {
         "label": "DIP 3",
-        "desc": "Nu chassis DIP switch 3."
+        "desc": "Nu 机箱 DIP 开关 3。"
       },
       "dipsw4": {
         "label": "DIP 4",
-        "desc": "Nu chassis DIP switch 4."
+        "desc": "Nu 机箱 DIP 开关 4。"
       },
       "dipsw5": {
         "label": "DIP 5",
-        "desc": "Nu chassis DIP switch 5."
+        "desc": "Nu 机箱 DIP 开关 5。"
       },
       "dipsw6": {
         "label": "DIP 6",
-        "desc": "Nu chassis DIP switch 6."
+        "desc": "Nu 机箱 DIP 开关 6。"
       },
       "dipsw7": {
         "label": "DIP 7",
-        "desc": "Nu chassis DIP switch 7."
+        "desc": "Nu 机箱 DIP 开关 7。"
       },
       "dipsw8": {
         "label": "DIP 8",
-        "desc": "Nu chassis DIP switch 8."
+        "desc": "Nu 机箱 DIP 开关 8。"
       }
     },
     "gfx": {
       "title": "gfx",
       "enable": {
-        "label": "Enable graphics hooks",
-        "desc": "Enables graphic hooks."
+        "label": "启用图形钩子",
+        "desc": "启用图形钩子。"
       },
       "windowed": {
-        "label": "Force windowed",
-        "desc": "Force the game to run windowed."
+        "label": "强制窗口化",
+        "desc": "强制游戏以窗口模式运行。"
       },
       "framed": {
-        "label": "Add frame in windowed",
-        "desc": "Add a frame to the game window if running windowed."
+        "label": "窗口化添加边框",
+        "desc": "如果以窗口模式运行，则向游戏窗口添加边框。"
       },
       "monitor": {
-        "label": "Monitor index",
-        "desc": "Select the monitor to run the game on. (Fullscreen only, 0 = primary screen)"
+        "label": "显示器索引",
+        "desc": "选择运行游戏的显示器。（仅限全屏，0 = 主屏幕）"
       },
       "dpiAware": {
-        "label": "DPI aware",
-        "desc": "Sets the game to be DPI-aware. Prevents Windows scaling."
+        "label": "DPI 感知",
+        "desc": "将游戏设置为 DPI 感知。防止 Windows 缩放。"
       }
     },
     "hwmon": {
       "title": "hwmon",
       "enable": {
-        "label": "Enable hardware monitor",
-        "desc": "Enable hwmon emulation. Disable to use the real hwmon driver."
+        "label": "启用硬件监控",
+        "desc": "启用 hwmon 模拟。禁用以使用真实的 hwmon 驱动程序。"
       }
     },
     "jvs": {
       "title": "jvs",
       "enable": {
-        "label": "Enable JVS",
-        "desc": "Enable JVS port emulation. Disable to use the JVS port on a real AMEX."
+        "label": "启用 JVS",
+        "desc": "启用 JVS 端口模拟。禁用以使用真实 AMEX 上的 JVS 端口。"
       },
       "foreground": {
-        "label": "Input only when focused",
-        "desc": "Only enables input when the game's main window is focused."
+        "label": "仅在聚焦时输入",
+        "desc": "仅在游戏主窗口聚焦时启用输入。"
       }
     },
     "io4": {
       "title": "io4",
       "enable": {
-        "label": "Enable IO4",
-        "desc": "Enable IO4 port emulation. Disable to use the IO4 port on a real ALLS."
+        "label": "启用 IO4",
+        "desc": "启用 IO4 端口模拟。禁用以使用真实 ALLS 上的 IO4 端口。"
       },
       "foreground": {
-        "label": "Input only when focused",
-        "desc": "Only enables input when the game's main window is focused."
+        "label": "仅在聚焦时输入",
+        "desc": "仅在游戏主窗口聚焦时启用输入。"
       },
       "test": {
-        "label": "Test key",
-        "desc": "Test button virtual-key code."
+        "label": "测试键",
+        "desc": "测试按钮虚拟键代码。"
       },
       "service": {
-        "label": "Service key",
-        "desc": "Service button virtual-key code."
+        "label": "服务键",
+        "desc": "服务按钮虚拟键代码。"
       },
       "coin": {
-        "label": "Coin key",
-        "desc": "Keyboard button to increment coin counter."
+        "label": "投币键",
+        "desc": "增加投币计数器的键盘按钮。"
       }
     },
     "button": {
       "title": "button",
       "enable": {
-        "label": "Enable button emulation"
+        "label": "启用按钮模拟"
       },
       "p1Btn1": {
-        "label": "P1 Button 1"
+        "label": "P1 按钮 1"
       },
       "p1Btn2": {
-        "label": "P1 Button 2"
+        "label": "P1 按钮 2"
       },
       "p1Btn3": {
-        "label": "P1 Button 3"
+        "label": "P1 按钮 3"
       },
       "p1Btn4": {
-        "label": "P1 Button 4"
+        "label": "P1 按钮 4"
       },
       "p1Btn5": {
-        "label": "P1 Button 5"
+        "label": "P1 按钮 5"
       },
       "p1Btn6": {
-        "label": "P1 Button 6"
+        "label": "P1 按钮 6"
       },
       "p1Btn7": {
-        "label": "P1 Button 7"
+        "label": "P1 按钮 7"
       },
       "p1Btn8": {
-        "label": "P1 Button 8"
+        "label": "P1 按钮 8"
       },
       "p1Select": {
-        "label": "P1 Select"
+        "label": "P1 选择"
       },
       "p2Btn1": {
-        "label": "P2 Button 1"
+        "label": "P2 按钮 1"
       },
       "p2Btn2": {
-        "label": "P2 Button 2"
+        "label": "P2 按钮 2"
       },
       "p2Btn3": {
-        "label": "P2 Button 3"
+        "label": "P2 按钮 3"
       },
       "p2Btn4": {
-        "label": "P2 Button 4"
+        "label": "P2 按钮 4"
       },
       "p2Btn5": {
-        "label": "P2 Button 5"
+        "label": "P2 按钮 5"
       },
       "p2Btn6": {
-        "label": "P2 Button 6"
+        "label": "P2 按钮 6"
       },
       "p2Btn7": {
-        "label": "P2 Button 7"
+        "label": "P2 按钮 7"
       },
       "p2Btn8": {
-        "label": "P2 Button 8"
+        "label": "P2 按钮 8"
       },
       "p2Select": {
-        "label": "P2 Select"
+        "label": "P2 选择"
       }
     },
     "touch": {
       "title": "touch",
       "p1Enable": {
-        "label": "Enable P1 Touch"
+        "label": "启用 P1 触摸"
       },
       "p2Enable": {
-        "label": "Enable P2 Touch"
+        "label": "启用 P2 触摸"
       }
     },
     "keychip": {
       "title": "keychip",
       "enable": {
-        "label": "Enable keychip emulation",
-        "desc": "Enable keychip emulation. Disable to use a real keychip."
+        "label": "启用密钥芯片模拟",
+        "desc": "启用密钥芯片模拟。禁用以使用真实的密钥芯片。"
       },
       "id": {
-        "label": "Keychip ID",
-        "desc": "Keychip serial number."
+        "label": "密钥芯片 ID",
+        "desc": "密钥芯片序列号。"
       },
       "gameId": {
-        "label": "Game ID",
-        "desc": "Override the game's four-character model code."
+        "label": "游戏 ID",
+        "desc": "覆盖游戏的四字符型号代码。"
       },
       "platformId": {
-        "label": "Platform ID",
-        "desc": "Override the game's four-character platform code."
+        "label": "平台 ID",
+        "desc": "覆盖游戏的四字符平台代码。"
       },
       "region": {
-        "label": "Region mask",
-        "desc": "Override the keychip's region code."
+        "label": "区域掩码",
+        "desc": "覆盖密钥芯片的区域代码。"
       },
       "billingCa": {
-        "label": "Billing CA path",
-        "desc": "Set the billing certificate path."
+        "label": "计费 CA 路径",
+        "desc": "设置计费证书路径。"
       },
       "billingPub": {
-        "label": "Billing public key path",
-        "desc": "Set the actual keychip RSA public key path."
+        "label": "计费公钥路径",
+        "desc": "设置实际密钥芯片 RSA 公钥路径。"
       },
       "billingType": {
-        "label": "Billing type",
-        "desc": "Sets the billing type (1 = rental, 0 = purchase)."
+        "label": "计费类型",
+        "desc": "设置计费类型（1 = 租赁，0 = 购买）。"
       },
       "systemFlag": {
-        "label": "System flag",
-        "desc": "An 8-bit bitfield of unclear meaning."
+        "label": "系统标志",
+        "desc": "一个含义不明的 8 位位字段。"
       },
       "subnet": {
-        "label": "Subnet",
-        "desc": "The LAN IP range that the game will expect."
+        "label": "子网",
+        "desc": "游戏期望的 LAN IP 范围。"
       }
     },
     "netenv": {
       "title": "netenv",
       "enable": {
-        "label": "Enable network virtualization",
-        "desc": "Enable network environment virtualization."
+        "label": "启用网络虚拟化",
+        "desc": "启用网络环境虚拟化。"
       },
       "addrSuffix": {
-        "label": "Address suffix",
-        "desc": "The final octet of the local host's IP address on the virtualized subnet."
+        "label": "地址后缀",
+        "desc": "虚拟子网上本地主机 IP 地址的最后一个八位字节。"
       },
       "routerSuffix": {
-        "label": "Gateway suffix",
-        "desc": "The final octet of the default gateway's IP address on the virtualized subnet."
+        "label": "网关后缀",
+        "desc": "虚拟子网上默认网关 IP 地址的最后一个八位字节。"
       },
       "macAddr": {
-        "label": "MAC address",
-        "desc": "The MAC address of the virtualized Ethernet adapter."
+        "label": "MAC 地址",
+        "desc": "虚拟以太网适配器的 MAC 地址。"
       }
     },
     "pcbid": {
       "title": "pcbid",
       "enable": {
-        "label": "Enable hostname virtualization",
-        "desc": "Enable Windows host name virtualization."
+        "label": "启用主机名虚拟化",
+        "desc": "启用 Windows 主机名虚拟化。"
       },
       "serialNo": {
-        "label": "Serial number",
-        "desc": "Set the Windows host name. This should be an ALLS MAIN ID."
+        "label": "序列号",
+        "desc": "设置 Windows 主机名。这应该是一个 ALLS MAIN ID。"
       }
     },
     "sram": {
       "title": "sram",
       "enable": {
-        "label": "Enable SRAM emulation",
-        "desc": "Enable SRAM emulation. Disable to use the SRAM on a real AMEX."
+        "label": "启用 SRAM 模拟",
+        "desc": "启用 SRAM 模拟。禁用以使用真实 AMEX 上的 SRAM。"
       },
       "path": {
-        "label": "SRAM path",
-        "desc": "Path to the storage file for SRAM emulation."
+        "label": "SRAM 路径",
+        "desc": "SRAM 模拟的存储文件路径。"
       }
     },
     "vfs": {
       "title": "vfs",
       "enable": {
-        "label": "Enable path redirection",
-        "desc": "Enable path redirection."
+        "label": "启用路径重定向",
+        "desc": "启用路径重定向。"
       },
       "amfs": {
-        "label": "AMFS path",
-        "desc": "Configure the location of the SEGA AMFS volume."
+        "label": "AMFS 路径",
+        "desc": "配置 SEGA AMFS 卷的位置。"
       },
       "appdata": {
-        "label": "APPDATA path",
-        "desc": "Configure the location of the SEGA \"APPDATA\" volume."
+        "label": "APPDATA 路径",
+        "desc": "配置 SEGA \"APPDATA\" 卷的位置。"
       },
       "option": {
-        "label": "Option path",
-        "desc": "Configure the location of the \"Option\" data mount point."
+        "label": "Option 路径",
+        "desc": "配置 \"Option\" 数据挂载点的位置。"
       }
     },
     "epay": {
       "title": "epay",
       "enable": {
-        "label": "Enable E-pay",
-        "desc": "Enables the Thinca emulation."
+        "label": "启用 E-pay",
+        "desc": "启用 Thinca 模拟。"
       },
       "hook": {
-        "label": "Enable hook",
-        "desc": "Enables hooking of respective Thinca DLL functions to emulate the existence of E-Money."
+        "label": "启用钩子",
+        "desc": "启用相应 Thinca DLL 函数的钩子以模拟电子货币的存在。"
       }
     },
     "openssl": {
       "title": "openssl",
       "enable": {
-        "label": "Enable OpenSSL hook",
-        "desc": "Enables the OpenSSL hook to fix the SHA extension bug on Intel CPUs."
+        "label": "启用 OpenSSL 钩子",
+        "desc": "启用 OpenSSL 钩子以修复 Intel CPU 上的 SHA 扩展错误。"
       },
       "override": {
-        "label": "Force override",
-        "desc": "Enables the override to always hook the OpenSSL env variable."
+        "label": "强制覆盖",
+        "desc": "启用覆盖以始终挂钩 OpenSSL 环境变量。"
       }
     },
     "system": {
       "title": "system",
       "enable": {
-        "label": "Enable ALLS system",
-        "desc": "Enable ALLS system settings."
+        "label": "启用 ALLS 系统",
+        "desc": "启用 ALLS 系统设置。"
       },
       "freeplay": {
-        "label": "Freeplay",
-        "desc": "Enable freeplay mode. This will disable the coin slot."
+        "label": "免费游戏",
+        "desc": "启用免费游戏模式。这将禁用投币口。"
       },
       "dipsw1": {
-        "label": "DIP 1 (LAN Install)",
-        "desc": "LAN Install: 1 = Server, 0 = Client."
+        "label": "DIP 1 (LAN 安装)",
+        "desc": "LAN 安装：1 = 服务器，0 = 客户端。"
       },
       "dipsw2": {
-        "label": "DIP 2 (Monitor)",
-        "desc": "Monitor type: 0 = 120FPS, 1 = 60FPS (Chunithm)."
+        "label": "DIP 2 (显示器)",
+        "desc": "显示器类型：0 = 120FPS，1 = 60FPS (Chunithm)。"
       },
       "dipsw3": {
-        "label": "DIP 3 (Cab Type)",
-        "desc": "Cab type: 0 = SP, 1 = CVT (Chunithm)."
+        "label": "DIP 3 (机台类型)",
+        "desc": "机台类型：0 = SP，1 = CVT (Chunithm)。"
       }
     },
     "led15070": {
       "title": "led15070",
       "enable": {
-        "label": "Enable LED emulation",
-        "desc": "Enable emulation of the 837-15070-04 controlled lights."
+        "label": "启用 LED 模拟",
+        "desc": "启用 837-15070-04 控制灯的模拟。"
       }
     },
     "unity": {
       "title": "unity",
       "enable": {
-        "label": "Enable Unity hook",
-        "desc": "Enable Unity hook. This will allow you to run custom .NET code before the game."
+        "label": "启用 Unity 钩子",
+        "desc": "启用 Unity 钩子。这将允许您在游戏之前运行自定义 .NET 代码。"
       },
       "targetAssembly": {
-        "label": "Target Assembly",
-        "desc": "Path to a .NET DLL that should run before the game."
+        "label": "目标程序集",
+        "desc": "游戏之前运行的 .NET DLL 的路径。"
       }
     }
   }
