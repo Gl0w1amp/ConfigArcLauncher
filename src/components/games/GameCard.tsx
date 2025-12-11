@@ -40,7 +40,7 @@ function GameCard({ game, profiles, isActive, onEdit, onDelete, onLaunch, onActi
           value={profileId} 
           onChange={(e) => setProfileId(e.target.value)}
         >
-          <option value="">Use current segatools.ini</option>
+          <option value="">Current File (segatools.ini)</option>
           {profiles.map((p) => (
             <option key={p.id} value={p.id}>{p.name}</option>
           ))}

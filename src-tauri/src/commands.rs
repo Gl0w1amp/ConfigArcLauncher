@@ -172,5 +172,30 @@ pub fn get_active_game_cmd() -> Result<Option<String>, String> {
 
 #[command]
 pub fn set_active_game_cmd(id: String) -> Result<(), String> {
-    set_active_game_id(&id).map_err(|e| e.to_string())
+    set_active_game_id(&id).map_err(|e| e.to_string())?;
+
+    // Auto-backup logic: Check if "Original INI" profile exists, if not, create it from current file
+    if let Ok(path) = segatoools_path_for_active() {
+        if path.exists() {
+            let profiles = list_profiles().unwrap_or_default();
+            let has_original = profiles.iter().any(|p| p.name == "Original INI");
+            
+            if !has_original {
+                if let Ok(current_cfg) = load_segatoools_config(&path) {
+                    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
+                    let backup_profile = ConfigProfile {
+                        id: format!("original-{}", timestamp),
+                        name: "Original INI".to_string(),
+                        description: Some("Automatically created from initial configuration".to_string()),
+                        segatools: current_cfg,
+                        created_at: timestamp.to_string(),
+                        updated_at: timestamp.to_string(),
+                    };
+                    let _ = save_profile(&backup_profile);
+                }
+            }
+        }
+    }
+
+    Ok(())
 }

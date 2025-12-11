@@ -50,22 +50,22 @@ function GameEditorDialog({ game, onSave, onCancel }: Props) {
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'grid', placeItems: 'center', zIndex: 100 }}>
-      <form onSubmit={handleSubmit} style={{ background: '#1e293b', padding: 24, borderRadius: 12, width: 480, border: '1px solid #334155', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'grid', placeItems: 'center', zIndex: 100, backdropFilter: 'blur(4px)' }}>
+      <form onSubmit={handleSubmit} style={{ background: 'var(--bg-secondary)', padding: 24, borderRadius: 12, width: 480, border: '1px solid var(--border-color)', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h3 style={{ margin: 0, fontSize: 20 }}>{game.id ? 'Edit Game' : 'Add Game'}</h3>
           <button 
             type="button" 
             onClick={handleAutoDetect}
             disabled={loading}
-            style={{ fontSize: 13, padding: '6px 12px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer' }}
+            style={{ fontSize: 13, padding: '6px 12px', background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer' }}
           >
             {loading ? 'Scanning...' : 'Auto-detect from Folder'}
           </button>
         </div>
 
         {error && (
-          <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: 10, borderRadius: 6, marginBottom: 16, fontSize: 13 }}>
+          <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', padding: 10, borderRadius: 6, marginBottom: 16, fontSize: 13 }}>
             {error}
           </div>
         )}
@@ -75,7 +75,7 @@ function GameEditorDialog({ game, onSave, onCancel }: Props) {
           <input 
             value={draft.name} 
             onChange={(e) => update('name', e.target.value)} 
-            style={{ width: '100%', padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: 6, color: 'white' }} 
+            style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: 6, color: 'var(--text-primary)', boxSizing: 'border-box' }} 
             required 
           />
         </label>
@@ -84,7 +84,7 @@ function GameEditorDialog({ game, onSave, onCancel }: Props) {
           <input 
             value={draft.executable_path} 
             onChange={(e) => update('executable_path', e.target.value)} 
-            style={{ width: '100%', padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: 6, color: 'white' }} 
+            style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: 6, color: 'var(--text-primary)', boxSizing: 'border-box' }} 
             required 
           />
         </label>
@@ -93,15 +93,15 @@ function GameEditorDialog({ game, onSave, onCancel }: Props) {
           <input 
             value={draft.working_dir ?? ''} 
             onChange={(e) => update('working_dir', e.target.value)} 
-            style={{ width: '100%', padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: 6, color: 'white' }} 
+            style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: 6, color: 'var(--text-primary)', boxSizing: 'border-box' }} 
           />
         </label>
-        <label style={{ display: 'block', marginBottom: 16 }}>
+                <label style={{ display: 'block', marginBottom: 16 }}>
           <div style={{ marginBottom: 6, fontWeight: 500, fontSize: 14 }}>Launch Arguments (space separated)</div>
-          <textarea
-            value={draft.launch_args.join(' ')}
-            onChange={(e) => update('launch_args', e.target.value.trim().length ? e.target.value.split(/\s+/) : [])}
-            style={{ width: '100%', height: 80, padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: 6, color: 'white', fontFamily: 'monospace', resize: 'vertical' }}
+          <textarea 
+            value={draft.launch_args.join(' ')} 
+            onChange={(e) => update('launch_args', e.target.value.trim().length ? e.target.value.split(/\s+/) : [])} 
+            style={{ width: '100%', height: 80, padding: '8px 12px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: 6, color: 'var(--text-primary)', fontFamily: 'monospace', resize: 'vertical', boxSizing: 'border-box' }} 
           />
         </label>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24 }}>
@@ -112,13 +112,13 @@ function GameEditorDialog({ game, onSave, onCancel }: Props) {
           <button 
             type="button" 
             onClick={onCancel}
-            style={{ padding: '8px 16px', background: 'transparent', border: '1px solid #334155', color: '#94a3b8', borderRadius: 6, cursor: 'pointer' }}
+            style={{ padding: '8px 16px', background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', borderRadius: 6, cursor: 'pointer' }}
           >
             Cancel
           </button>
           <button 
             type="submit"
-            style={{ padding: '8px 16px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 500 }}
+            style={{ padding: '8px 16px', background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 500 }}
           >
             Save Game
           </button>

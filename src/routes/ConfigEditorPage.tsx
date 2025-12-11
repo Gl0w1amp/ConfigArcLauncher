@@ -3,11 +3,13 @@ import SegatoolsEditor from '../components/config/SegatoolsEditor';
 import { useConfigState, useProfilesState } from '../state/configStore';
 import { ConfigProfile } from '../types/games';
 import { SegatoolsConfig } from '../types/config';
+import { useToast, ToastContainer } from '../components/common/Toast';
 
 function ConfigEditorPage() {
   const { config, setConfig, loading, saving, error, activeGameId, reload, save, resetToDefaults } = useConfigState();
   const { profiles, reload: reloadProfiles, saveProfile, deleteProfile, loadProfile } = useProfilesState();
   const [selectedProfileId, setSelectedProfileId] = useState<string>('');
+  const { toasts, showToast } = useToast();
 
   useEffect(() => {
     reloadProfiles();
@@ -15,17 +17,17 @@ function ConfigEditorPage() {
 
   useEffect(() => {
     if (!selectedProfileId && profiles.length) {
-      setSelectedProfileId(profiles[0].id);
+      // Try to find "Original INI" first, otherwise default to first
+      const original = profiles.find(p => p.name === "Original INI");
+      if (original) {
+        setSelectedProfileId(original.id);
+      } else {
+        setSelectedProfileId(profiles[0].id);
+      }
     }
   }, [profiles, selectedProfileId]);
 
-  useEffect(() => {
-    if (selectedProfileId) {
-      loadProfile(selectedProfileId)
-        .then((p) => p && setConfig({ ...p.segatools }))
-        .catch((err) => console.error(err));
-    }
-  }, [selectedProfileId, loadProfile, setConfig]);
+  // Removed redundant useEffect that was causing double-load issues
 
   const profileOptions = useMemo(() => profiles.map((p) => ({ value: p.id, label: p.name })), [profiles]);
 
@@ -49,6 +51,7 @@ function ConfigEditorPage() {
     await saveProfile(profile);
     setSelectedProfileId(profile.id);
     reloadProfiles();
+    showToast('Profile saved successfully!', 'success');
   };
 
   const handleProfileDelete = async () => {
@@ -57,6 +60,7 @@ function ConfigEditorPage() {
     setSelectedProfileId('');
     reloadProfiles();
     reload();
+    showToast('Profile deleted', 'info');
   };
 
   const handleCreateProfile = async () => {
@@ -74,16 +78,19 @@ function ConfigEditorPage() {
     await saveProfile(profile);
     setSelectedProfileId(profile.id);
     reloadProfiles();
+    showToast('Profile created', 'success');
   };
 
   const handleProfileLoad = async (id: string) => {
     setSelectedProfileId(id);
     if (!id) {
       await reload();
+      showToast('Loaded current file', 'info');
       return;
     }
     const prof = await loadProfile(id);
     setConfig({ ...prof.segatools });
+    showToast(`Loaded profile: ${prof.name}`, 'info');
   };
 
   if (loading) return (
@@ -118,7 +125,7 @@ function ConfigEditorPage() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <select value={selectedProfileId} onChange={(e) => handleProfileLoad(e.target.value)}>
-            <option value="">Active file (segatools.ini)</option>
+            <option value="">Current File (segatools.ini)</option>
             {profileOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
@@ -134,10 +141,11 @@ function ConfigEditorPage() {
         onChange={(next: SegatoolsConfig) => setConfig(next)}
       />
       <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-        <button onClick={() => save(config)} disabled={saving}>Save Config</button>
+        <button onClick={() => { save(config); showToast('Config saved to disk', 'success'); }} disabled={saving}>Save Config</button>
         <button onClick={resetToDefaults}>Reset to Defaults</button>
-        <button onClick={reload}>Reload from Disk</button>
+        <button onClick={() => { reload(); showToast('Reloaded from disk', 'info'); }}>Reload from Disk</button>
       </div>
+      <ToastContainer toasts={toasts} />
     </div>
   );
 }
