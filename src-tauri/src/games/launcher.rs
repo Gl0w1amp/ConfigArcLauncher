@@ -3,6 +3,9 @@ use crate::error::GameError;
 use std::path::Path;
 use std::process::Command;
 use std::fs;
+use std::os::windows::process::CommandExt;
+
+const CREATE_NEW_CONSOLE: u32 = 0x00000010;
 
 pub fn launch_game(game: &Game) -> Result<(), GameError> {
   if !game.enabled {
@@ -54,6 +57,7 @@ pub fn launch_game(game: &Game) -> Result<(), GameError> {
       let mut cmd = Command::new("cmd");
       cmd.args(&["/c", batch_path.to_str().unwrap()]);
       cmd.current_dir(working_dir);
+      cmd.creation_flags(CREATE_NEW_CONSOLE);
       
       // We spawn it. The batch file will handle the waiting for game process because 'inject' blocks until the injected process exits?
       // Actually 'inject' usually blocks.
@@ -71,6 +75,7 @@ pub fn launch_game(game: &Game) -> Result<(), GameError> {
     }
   }
   cmd.args(&game.launch_args);
+  cmd.creation_flags(CREATE_NEW_CONSOLE);
   cmd.spawn().map_err(|e| GameError::Launch(e.to_string()))?;
   Ok(())
 }
