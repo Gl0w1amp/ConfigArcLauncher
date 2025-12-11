@@ -1,22 +1,42 @@
-import { useState } from 'react';
+import { useTheme } from '../../context/ThemeContext';
 
-type Props = {
-  segatoolsPath: string;
-};
-
-function SettingsForm({ segatoolsPath }: Props) {
-  const [darkMode, setDarkMode] = useState(true);
+function SettingsForm() {
+  const { theme, setTheme } = useTheme();
 
   return (
-    <div style={{ border: '1px solid #1f2937', padding: 12, borderRadius: 8, background: '#0f172a' }}>
-      <div style={{ marginBottom: 8 }}>
-        <strong>segatools.ini path:</strong> <code>{segatoolsPath}</code>
+    <div style={{ 
+      border: '1px solid var(--border-color)', 
+      padding: 'var(--spacing-md)', 
+      borderRadius: 'var(--radius-md)', 
+      background: 'var(--bg-secondary)' 
+    }}>
+      <h3 style={{ marginBottom: 'var(--spacing-md)' }}>Appearance</h3>
+      
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--spacing-md)' }}>
+        {[
+          { id: 'system', label: 'System' },
+          { id: 'light', label: 'Light' },
+          { id: 'dark', label: 'Dark' }
+        ].map((option) => (
+          <div
+            key={option.id}
+            onClick={() => setTheme(option.id as any)}
+            style={{
+              cursor: 'pointer',
+              border: theme === option.id ? '2px solid var(--accent-primary)' : '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-md)',
+              padding: 'var(--spacing-md)',
+              textAlign: 'center',
+              background: theme === option.id ? 'rgba(59, 130, 246, 0.1)' : 'var(--bg-tertiary)',
+              color: theme === option.id ? 'var(--accent-primary)' : 'var(--text-primary)',
+              transition: 'all 0.2s ease',
+              fontWeight: 600
+            }}
+          >
+            {option.label}
+          </div>
+        ))}
       </div>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <input type="checkbox" checked={darkMode} onChange={(e) => setDarkMode(e.target.checked)} />
-        <span>Dark mode (local preference)</span>
-      </label>
-      <p style={{ color: '#94a3b8', marginTop: 8 }}>Folder opener is a stub; integrate platform-specific shell open if needed.</p>
     </div>
   );
 }

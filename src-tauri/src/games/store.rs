@@ -1,13 +1,10 @@
 use super::model::Game;
-use crate::config::paths::segatoools_path;
 use crate::error::GameError;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 fn games_path() -> PathBuf {
-  let base = segatoools_path();
-  let dir = base.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| Path::new(".").to_path_buf());
-  dir.join("configarc_games.json")
+  Path::new(".").join("configarc_games.json")
 }
 
 pub fn list_games() -> Result<Vec<Game>, GameError> {
@@ -45,4 +42,13 @@ pub fn delete_game(id: &str) -> Result<(), GameError> {
   let json = serde_json::to_string_pretty(&games)?;
   fs::write(path, json)?;
   Ok(())
+}
+
+pub fn game_root_dir(game: &Game) -> Option<PathBuf> {
+  if let Some(dir) = &game.working_dir {
+    if !dir.is_empty() {
+      return Some(PathBuf::from(dir));
+    }
+  }
+  Path::new(&game.executable_path).parent().map(|p| p.to_path_buf())
 }

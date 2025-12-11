@@ -17,7 +17,7 @@ const emptyGame = (): Game => ({
 });
 
 function GameListPage() {
-  const { games, loading, error, reload, saveGame, deleteGame } = useGamesState();
+  const { games, loading, error, activeGameId, reload, saveGame, deleteGame, activateGame } = useGamesState();
   const { profiles } = useProfilesState();
   const [editing, setEditing] = useState<Game | null>(null);
 
@@ -51,9 +51,11 @@ function GameListPage() {
       <GameList
         games={sortedGames}
         profiles={profiles}
+        activeGameId={activeGameId || undefined}
         onEdit={setEditing}
         onDelete={deleteGame}
         onLaunch={handleLaunch}
+        onActivate={activateGame}
         onRefresh={reload}
       />
       {editing && (

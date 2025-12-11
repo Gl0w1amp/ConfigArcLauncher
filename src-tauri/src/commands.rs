@@ -1,5 +1,8 @@
 use crate::config::{
-    paths::{ensure_default_segatoools_exists, segatoools_path},
+    paths::{
+        ensure_default_segatoools_exists, get_active_game_id, segatoools_path_for_active,
+        set_active_game_id,
+    },
     profiles::{delete_profile, list_profiles, load_profile, save_profile, ConfigProfile},
     segatools::SegatoolsConfig,
     {default_segatoools_config, load_segatoools_config, save_segatoools_config as persist_segatoools_config},
@@ -85,13 +88,13 @@ pub fn pick_game_folder_cmd() -> Result<Game, String> {
 #[command]
 pub fn get_segatoools_config() -> Result<SegatoolsConfig, String> {
     ensure_default_segatoools_exists().map_err(|e| e.to_string())?;
-    let path = segatoools_path();
+    let path = segatoools_path_for_active().map_err(|e| e.to_string())?;
     load_segatoools_config(&path).map_err(|e| e.to_string())
 }
 
 #[command]
 pub fn save_segatoools_config(config: SegatoolsConfig) -> Result<(), String> {
-    let path = segatoools_path();
+    let path = segatoools_path_for_active().map_err(|e| e.to_string())?;
     persist_segatoools_config(&path, &config).map_err(|e| e.to_string())
 }
 
@@ -132,19 +135,18 @@ pub fn delete_game_cmd(id: String) -> Result<(), String> {
 
 #[command]
 pub fn launch_game_cmd(id: String, profile_id: Option<String>) -> Result<(), String> {
-    ensure_default_segatoools_exists().map_err(|e| e.to_string())?;
-    let path = segatoools_path();
-
-    if let Some(pid) = profile_id {
-        let profile = load_profile(&pid).map_err(|e| e.to_string())?;
-        persist_segatoools_config(&path, &profile.segatools).map_err(|e| e.to_string())?;
-    }
-
     let games = store::list_games().map_err(|e| e.to_string())?;
     let game = games
         .into_iter()
         .find(|g| g.id == id)
         .ok_or_else(|| "Game not found".to_string())?;
+
+    if let Some(pid) = profile_id.filter(|s| !s.is_empty()) {
+        let profile = load_profile(&pid).map_err(|e| e.to_string())?;
+        let game_root = store::game_root_dir(&game).ok_or_else(|| "Game path missing".to_string())?;
+        let seg_path = game_root.join("segatools.ini");
+        persist_segatoools_config(&seg_path, &profile.segatools).map_err(|e| e.to_string())?;
+    }
 
     launch_game(&game).map_err(|e| e.to_string())
 }
@@ -156,8 +158,19 @@ pub fn default_segatoools_config_cmd() -> Result<SegatoolsConfig, String> {
 
 #[command]
 pub fn segatoools_path_cmd() -> Result<String, String> {
-    Ok(segatoools_path()
+    Ok(segatoools_path_for_active()
+        .map_err(|e| e.to_string())?
         .to_str()
         .unwrap_or("./segatools.ini")
         .to_string())
+}
+
+#[command]
+pub fn get_active_game_cmd() -> Result<Option<String>, String> {
+    get_active_game_id().map_err(|e| e.to_string())
+}
+
+#[command]
+pub fn set_active_game_cmd(id: String) -> Result<(), String> {
+    set_active_game_id(&id).map_err(|e| e.to_string())
 }

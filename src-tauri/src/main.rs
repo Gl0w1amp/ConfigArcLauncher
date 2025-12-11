@@ -21,7 +21,9 @@ fn main() {
             launch_game_cmd,
             pick_game_folder_cmd,
             default_segatoools_config_cmd,
-            segatoools_path_cmd
+            segatoools_path_cmd,
+            get_active_game_cmd,
+            set_active_game_cmd
         ])
         .setup(|app| {
             app.handle();

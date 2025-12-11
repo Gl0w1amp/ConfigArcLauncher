@@ -1,9 +1,8 @@
-use super::paths::segatoools_path;
+use super::paths::profiles_dir_for_active;
 use super::SegatoolsConfig;
 use crate::error::ConfigError;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigProfile {
@@ -15,9 +14,8 @@ pub struct ConfigProfile {
   pub updated_at: String,
 }
 
-fn profiles_path() -> Result<PathBuf, ConfigError> {
-  let base = segatoools_path();
-  let dir = base.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| Path::new(".").to_path_buf());
+fn profiles_path() -> Result<std::path::PathBuf, ConfigError> {
+  let dir = profiles_dir_for_active()?;
   Ok(dir.join("configarc_profiles.json"))
 }
 
@@ -48,6 +46,9 @@ pub fn save_profile(profile: &ConfigProfile) -> Result<(), ConfigError> {
   profiles.push(profile.clone());
 
   let path = profiles_path()?;
+  if let Some(parent) = path.parent() {
+    fs::create_dir_all(parent)?;
+  }
   let json = serde_json::to_string_pretty(&profiles)?;
   fs::write(path, json)?;
   Ok(())

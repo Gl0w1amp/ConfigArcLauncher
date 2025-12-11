@@ -10,16 +10,25 @@ import {
 } from '../api/configApi';
 import { SegatoolsConfig } from '../types/config';
 import { ConfigProfile } from '../types/games';
+import { getActiveGame } from '../api/gamesApi';
 
 export function useConfigState() {
   const [config, setConfig] = useState<SegatoolsConfig | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeGameId, setActiveGameId] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
     try {
+      const active = await getActiveGame();
+      setActiveGameId(active);
+      if (!active) {
+        setConfig(null);
+        setError('请先绑定并激活一个游戏');
+        return;
+      }
       const cfg = await loadSegatoolsConfig();
       setConfig(cfg);
       setError(null);
@@ -52,7 +61,7 @@ export function useConfigState() {
     reload();
   }, [reload]);
 
-  return { config, setConfig, loading, saving, error, reload, save, resetToDefaults };
+  return { config, setConfig, loading, saving, error, activeGameId, reload, save, resetToDefaults };
 }
 
 export function useProfilesState() {

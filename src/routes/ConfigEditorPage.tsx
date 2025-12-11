@@ -5,7 +5,7 @@ import { ConfigProfile } from '../types/games';
 import { SegatoolsConfig } from '../types/config';
 
 function ConfigEditorPage() {
-  const { config, setConfig, loading, saving, error, reload, save, resetToDefaults } = useConfigState();
+  const { config, setConfig, loading, saving, error, activeGameId, reload, save, resetToDefaults } = useConfigState();
   const { profiles, reload: reloadProfiles, saveProfile, deleteProfile, loadProfile } = useProfilesState();
   const [selectedProfileId, setSelectedProfileId] = useState<string>('');
 
@@ -86,9 +86,28 @@ function ConfigEditorPage() {
     setConfig({ ...prof.segatools });
   };
 
-  if (loading || !config) {
-    return <p>Loading config...</p>;
+  if (loading) return (
+    <div className="empty-state">
+      <h3>Loading Config...</h3>
+    </div>
+  );
+
+  if (!activeGameId) {
+    return (
+      <div className="empty-state">
+        <h3>No Active Game Selected</h3>
+        <p>Please activate a game in the Game List to edit its configuration.</p>
+        <p style={{ fontSize: '0.9em', opacity: 0.7, marginTop: '8px' }}>请先在游戏列表激活一个游戏后再编辑配置。</p>
+      </div>
+    );
   }
+
+  if (!config) return (
+    <div className="empty-state">
+      <h3 style={{ color: 'var(--danger)' }}>Configuration Error</h3>
+      <p className="error-message">{error || "Failed to load configuration."}</p>
+    </div>
+  );
 
   return (
     <div>

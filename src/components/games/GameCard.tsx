@@ -45,7 +45,7 @@ function GameCard({ game, profiles, isActive, onEdit, onDelete, onLaunch, onActi
             <option key={p.id} value={p.id}>{p.name}</option>
           ))}
         </select>
-        <button className="primary" onClick={() => onLaunch(profileId)}>Launch</button>
+        <button className="primary" onClick={() => onLaunch(profileId || undefined)}>Launch</button>
       </div>
     </div>
   );
