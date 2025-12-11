@@ -5,12 +5,14 @@ import './games.css';
 type Props = {
   game: Game;
   profiles: ConfigProfile[];
+  isActive?: boolean;
   onEdit: () => void;
   onDelete: () => void;
   onLaunch: (profileId?: string) => void;
+  onActivate: () => void;
 };
 
-function GameCard({ game, profiles, onEdit, onDelete, onLaunch }: Props) {
+function GameCard({ game, profiles, isActive, onEdit, onDelete, onLaunch, onActivate }: Props) {
   const [profileId, setProfileId] = useState<string>('');
 
   return (
@@ -18,9 +20,11 @@ function GameCard({ game, profiles, onEdit, onDelete, onLaunch }: Props) {
       <div className="game-card-header">
         <div className="game-title">
           {game.name}
+          {isActive && <span className="game-status active">Active</span>}
           {!game.enabled && <span className="game-status disabled">Disabled</span>}
         </div>
         <div className="game-actions">
+          <button onClick={onActivate}>{isActive ? 'Active' : 'Activate'}</button>
           <button onClick={onEdit}>Edit</button>
           <button className="danger" onClick={onDelete}>Delete</button>
         </div>
