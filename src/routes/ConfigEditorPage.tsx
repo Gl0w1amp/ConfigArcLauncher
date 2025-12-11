@@ -150,7 +150,9 @@ function ConfigEditorPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 12 }}>
         <div>
-          <h2 style={{ margin: '0 0 4px 0' }}>Config Editor</h2>
+          <h2 style={{ margin: '0 0 4px 0' }}>
+            Config Editor {activeGame ? <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}>— {activeGame.name}</span> : ''}
+          </h2>
           <small>Edit segatools.ini values and manage profiles.</small>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
