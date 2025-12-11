@@ -71,41 +71,49 @@ pub struct AimeConfig {
   /// Enable Aime reader emulation (default on).
   pub enable: bool,
   /// COM port number; 0 leaves game default.
-  pub portNo: u32,
+  #[serde(rename = "portNo")]
+  pub port_no: u32,
   /// Use high baud rate (115200).
-  pub highBaud: bool,
+  #[serde(rename = "highBaud")]
+  pub high_baud: bool,
   /// Emulated hardware generation.
   pub gen: u32,
   /// Path to classic Aime card ID text file.
-  pub aimePath: String,
+  #[serde(rename = "aimePath")]
+  pub aime_path: String,
   /// Generate Aime ID if file missing.
-  pub aimeGen: bool,
+  #[serde(rename = "aimeGen")]
+  pub aime_gen: bool,
   /// Path to FeliCa ID file.
-  pub felicaPath: String,
+  #[serde(rename = "felicaPath")]
+  pub felica_path: String,
   /// Generate FeliCa ID if missing.
-  pub felicaGen: bool,
+  #[serde(rename = "felicaGen")]
+  pub felica_gen: bool,
   /// Virtual-key code for scan trigger.
   pub scan: u32,
   /// Proxy flag for Thinca auth card.
-  pub proxyFlag: u32,
+  #[serde(rename = "proxyFlag")]
+  pub proxy_flag: u32,
   /// Path to Thinca authdata binary.
-  pub authdataPath: String,
+  #[serde(rename = "authdataPath")]
+  pub authdata_path: String,
 }
 
 impl Default for AimeConfig {
   fn default() -> Self {
     Self {
       enable: true,
-      portNo: 0,
-      highBaud: true,
+      port_no: 0,
+      high_baud: true,
       gen: 1,
-      aimePath: "DEVICE\\aime.txt".to_string(),
-      aimeGen: true,
-      felicaPath: "DEVICE\\felica.txt".to_string(),
-      felicaGen: false,
+      aime_path: "DEVICE\\aime.txt".to_string(),
+      aime_gen: true,
+      felica_path: "DEVICE\\felica.txt".to_string(),
+      felica_gen: false,
       scan: 0x0D,
-      proxyFlag: 2,
-      authdataPath: "DEVICE\\authdata.bin".to_string(),
+      proxy_flag: 2,
+      authdata_path: "DEVICE\\authdata.bin".to_string(),
     }
   }
 }
@@ -116,17 +124,19 @@ pub struct VfdConfig {
   /// Enable VFD emulation.
   pub enable: bool,
   /// COM port number for VFD; 0 means unset.
-  pub portNo: u32,
+  #[serde(rename = "portNo")]
+  pub port_no: u32,
   /// Convert VFD text to UTF for consoles.
-  pub utfConversion: bool,
+  #[serde(rename = "utfConversion")]
+  pub utf_conversion: bool,
 }
 
 impl Default for VfdConfig {
   fn default() -> Self {
     Self {
       enable: true,
-      portNo: 0,
-      utfConversion: false,
+      port_no: 0,
+      utf_conversion: false,
     }
   }
 }
@@ -182,13 +192,17 @@ pub struct DnsConfig {
   /// Aime DB host override.
   pub aimedb: String,
   /// Replace HTTP HOST headers.
-  pub replaceHost: bool,
+  #[serde(rename = "replaceHost")]
+  pub replace_host: bool,
   /// Startup port override.
-  pub startupPort: u32,
+  #[serde(rename = "startupPort")]
+  pub startup_port: u32,
   /// Billing port override.
-  pub billingPort: u32,
+  #[serde(rename = "billingPort")]
+  pub billing_port: u32,
   /// Aime DB port override.
-  pub aimedbPort: u32,
+  #[serde(rename = "aimedbPort")]
+  pub aimedb_port: u32,
 }
 
 impl Default for DnsConfig {
@@ -200,10 +214,10 @@ impl Default for DnsConfig {
       startup: String::new(),
       billing: String::new(),
       aimedb: String::new(),
-      replaceHost: false,
-      startupPort: 0,
-      billingPort: 0,
-      aimedbPort: 0,
+      replace_host: false,
+      startup_port: 0,
+      billing_port: 0,
+      aimedb_port: 0,
     }
   }
 }
@@ -216,7 +230,8 @@ pub struct DsConfig {
   /// Region bitmask for AMEX board.
   pub region: u32,
   /// Main ID serial number.
-  pub serialNo: String,
+  #[serde(rename = "serialNo")]
+  pub serial_no: String,
 }
 
 impl Default for DsConfig {
@@ -224,7 +239,7 @@ impl Default for DsConfig {
     Self {
       enable: true,
       region: 1,
-      serialNo: "AAVE-01A99999999".to_string(),
+      serial_no: "AAVE-01A99999999".to_string(),
     }
   }
 }
@@ -297,7 +312,8 @@ pub struct GfxConfig {
   /// Monitor index for fullscreen.
   pub monitor: u32,
   /// Make process DPI aware.
-  pub dpiAware: bool,
+  #[serde(rename = "dpiAware")]
+  pub dpi_aware: bool,
 }
 
 impl Default for GfxConfig {
@@ -307,7 +323,7 @@ impl Default for GfxConfig {
       windowed: false,
       framed: false,
       monitor: 0,
-      dpiAware: true,
+      dpi_aware: true,
     }
   }
 }
@@ -378,19 +394,25 @@ pub struct KeychipConfig {
   /// Keychip serial number.
   pub id: String,
   /// Override model code.
-  pub gameId: String,
+  #[serde(rename = "gameId")]
+  pub game_id: String,
   /// Override platform code.
-  pub platformId: String,
+  #[serde(rename = "platformId")]
+  pub platform_id: String,
   /// Region mask.
   pub region: u32,
   /// Billing certificate path.
-  pub billingCa: String,
+  #[serde(rename = "billingCa")]
+  pub billing_ca: String,
   /// Billing RSA public key path.
-  pub billingPub: String,
+  #[serde(rename = "billingPub")]
+  pub billing_pub: String,
   /// Billing type flag.
-  pub billingType: u32,
+  #[serde(rename = "billingType")]
+  pub billing_type: u32,
   /// System flag bitfield.
-  pub systemFlag: u32,
+  #[serde(rename = "systemFlag")]
+  pub system_flag: u32,
   /// LAN subnet.
   pub subnet: String,
 }
@@ -400,13 +422,13 @@ impl Default for KeychipConfig {
     Self {
       enable: true,
       id: "A69E-01A88888888".to_string(),
-      gameId: String::new(),
-      platformId: String::new(),
+      game_id: String::new(),
+      platform_id: String::new(),
       region: 1,
-      billingCa: "DEVICE\\ca.crt".to_string(),
-      billingPub: "DEVICE\\billing.pub".to_string(),
-      billingType: 1,
-      systemFlag: 0x64,
+      billing_ca: "DEVICE\\ca.crt".to_string(),
+      billing_pub: "DEVICE\\billing.pub".to_string(),
+      billing_type: 1,
+      system_flag: 0x64,
       subnet: "192.168.100.0".to_string(),
     }
   }
@@ -418,20 +440,23 @@ pub struct NetenvConfig {
   /// Enable network virtualization.
   pub enable: bool,
   /// Host IP suffix.
-  pub addrSuffix: u32,
+  #[serde(rename = "addrSuffix")]
+  pub addr_suffix: u32,
   /// Gateway IP suffix.
-  pub routerSuffix: u32,
+  #[serde(rename = "routerSuffix")]
+  pub router_suffix: u32,
   /// Virtual MAC address.
-  pub macAddr: String,
+  #[serde(rename = "macAddr")]
+  pub mac_addr: String,
 }
 
 impl Default for NetenvConfig {
   fn default() -> Self {
     Self {
       enable: true,
-      addrSuffix: 11,
-      routerSuffix: 1,
-      macAddr: "01:02:03:04:05:06".to_string(),
+      addr_suffix: 11,
+      router_suffix: 1,
+      mac_addr: "01:02:03:04:05:06".to_string(),
     }
   }
 }
@@ -442,14 +467,15 @@ pub struct PcbidConfig {
   /// Enable hostname virtualization.
   pub enable: bool,
   /// Virtual MAIN ID hostname.
-  pub serialNo: String,
+  #[serde(rename = "serialNo")]
+  pub serial_no: String,
 }
 
 impl Default for PcbidConfig {
   fn default() -> Self {
     Self {
       enable: true,
-      serialNo: "ACAE01A99999999".to_string(),
+      serial_no: "ACAE01A99999999".to_string(),
     }
   }
 }

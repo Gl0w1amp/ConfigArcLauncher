@@ -69,20 +69,20 @@ pub fn load_segatoools_config(path: &Path) -> Result<SegatoolsConfig, ConfigErro
   cfg.aimeio.path = read_string(&parser, "aimeio", "path", &cfg.aimeio.path);
 
   cfg.aime.enable = read_bool(&parser, "aime", "enable", cfg.aime.enable);
-  cfg.aime.portNo = read_u32(&parser, "aime", "portNo", cfg.aime.portNo);
-  cfg.aime.highBaud = read_bool(&parser, "aime", "highBaud", cfg.aime.highBaud);
+  cfg.aime.port_no = read_u32(&parser, "aime", "portNo", cfg.aime.port_no);
+  cfg.aime.high_baud = read_bool(&parser, "aime", "highBaud", cfg.aime.high_baud);
   cfg.aime.gen = read_u32(&parser, "aime", "gen", cfg.aime.gen);
-  cfg.aime.aimePath = read_string(&parser, "aime", "aimePath", &cfg.aime.aimePath);
-  cfg.aime.aimeGen = read_bool(&parser, "aime", "aimeGen", cfg.aime.aimeGen);
-  cfg.aime.felicaPath = read_string(&parser, "aime", "felicaPath", &cfg.aime.felicaPath);
-  cfg.aime.felicaGen = read_bool(&parser, "aime", "felicaGen", cfg.aime.felicaGen);
+  cfg.aime.aime_path = read_string(&parser, "aime", "aimePath", &cfg.aime.aime_path);
+  cfg.aime.aime_gen = read_bool(&parser, "aime", "aimeGen", cfg.aime.aime_gen);
+  cfg.aime.felica_path = read_string(&parser, "aime", "felicaPath", &cfg.aime.felica_path);
+  cfg.aime.felica_gen = read_bool(&parser, "aime", "felicaGen", cfg.aime.felica_gen);
   cfg.aime.scan = read_u32(&parser, "aime", "scan", cfg.aime.scan);
-  cfg.aime.proxyFlag = read_u32(&parser, "aime", "proxyFlag", cfg.aime.proxyFlag);
-  cfg.aime.authdataPath = read_string(&parser, "aime", "authdataPath", &cfg.aime.authdataPath);
+  cfg.aime.proxy_flag = read_u32(&parser, "aime", "proxyFlag", cfg.aime.proxy_flag);
+  cfg.aime.authdata_path = read_string(&parser, "aime", "authdataPath", &cfg.aime.authdata_path);
 
   cfg.vfd.enable = read_bool(&parser, "vfd", "enable", cfg.vfd.enable);
-  cfg.vfd.portNo = read_u32(&parser, "vfd", "portNo", cfg.vfd.portNo);
-  cfg.vfd.utfConversion = read_bool(&parser, "vfd", "utfConversion", cfg.vfd.utfConversion);
+  cfg.vfd.port_no = read_u32(&parser, "vfd", "portNo", cfg.vfd.port_no);
+  cfg.vfd.utf_conversion = read_bool(&parser, "vfd", "utfConversion", cfg.vfd.utf_conversion);
 
   cfg.amvideo.enable = read_bool(&parser, "amvideo", "enable", cfg.amvideo.enable);
 
@@ -96,14 +96,14 @@ pub fn load_segatoools_config(path: &Path) -> Result<SegatoolsConfig, ConfigErro
   cfg.dns.startup = read_string(&parser, "dns", "startup", &cfg.dns.startup);
   cfg.dns.billing = read_string(&parser, "dns", "billing", &cfg.dns.billing);
   cfg.dns.aimedb = read_string(&parser, "dns", "aimedb", &cfg.dns.aimedb);
-  cfg.dns.replaceHost = read_bool(&parser, "dns", "replaceHost", cfg.dns.replaceHost);
-  cfg.dns.startupPort = read_u32(&parser, "dns", "startupPort", cfg.dns.startupPort);
-  cfg.dns.billingPort = read_u32(&parser, "dns", "billingPort", cfg.dns.billingPort);
-  cfg.dns.aimedbPort = read_u32(&parser, "dns", "aimedbPort", cfg.dns.aimedbPort);
+  cfg.dns.replace_host = read_bool(&parser, "dns", "replaceHost", cfg.dns.replace_host);
+  cfg.dns.startup_port = read_u32(&parser, "dns", "startupPort", cfg.dns.startup_port);
+  cfg.dns.billing_port = read_u32(&parser, "dns", "billingPort", cfg.dns.billing_port);
+  cfg.dns.aimedb_port = read_u32(&parser, "dns", "aimedbPort", cfg.dns.aimedb_port);
 
   cfg.ds.enable = read_bool(&parser, "ds", "enable", cfg.ds.enable);
   cfg.ds.region = read_u32(&parser, "ds", "region", cfg.ds.region);
-  cfg.ds.serialNo = read_string(&parser, "ds", "serialNo", &cfg.ds.serialNo);
+  cfg.ds.serial_no = read_string(&parser, "ds", "serialNo", &cfg.ds.serial_no);
 
   cfg.eeprom.enable = read_bool(&parser, "eeprom", "enable", cfg.eeprom.enable);
   cfg.eeprom.path = read_string(&parser, "eeprom", "path", &cfg.eeprom.path);
@@ -124,7 +124,7 @@ pub fn load_segatoools_config(path: &Path) -> Result<SegatoolsConfig, ConfigErro
   cfg.gfx.windowed = read_bool(&parser, "gfx", "windowed", cfg.gfx.windowed);
   cfg.gfx.framed = read_bool(&parser, "gfx", "framed", cfg.gfx.framed);
   cfg.gfx.monitor = read_u32(&parser, "gfx", "monitor", cfg.gfx.monitor);
-  cfg.gfx.dpiAware = read_bool(&parser, "gfx", "dpiAware", cfg.gfx.dpiAware);
+  cfg.gfx.dpi_aware = read_bool(&parser, "gfx", "dpiAware", cfg.gfx.dpi_aware);
 
   cfg.hwmon.enable = read_bool(&parser, "hwmon", "enable", cfg.hwmon.enable);
 
@@ -139,22 +139,22 @@ pub fn load_segatoools_config(path: &Path) -> Result<SegatoolsConfig, ConfigErro
 
   cfg.keychip.enable = read_bool(&parser, "keychip", "enable", cfg.keychip.enable);
   cfg.keychip.id = read_string(&parser, "keychip", "id", &cfg.keychip.id);
-  cfg.keychip.gameId = read_string(&parser, "keychip", "gameId", &cfg.keychip.gameId);
-  cfg.keychip.platformId = read_string(&parser, "keychip", "platformId", &cfg.keychip.platformId);
+  cfg.keychip.game_id = read_string(&parser, "keychip", "gameId", &cfg.keychip.game_id);
+  cfg.keychip.platform_id = read_string(&parser, "keychip", "platformId", &cfg.keychip.platform_id);
   cfg.keychip.region = read_u32(&parser, "keychip", "region", cfg.keychip.region);
-  cfg.keychip.billingCa = read_string(&parser, "keychip", "billingCa", &cfg.keychip.billingCa);
-  cfg.keychip.billingPub = read_string(&parser, "keychip", "billingPub", &cfg.keychip.billingPub);
-  cfg.keychip.billingType = read_u32(&parser, "keychip", "billingType", cfg.keychip.billingType);
-  cfg.keychip.systemFlag = read_u32(&parser, "keychip", "systemFlag", cfg.keychip.systemFlag);
+  cfg.keychip.billing_ca = read_string(&parser, "keychip", "billingCa", &cfg.keychip.billing_ca);
+  cfg.keychip.billing_pub = read_string(&parser, "keychip", "billingPub", &cfg.keychip.billing_pub);
+  cfg.keychip.billing_type = read_u32(&parser, "keychip", "billingType", cfg.keychip.billing_type);
+  cfg.keychip.system_flag = read_u32(&parser, "keychip", "systemFlag", cfg.keychip.system_flag);
   cfg.keychip.subnet = read_string(&parser, "keychip", "subnet", &cfg.keychip.subnet);
 
   cfg.netenv.enable = read_bool(&parser, "netenv", "enable", cfg.netenv.enable);
-  cfg.netenv.addrSuffix = read_u32(&parser, "netenv", "addrSuffix", cfg.netenv.addrSuffix);
-  cfg.netenv.routerSuffix = read_u32(&parser, "netenv", "routerSuffix", cfg.netenv.routerSuffix);
-  cfg.netenv.macAddr = read_string(&parser, "netenv", "macAddr", &cfg.netenv.macAddr);
+  cfg.netenv.addr_suffix = read_u32(&parser, "netenv", "addrSuffix", cfg.netenv.addr_suffix);
+  cfg.netenv.router_suffix = read_u32(&parser, "netenv", "routerSuffix", cfg.netenv.router_suffix);
+  cfg.netenv.mac_addr = read_string(&parser, "netenv", "macAddr", &cfg.netenv.mac_addr);
 
   cfg.pcbid.enable = read_bool(&parser, "pcbid", "enable", cfg.pcbid.enable);
-  cfg.pcbid.serialNo = read_string(&parser, "pcbid", "serialNo", &cfg.pcbid.serialNo);
+  cfg.pcbid.serial_no = read_string(&parser, "pcbid", "serialNo", &cfg.pcbid.serial_no);
 
   cfg.sram.enable = read_bool(&parser, "sram", "enable", cfg.sram.enable);
   cfg.sram.path = read_string(&parser, "sram", "path", &cfg.sram.path);
@@ -190,16 +190,16 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
     "aime",
     vec![
       ("enable", bool_to_string(cfg.aime.enable)),
-      ("portNo", cfg.aime.portNo.to_string()),
-      ("highBaud", bool_to_string(cfg.aime.highBaud)),
+      ("portNo", cfg.aime.port_no.to_string()),
+      ("highBaud", bool_to_string(cfg.aime.high_baud)),
       ("gen", cfg.aime.gen.to_string()),
-      ("aimePath", cfg.aime.aimePath.clone()),
-      ("aimeGen", bool_to_string(cfg.aime.aimeGen)),
-      ("felicaPath", cfg.aime.felicaPath.clone()),
-      ("felicaGen", bool_to_string(cfg.aime.felicaGen)),
+      ("aimePath", cfg.aime.aime_path.clone()),
+      ("aimeGen", bool_to_string(cfg.aime.aime_gen)),
+      ("felicaPath", cfg.aime.felica_path.clone()),
+      ("felicaGen", bool_to_string(cfg.aime.felica_gen)),
       ("scan", cfg.aime.scan.to_string()),
-      ("proxyFlag", cfg.aime.proxyFlag.to_string()),
-      ("authdataPath", cfg.aime.authdataPath.clone()),
+      ("proxyFlag", cfg.aime.proxy_flag.to_string()),
+      ("authdataPath", cfg.aime.authdata_path.clone()),
     ],
   );
 
@@ -208,8 +208,8 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
     "vfd",
     vec![
       ("enable", bool_to_string(cfg.vfd.enable)),
-      ("portNo", cfg.vfd.portNo.to_string()),
-      ("utfConversion", bool_to_string(cfg.vfd.utfConversion)),
+      ("portNo", cfg.vfd.port_no.to_string()),
+      ("utfConversion", bool_to_string(cfg.vfd.utf_conversion)),
     ],
   );
 
@@ -235,10 +235,10 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
       ("startup", cfg.dns.startup.clone()),
       ("billing", cfg.dns.billing.clone()),
       ("aimedb", cfg.dns.aimedb.clone()),
-      ("replaceHost", bool_to_string(cfg.dns.replaceHost)),
-      ("startupPort", cfg.dns.startupPort.to_string()),
-      ("billingPort", cfg.dns.billingPort.to_string()),
-      ("aimedbPort", cfg.dns.aimedbPort.to_string()),
+      ("replaceHost", bool_to_string(cfg.dns.replace_host)),
+      ("startupPort", cfg.dns.startup_port.to_string()),
+      ("billingPort", cfg.dns.billing_port.to_string()),
+      ("aimedbPort", cfg.dns.aimedb_port.to_string()),
     ],
   );
 
@@ -248,7 +248,7 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
     vec![
       ("enable", bool_to_string(cfg.ds.enable)),
       ("region", cfg.ds.region.to_string()),
-      ("serialNo", cfg.ds.serialNo.clone()),
+      ("serialNo", cfg.ds.serial_no.clone()),
     ],
   );
 
@@ -287,7 +287,7 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
       ("windowed", bool_to_string(cfg.gfx.windowed)),
       ("framed", bool_to_string(cfg.gfx.framed)),
       ("monitor", cfg.gfx.monitor.to_string()),
-      ("dpiAware", bool_to_string(cfg.gfx.dpiAware)),
+      ("dpiAware", bool_to_string(cfg.gfx.dpi_aware)),
     ],
   );
 
@@ -320,13 +320,13 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
     vec![
       ("enable", bool_to_string(cfg.keychip.enable)),
       ("id", cfg.keychip.id.clone()),
-      ("gameId", cfg.keychip.gameId.clone()),
-      ("platformId", cfg.keychip.platformId.clone()),
+      ("gameId", cfg.keychip.game_id.clone()),
+      ("platformId", cfg.keychip.platform_id.clone()),
       ("region", cfg.keychip.region.to_string()),
-      ("billingCa", cfg.keychip.billingCa.clone()),
-      ("billingPub", cfg.keychip.billingPub.clone()),
-      ("billingType", cfg.keychip.billingType.to_string()),
-      ("systemFlag", cfg.keychip.systemFlag.to_string()),
+      ("billingCa", cfg.keychip.billing_ca.clone()),
+      ("billingPub", cfg.keychip.billing_pub.clone()),
+      ("billingType", cfg.keychip.billing_type.to_string()),
+      ("systemFlag", cfg.keychip.system_flag.to_string()),
       ("subnet", cfg.keychip.subnet.clone()),
     ],
   );
@@ -336,9 +336,9 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
     "netenv",
     vec![
       ("enable", bool_to_string(cfg.netenv.enable)),
-      ("addrSuffix", cfg.netenv.addrSuffix.to_string()),
-      ("routerSuffix", cfg.netenv.routerSuffix.to_string()),
-      ("macAddr", cfg.netenv.macAddr.clone()),
+      ("addrSuffix", cfg.netenv.addr_suffix.to_string()),
+      ("routerSuffix", cfg.netenv.router_suffix.to_string()),
+      ("macAddr", cfg.netenv.mac_addr.clone()),
     ],
   );
 
@@ -347,7 +347,7 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
     "pcbid",
     vec![
       ("enable", bool_to_string(cfg.pcbid.enable)),
-      ("serialNo", cfg.pcbid.serialNo.clone()),
+      ("serialNo", cfg.pcbid.serial_no.clone()),
     ],
   );
 

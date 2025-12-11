@@ -27,7 +27,7 @@ fn scan_game_folder_logic(path: &str) -> Result<Game, String> {
     };
 
     let join_path = |p: &str| dir.join(p).to_str().unwrap_or("").to_string();
-    let inject_path = join_path("inject.exe");
+    let _inject_path = join_path("inject.exe");
 
     if dir.join("Sinmai.exe").exists() {
         game.name = "Sinmai".to_string();
