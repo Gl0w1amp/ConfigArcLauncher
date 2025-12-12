@@ -276,6 +276,64 @@ function getSections(gameName?: string): SectionSpec[] {
       { name: 'enable', type: 'checkbox' },
       { name: 'targetAssembly', type: 'text' }
     ]
+  },
+  {
+    key: 'led15093',
+    fields: [
+      { name: 'enable', type: 'checkbox' }
+    ]
+  },
+  {
+    key: 'led',
+    fields: [
+      { name: 'cabLedOutputPipe', type: 'checkbox' },
+      { name: 'cabLedOutputSerial', type: 'checkbox' },
+      { name: 'controllerLedOutputPipe', type: 'checkbox' },
+      { name: 'controllerLedOutputSerial', type: 'checkbox' },
+      { name: 'controllerLedOutputOpeNITHM', type: 'checkbox' },
+      { name: 'serialPort', type: 'text' },
+      { name: 'serialBaud', type: 'number' }
+    ]
+  },
+  {
+    key: 'chuniio',
+    fields: [
+      { name: 'path', type: 'text' },
+      { name: 'path32', type: 'text' },
+      { name: 'path64', type: 'text' }
+    ]
+  },
+  {
+    key: 'mu3io',
+    fields: [
+      { name: 'path', type: 'text' }
+    ]
+  },
+  {
+    key: 'io3',
+    fields: [
+      { name: 'test', type: 'key' },
+      { name: 'service', type: 'key' },
+      { name: 'coin', type: 'key' },
+      { name: 'ir', type: 'key' }
+    ]
+  },
+  {
+    key: 'slider',
+    fields: [
+      { name: 'enable', type: 'checkbox' },
+      ...Array.from({ length: 32 }, (_, i) => ({
+        name: `cell${i + 1}`,
+        type: 'key' as const
+      }))
+    ]
+  },
+  {
+    key: 'ir',
+    fields: Array.from({ length: 6 }, (_, i) => ({
+      name: `ir${i + 1}`,
+      type: 'key' as const
+    }))
   }
 ];
 }
@@ -285,8 +343,15 @@ function SegatoolsEditor({ config, onChange, activeGame }: Props) {
   const sections = getSections(activeGame?.name);
 
   const updateValue = (section: keyof SegatoolsConfig, field: string, value: any) => {
+    // Ensure the section is marked as present when modified
+    let newPresentSections = config.presentSections;
+    if (newPresentSections && !newPresentSections.includes(section as string)) {
+      newPresentSections = [...newPresentSections, section as string];
+    }
+
     onChange({
       ...config,
+      presentSections: newPresentSections,
       [section]: {
         ...(config as any)[section],
         [field]: value
@@ -295,6 +360,14 @@ function SegatoolsEditor({ config, onChange, activeGame }: Props) {
   };
 
   const visibleSections = sections.filter(section => {
+    // Always show these sections for specific games, even if missing in INI
+    if (activeGame?.name === 'Chunithm') {
+      if (['slider', 'ir', 'led', 'led15093', 'chuniio', 'io3'].includes(section.key as string)) return true;
+    }
+    if (activeGame?.name === 'Ongeki') {
+      if (['led', 'led15093', 'mu3io'].includes(section.key as string)) return true;
+    }
+
     // If presentSections is available and has items, only show those sections.
     // Otherwise (e.g. new file or legacy backend), show all sections.
     if (config.presentSections && config.presentSections.length > 0) {

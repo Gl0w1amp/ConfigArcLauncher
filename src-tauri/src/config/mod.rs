@@ -51,18 +51,155 @@ fn bool_to_string(val: bool) -> String {
   if val { "1".to_string() } else { "0".to_string() }
 }
 
-fn save_section(parser: &mut Ini, name: &str, data: Vec<(&str, String)>) {
+trait ConfigWriter {
+    fn write_val(&mut self, section: &str, key: &str, value: &str);
+    fn handle_skip(&mut self, section: &str, key: &str);
+}
+
+impl ConfigWriter for Ini {
+    fn write_val(&mut self, section: &str, key: &str, value: &str) {
+        self.set(section, key, Some(value.to_string()));
+    }
+    fn handle_skip(&mut self, _section: &str, _key: &str) {
+        // Do nothing
+    }
+}
+
+struct IniUpdater {
+    lines: Vec<String>,
+}
+
+impl IniUpdater {
+    fn new(content: &str) -> Self {
+        Self {
+            lines: content.lines().map(|s| s.to_string()).collect(),
+        }
+    }
+
+    fn find_section_line(&self, section: &str) -> Option<usize> {
+        let section_header = format!("[{}]", section);
+        for (i, line) in self.lines.iter().enumerate() {
+            if line.trim().eq_ignore_ascii_case(&section_header) {
+                return Some(i);
+            }
+        }
+        None
+    }
+
+    fn set(&mut self, section: &str, key: &str, value: &str) {
+        if let Some(section_idx) = self.find_section_line(section) {
+            let mut insert_idx = section_idx + 1;
+            let mut found = false;
+            
+            for i in (section_idx + 1)..self.lines.len() {
+                let line = &self.lines[i];
+                let trimmed = line.trim();
+                if trimmed.starts_with('[') && trimmed.ends_with(']') {
+                    insert_idx = i;
+                    break;
+                }
+                
+                if let Some((k, _)) = parse_line_key(line) {
+                    if k.eq_ignore_ascii_case(key) {
+                        self.lines[i] = format!("{}={}", key, value);
+                        found = true;
+                        break;
+                    }
+                }
+                insert_idx = i + 1;
+            }
+            
+            if !found {
+                self.lines.insert(insert_idx, format!("{}={}", key, value));
+            }
+        } else {
+            if !self.lines.is_empty() && !self.lines.last().unwrap().trim().is_empty() {
+                self.lines.push("".to_string());
+            }
+            self.lines.push(format!("[{}]", section));
+            self.lines.push(format!("{}={}", key, value));
+        }
+    }
+
+    fn comment_out(&mut self, section: &str, key: &str) {
+        if let Some(section_idx) = self.find_section_line(section) {
+             for i in (section_idx + 1)..self.lines.len() {
+                let line = &self.lines[i];
+                let trimmed = line.trim();
+                if trimmed.starts_with('[') && trimmed.ends_with(']') {
+                    break;
+                }
+                
+                if let Some((k, is_commented)) = parse_line_key(line) {
+                    if k.eq_ignore_ascii_case(key) {
+                        if !is_commented {
+                            self.lines[i] = format!(";{}", line);
+                        }
+                        return;
+                    }
+                }
+            }
+        }
+    }
+    
+    fn to_string(&self) -> String {
+        self.lines.join("\n")
+    }
+}
+
+impl ConfigWriter for IniUpdater {
+    fn write_val(&mut self, section: &str, key: &str, value: &str) {
+        self.set(section, key, value);
+    }
+    fn handle_skip(&mut self, section: &str, key: &str) {
+        self.comment_out(section, key);
+    }
+}
+
+fn parse_line_key(line: &str) -> Option<(String, bool)> {
+    let trimmed = line.trim();
+    if trimmed.is_empty() { return None; }
+    
+    let mut is_commented = false;
+    let mut content = trimmed;
+    
+    if content.starts_with(';') || content.starts_with('#') {
+        is_commented = true;
+        content = &content[1..].trim();
+    }
+    
+    if let Some(idx) = content.find('=') {
+        let key = content[..idx].trim();
+        return Some((key.to_string(), is_commented));
+    }
+    None
+}
+
+fn save_section(writer: &mut dyn ConfigWriter, name: &str, data: Vec<(&str, String)>) {
   for (k, v) in data {
-    parser.set(name, k, Some(v));
+    let mut should_skip = v.is_empty();
+
+    if !should_skip && v == "0" {
+      if name == "slider" && k != "enable" {
+        should_skip = true;
+      }
+      if name == "ir" {
+        should_skip = true;
+      }
+      if name == "dns" && (k == "startupPort" || k == "billingPort" || k == "aimedbPort") {
+        should_skip = true;
+      }
+    }
+
+    if should_skip {
+        writer.handle_skip(name, k);
+    } else {
+        writer.write_val(name, k, &v);
+    }
   }
 }
 
-pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), ConfigError> {
-  if let Some(dir) = path.parent() {
-    fs::create_dir_all(dir)?;
-  }
-  let mut ini = Ini::new();
-
+fn perform_save(writer: &mut dyn ConfigWriter, cfg: &SegatoolsConfig) {
   let should_save = |name: &str| -> bool {
     if cfg.present_sections.is_empty() {
       return true;
@@ -72,7 +209,7 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
 
   if should_save("aimeio") {
     save_section(
-      &mut ini,
+      writer,
       "aimeio",
       vec![("path", cfg.aimeio.path.clone())],
     );
@@ -80,7 +217,7 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
 
   if should_save("aime") {
     save_section(
-      &mut ini,
+      writer,
       "aime",
       vec![
         ("enable", bool_to_string(cfg.aime.enable)),
@@ -100,7 +237,7 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
 
   if should_save("vfd") {
     save_section(
-      &mut ini,
+      writer,
       "vfd",
       vec![
         ("enable", bool_to_string(cfg.vfd.enable)),
@@ -111,12 +248,12 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
   }
 
   if should_save("amvideo") {
-    save_section(&mut ini, "amvideo", vec![("enable", bool_to_string(cfg.amvideo.enable))]);
+    save_section(writer, "amvideo", vec![("enable", bool_to_string(cfg.amvideo.enable))]);
   }
 
   if should_save("clock") {
     save_section(
-      &mut ini,
+      writer,
       "clock",
       vec![
         ("timezone", bool_to_string(cfg.clock.timezone)),
@@ -128,7 +265,7 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
 
   if should_save("dns") {
     save_section(
-      &mut ini,
+      writer,
       "dns",
       vec![
         ("default", cfg.dns.default.clone()),
@@ -147,7 +284,7 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
 
   if should_save("ds") {
     save_section(
-      &mut ini,
+      writer,
       "ds",
       vec![
         ("enable", bool_to_string(cfg.ds.enable)),
@@ -159,7 +296,7 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
 
   if should_save("eeprom") {
     save_section(
-      &mut ini,
+      writer,
       "eeprom",
       vec![
         ("enable", bool_to_string(cfg.eeprom.enable)),
@@ -170,7 +307,7 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
 
   if should_save("gpio") {
     save_section(
-      &mut ini,
+      writer,
       "gpio",
       vec![
         ("enable", bool_to_string(cfg.gpio.enable)),
@@ -190,7 +327,7 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
 
   if should_save("gfx") {
     save_section(
-      &mut ini,
+      writer,
       "gfx",
       vec![
         ("enable", bool_to_string(cfg.gfx.enable)),
@@ -203,12 +340,12 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
   }
 
   if should_save("hwmon") {
-    save_section(&mut ini, "hwmon", vec![("enable", bool_to_string(cfg.hwmon.enable))]);
+    save_section(writer, "hwmon", vec![("enable", bool_to_string(cfg.hwmon.enable))]);
   }
 
   if should_save("jvs") {
     save_section(
-      &mut ini,
+      writer,
       "jvs",
       vec![
         ("enable", bool_to_string(cfg.jvs.enable)),
@@ -219,7 +356,7 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
 
   if should_save("io4") {
     save_section(
-      &mut ini,
+      writer,
       "io4",
       vec![
         ("enable", bool_to_string(cfg.io4.enable)),
@@ -233,7 +370,7 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
 
   if should_save("keychip") {
     save_section(
-      &mut ini,
+      writer,
       "keychip",
       vec![
         ("enable", bool_to_string(cfg.keychip.enable)),
@@ -252,7 +389,7 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
 
   if should_save("netenv") {
     save_section(
-      &mut ini,
+      writer,
       "netenv",
       vec![
         ("enable", bool_to_string(cfg.netenv.enable)),
@@ -265,7 +402,7 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
 
   if should_save("pcbid") {
     save_section(
-      &mut ini,
+      writer,
       "pcbid",
       vec![
         ("enable", bool_to_string(cfg.pcbid.enable)),
@@ -276,7 +413,7 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
 
   if should_save("sram") {
     save_section(
-      &mut ini,
+      writer,
       "sram",
       vec![
         ("enable", bool_to_string(cfg.sram.enable)),
@@ -287,7 +424,7 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
 
   if should_save("vfs") {
     save_section(
-      &mut ini,
+      writer,
       "vfs",
       vec![
         ("enable", bool_to_string(cfg.vfs.enable)),
@@ -300,7 +437,7 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
 
   if should_save("epay") {
     save_section(
-      &mut ini,
+      writer,
       "epay",
       vec![
         ("enable", bool_to_string(cfg.epay.enable)),
@@ -311,7 +448,7 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
 
   if should_save("openssl") {
     save_section(
-      &mut ini,
+      writer,
       "openssl",
       vec![
         ("enable", bool_to_string(cfg.openssl.enable)),
@@ -322,7 +459,7 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
 
   if should_save("system") {
     save_section(
-      &mut ini,
+      writer,
       "system",
       vec![
         ("enable", bool_to_string(cfg.system.enable)),
@@ -336,7 +473,7 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
 
   if should_save("led15070") {
     save_section(
-      &mut ini,
+      writer,
       "led15070",
       vec![("enable", bool_to_string(cfg.led15070.enable))],
     );
@@ -344,7 +481,7 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
 
   if should_save("unity") {
     save_section(
-      &mut ini,
+      writer,
       "unity",
       vec![
         ("enable", bool_to_string(cfg.unity.enable)),
@@ -355,7 +492,7 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
 
   if should_save("mai2io") {
     save_section(
-      &mut ini,
+      writer,
       "mai2io",
       vec![("path", cfg.mai2io.path.clone())],
     );
@@ -363,7 +500,7 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
 
   if should_save("button") {
     save_section(
-      &mut ini,
+      writer,
       "button",
       vec![
         ("enable", bool_to_string(cfg.button.enable)),
@@ -391,7 +528,7 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
 
   if should_save("touch") {
     save_section(
-      &mut ini,
+      writer,
       "touch",
       vec![
         ("p1Enable", bool_to_string(cfg.touch.p1_enable)),
@@ -400,9 +537,136 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
     );
   }
 
-  ini
-    .write(path.to_string_lossy().as_ref())
-    .map_err(ConfigError::Io)?;
+  if should_save("led15093") {
+    save_section(
+      writer,
+      "led15093",
+      vec![("enable", bool_to_string(cfg.led15093.enable))],
+    );
+  }
+
+  if should_save("led") {
+    save_section(
+      writer,
+      "led",
+      vec![
+        ("cabLedOutputPipe", bool_to_string(cfg.led.cab_led_output_pipe)),
+        ("cabLedOutputSerial", bool_to_string(cfg.led.cab_led_output_serial)),
+        ("controllerLedOutputPipe", bool_to_string(cfg.led.controller_led_output_pipe)),
+        ("controllerLedOutputSerial", bool_to_string(cfg.led.controller_led_output_serial)),
+        ("controllerLedOutputOpeNITHM", bool_to_string(cfg.led.controller_led_output_openithm)),
+        ("serialPort", cfg.led.serial_port.clone()),
+        ("serialBaud", cfg.led.serial_baud.to_string()),
+      ],
+    );
+  }
+
+  if should_save("chuniio") {
+    save_section(
+      writer,
+      "chuniio",
+      vec![
+        ("path", cfg.chuniio.path.clone()),
+        ("path32", cfg.chuniio.path32.clone()),
+        ("path64", cfg.chuniio.path64.clone()),
+      ],
+    );
+  }
+
+  if should_save("mu3io") {
+    save_section(
+      writer,
+      "mu3io",
+      vec![("path", cfg.mu3io.path.clone())],
+    );
+  }
+
+  if should_save("io3") {
+    save_section(
+      writer,
+      "io3",
+      vec![
+        ("test", cfg.io3.test.to_string()),
+        ("service", cfg.io3.service.to_string()),
+        ("coin", cfg.io3.coin.to_string()),
+        ("ir", cfg.io3.ir.to_string()),
+      ],
+    );
+  }
+
+  if should_save("slider") {
+    let mut vec = vec![("enable", bool_to_string(cfg.slider.enable))];
+    vec.push(("cell1", cfg.slider.cell1.to_string()));
+    vec.push(("cell2", cfg.slider.cell2.to_string()));
+    vec.push(("cell3", cfg.slider.cell3.to_string()));
+    vec.push(("cell4", cfg.slider.cell4.to_string()));
+    vec.push(("cell5", cfg.slider.cell5.to_string()));
+    vec.push(("cell6", cfg.slider.cell6.to_string()));
+    vec.push(("cell7", cfg.slider.cell7.to_string()));
+    vec.push(("cell8", cfg.slider.cell8.to_string()));
+    vec.push(("cell9", cfg.slider.cell9.to_string()));
+    vec.push(("cell10", cfg.slider.cell10.to_string()));
+    vec.push(("cell11", cfg.slider.cell11.to_string()));
+    vec.push(("cell12", cfg.slider.cell12.to_string()));
+    vec.push(("cell13", cfg.slider.cell13.to_string()));
+    vec.push(("cell14", cfg.slider.cell14.to_string()));
+    vec.push(("cell15", cfg.slider.cell15.to_string()));
+    vec.push(("cell16", cfg.slider.cell16.to_string()));
+    vec.push(("cell17", cfg.slider.cell17.to_string()));
+    vec.push(("cell18", cfg.slider.cell18.to_string()));
+    vec.push(("cell19", cfg.slider.cell19.to_string()));
+    vec.push(("cell20", cfg.slider.cell20.to_string()));
+    vec.push(("cell21", cfg.slider.cell21.to_string()));
+    vec.push(("cell22", cfg.slider.cell22.to_string()));
+    vec.push(("cell23", cfg.slider.cell23.to_string()));
+    vec.push(("cell24", cfg.slider.cell24.to_string()));
+    vec.push(("cell25", cfg.slider.cell25.to_string()));
+    vec.push(("cell26", cfg.slider.cell26.to_string()));
+    vec.push(("cell27", cfg.slider.cell27.to_string()));
+    vec.push(("cell28", cfg.slider.cell28.to_string()));
+    vec.push(("cell29", cfg.slider.cell29.to_string()));
+    vec.push(("cell30", cfg.slider.cell30.to_string()));
+    vec.push(("cell31", cfg.slider.cell31.to_string()));
+    vec.push(("cell32", cfg.slider.cell32.to_string()));
+    save_section(writer, "slider", vec);
+  }
+
+  if should_save("ir") {
+    save_section(
+      writer,
+      "ir",
+      vec![
+        ("ir1", cfg.ir.ir1.to_string()),
+        ("ir2", cfg.ir.ir2.to_string()),
+        ("ir3", cfg.ir.ir3.to_string()),
+        ("ir4", cfg.ir.ir4.to_string()),
+        ("ir5", cfg.ir.ir5.to_string()),
+        ("ir6", cfg.ir.ir6.to_string()),
+      ],
+    );
+  }
+
+}
+
+pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), ConfigError> {
+  if let Some(dir) = path.parent() {
+    fs::create_dir_all(dir)?;
+  }
+
+  if cfg.present_sections.is_empty() {
+      let mut ini = Ini::new();
+      perform_save(&mut ini, cfg);
+      ini.write(path.to_string_lossy().as_ref()).map_err(ConfigError::Io)?;
+  } else {
+      let content = if path.exists() {
+          fs::read_to_string(path).map_err(ConfigError::Io)?
+      } else {
+          String::new()
+      };
+      let mut updater = IniUpdater::new(&content);
+      perform_save(&mut updater, cfg);
+      fs::write(path, updater.to_string()).map_err(ConfigError::Io)?;
+  }
   Ok(())
 }
 
@@ -557,6 +821,68 @@ pub fn load_segatoools_config_from_string(content: &str) -> Result<SegatoolsConf
 
   cfg.touch.p1_enable = read_bool(&parser, "touch", "p1Enable", cfg.touch.p1_enable);
   cfg.touch.p2_enable = read_bool(&parser, "touch", "p2Enable", cfg.touch.p2_enable);
+
+  cfg.led15093.enable = read_bool(&parser, "led15093", "enable", cfg.led15093.enable);
+
+  cfg.led.cab_led_output_pipe = read_bool(&parser, "led", "cabLedOutputPipe", cfg.led.cab_led_output_pipe);
+  cfg.led.cab_led_output_serial = read_bool(&parser, "led", "cabLedOutputSerial", cfg.led.cab_led_output_serial);
+  cfg.led.controller_led_output_pipe = read_bool(&parser, "led", "controllerLedOutputPipe", cfg.led.controller_led_output_pipe);
+  cfg.led.controller_led_output_serial = read_bool(&parser, "led", "controllerLedOutputSerial", cfg.led.controller_led_output_serial);
+  cfg.led.controller_led_output_openithm = read_bool(&parser, "led", "controllerLedOutputOpeNITHM", cfg.led.controller_led_output_openithm);
+  cfg.led.serial_port = read_string(&parser, "led", "serialPort", &cfg.led.serial_port);
+  cfg.led.serial_baud = read_u32(&parser, "led", "serialBaud", cfg.led.serial_baud);
+
+  cfg.chuniio.path = read_string(&parser, "chuniio", "path", &cfg.chuniio.path);
+  cfg.chuniio.path32 = read_string(&parser, "chuniio", "path32", &cfg.chuniio.path32);
+  cfg.chuniio.path64 = read_string(&parser, "chuniio", "path64", &cfg.chuniio.path64);
+
+  cfg.mu3io.path = read_string(&parser, "mu3io", "path", &cfg.mu3io.path);
+
+  cfg.io3.test = read_u32(&parser, "io3", "test", cfg.io3.test);
+  cfg.io3.service = read_u32(&parser, "io3", "service", cfg.io3.service);
+  cfg.io3.coin = read_u32(&parser, "io3", "coin", cfg.io3.coin);
+  cfg.io3.ir = read_u32(&parser, "io3", "ir", cfg.io3.ir);
+
+  cfg.slider.enable = read_bool(&parser, "slider", "enable", cfg.slider.enable);
+  cfg.slider.cell1 = read_u32(&parser, "slider", "cell1", cfg.slider.cell1);
+  cfg.slider.cell2 = read_u32(&parser, "slider", "cell2", cfg.slider.cell2);
+  cfg.slider.cell3 = read_u32(&parser, "slider", "cell3", cfg.slider.cell3);
+  cfg.slider.cell4 = read_u32(&parser, "slider", "cell4", cfg.slider.cell4);
+  cfg.slider.cell5 = read_u32(&parser, "slider", "cell5", cfg.slider.cell5);
+  cfg.slider.cell6 = read_u32(&parser, "slider", "cell6", cfg.slider.cell6);
+  cfg.slider.cell7 = read_u32(&parser, "slider", "cell7", cfg.slider.cell7);
+  cfg.slider.cell8 = read_u32(&parser, "slider", "cell8", cfg.slider.cell8);
+  cfg.slider.cell9 = read_u32(&parser, "slider", "cell9", cfg.slider.cell9);
+  cfg.slider.cell10 = read_u32(&parser, "slider", "cell10", cfg.slider.cell10);
+  cfg.slider.cell11 = read_u32(&parser, "slider", "cell11", cfg.slider.cell11);
+  cfg.slider.cell12 = read_u32(&parser, "slider", "cell12", cfg.slider.cell12);
+  cfg.slider.cell13 = read_u32(&parser, "slider", "cell13", cfg.slider.cell13);
+  cfg.slider.cell14 = read_u32(&parser, "slider", "cell14", cfg.slider.cell14);
+  cfg.slider.cell15 = read_u32(&parser, "slider", "cell15", cfg.slider.cell15);
+  cfg.slider.cell16 = read_u32(&parser, "slider", "cell16", cfg.slider.cell16);
+  cfg.slider.cell17 = read_u32(&parser, "slider", "cell17", cfg.slider.cell17);
+  cfg.slider.cell18 = read_u32(&parser, "slider", "cell18", cfg.slider.cell18);
+  cfg.slider.cell19 = read_u32(&parser, "slider", "cell19", cfg.slider.cell19);
+  cfg.slider.cell20 = read_u32(&parser, "slider", "cell20", cfg.slider.cell20);
+  cfg.slider.cell21 = read_u32(&parser, "slider", "cell21", cfg.slider.cell21);
+  cfg.slider.cell22 = read_u32(&parser, "slider", "cell22", cfg.slider.cell22);
+  cfg.slider.cell23 = read_u32(&parser, "slider", "cell23", cfg.slider.cell23);
+  cfg.slider.cell24 = read_u32(&parser, "slider", "cell24", cfg.slider.cell24);
+  cfg.slider.cell25 = read_u32(&parser, "slider", "cell25", cfg.slider.cell25);
+  cfg.slider.cell26 = read_u32(&parser, "slider", "cell26", cfg.slider.cell26);
+  cfg.slider.cell27 = read_u32(&parser, "slider", "cell27", cfg.slider.cell27);
+  cfg.slider.cell28 = read_u32(&parser, "slider", "cell28", cfg.slider.cell28);
+  cfg.slider.cell29 = read_u32(&parser, "slider", "cell29", cfg.slider.cell29);
+  cfg.slider.cell30 = read_u32(&parser, "slider", "cell30", cfg.slider.cell30);
+  cfg.slider.cell31 = read_u32(&parser, "slider", "cell31", cfg.slider.cell31);
+  cfg.slider.cell32 = read_u32(&parser, "slider", "cell32", cfg.slider.cell32);
+
+  cfg.ir.ir1 = read_u32(&parser, "ir", "ir1", cfg.ir.ir1);
+  cfg.ir.ir2 = read_u32(&parser, "ir", "ir2", cfg.ir.ir2);
+  cfg.ir.ir3 = read_u32(&parser, "ir", "ir3", cfg.ir.ir3);
+  cfg.ir.ir4 = read_u32(&parser, "ir", "ir4", cfg.ir.ir4);
+  cfg.ir.ir5 = read_u32(&parser, "ir", "ir5", cfg.ir.ir5);
+  cfg.ir.ir6 = read_u32(&parser, "ir", "ir6", cfg.ir.ir6);
 
   Ok(cfg)
 }

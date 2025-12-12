@@ -26,9 +26,64 @@ export interface SegatoolsConfig {
   led15070: Led15070Config;
   unity: UnityConfig;
   mai2io: Mai2IoConfig;
+  chuniio: ChuniIoConfig;
+  mu3io: Mu3IoConfig;
   button: ButtonConfig;
   touch: TouchConfig;
+  led15093: Led15093Config;
+  led: LedConfig;
+  io3: Io3Config;
+  slider: SliderConfig;
+  ir: IrConfig;
   presentSections?: string[];
+}
+
+export interface SliderConfig {
+  enable: boolean;
+  cell1: number; cell2: number; cell3: number; cell4: number;
+  cell5: number; cell6: number; cell7: number; cell8: number;
+  cell9: number; cell10: number; cell11: number; cell12: number;
+  cell13: number; cell14: number; cell15: number; cell16: number;
+  cell17: number; cell18: number; cell19: number; cell20: number;
+  cell21: number; cell22: number; cell23: number; cell24: number;
+  cell25: number; cell26: number; cell27: number; cell28: number;
+  cell29: number; cell30: number; cell31: number; cell32: number;
+}
+
+export interface IrConfig {
+  ir1: number;
+  ir2: number;
+  ir3: number;
+  ir4: number;
+  ir5: number;
+  ir6: number;
+}
+
+export interface Led15093Config { enable: boolean; }
+
+export interface LedConfig {
+  cabLedOutputPipe: boolean;
+  cabLedOutputSerial: boolean;
+  controllerLedOutputPipe: boolean;
+  controllerLedOutputSerial: boolean;
+  controllerLedOutputOpeNITHM: boolean;
+  serialPort: string;
+  serialBaud: number;
+}
+
+export interface ChuniIoConfig {
+  path: string;
+  path32: string;
+  path64: string;
+}
+
+export interface Mu3IoConfig { path: string; }
+
+export interface Io3Config {
+  test: number;
+  service: number;
+  coin: number;
+  ir: number;
 }
 
 export interface Mai2IoConfig { path: string; }

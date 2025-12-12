@@ -27,8 +27,15 @@ pub struct SegatoolsConfig {
   pub led15070: Led15070Config,
   pub unity: UnityConfig,
   pub mai2io: Mai2IoConfig,
+  pub chuniio: ChuniIoConfig,
+  pub mu3io: Mu3IoConfig,
   pub button: ButtonConfig,
   pub touch: TouchConfig,
+  pub led15093: Led15093Config,
+  pub led: LedConfig,
+  pub io3: Io3Config,
+  pub slider: SliderConfig,
+  pub ir: IrConfig,
   #[serde(default)]
   pub present_sections: Vec<String>,
 }
@@ -61,8 +68,15 @@ impl Default for SegatoolsConfig {
       led15070: Led15070Config::default(),
       unity: UnityConfig::default(),
       mai2io: Mai2IoConfig::default(),
+      chuniio: ChuniIoConfig::default(),
+      mu3io: Mu3IoConfig::default(),
       button: ButtonConfig::default(),
       touch: TouchConfig::default(),
+      led15093: Led15093Config::default(),
+      led: LedConfig::default(),
+      io3: Io3Config::default(),
+      slider: SliderConfig::default(),
+      ir: IrConfig::default(),
     }
   }
 }
@@ -707,6 +721,152 @@ impl Default for UnityConfig {
     Self {
       enable: true,
       target_assembly: String::new(),
+    }
+  }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Led15093Config {
+  pub enable: bool,
+}
+
+impl Default for Led15093Config {
+  fn default() -> Self {
+    Self { enable: true }
+  }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LedConfig {
+  #[serde(rename = "cabLedOutputPipe")]
+  pub cab_led_output_pipe: bool,
+  #[serde(rename = "cabLedOutputSerial")]
+  pub cab_led_output_serial: bool,
+  #[serde(rename = "controllerLedOutputPipe")]
+  pub controller_led_output_pipe: bool,
+  #[serde(rename = "controllerLedOutputSerial")]
+  pub controller_led_output_serial: bool,
+  #[serde(rename = "controllerLedOutputOpeNITHM")]
+  pub controller_led_output_openithm: bool,
+  #[serde(rename = "serialPort")]
+  pub serial_port: String,
+  #[serde(rename = "serialBaud")]
+  pub serial_baud: u32,
+}
+
+impl Default for LedConfig {
+  fn default() -> Self {
+    Self {
+      cab_led_output_pipe: true,
+      cab_led_output_serial: false,
+      controller_led_output_pipe: true,
+      controller_led_output_serial: false,
+      controller_led_output_openithm: false,
+      serial_port: "COM5".to_string(),
+      serial_baud: 921600,
+    }
+  }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChuniIoConfig {
+  pub path: String,
+  pub path32: String,
+  pub path64: String,
+}
+
+impl Default for ChuniIoConfig {
+  fn default() -> Self {
+    Self {
+      path: String::new(),
+      path32: String::new(),
+      path64: String::new(),
+    }
+  }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Mu3IoConfig {
+  pub path: String,
+}
+
+impl Default for Mu3IoConfig {
+  fn default() -> Self {
+    Self {
+      path: String::new(),
+    }
+  }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Io3Config {
+  pub test: u32,
+  pub service: u32,
+  pub coin: u32,
+  pub ir: u32,
+}
+
+impl Default for Io3Config {
+  fn default() -> Self {
+    Self {
+      test: 0x70,
+      service: 0x71,
+      coin: 0x72,
+      ir: 0x20,
+    }
+  }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SliderConfig {
+  pub enable: bool,
+  pub cell1: u32, pub cell2: u32, pub cell3: u32, pub cell4: u32,
+  pub cell5: u32, pub cell6: u32, pub cell7: u32, pub cell8: u32,
+  pub cell9: u32, pub cell10: u32, pub cell11: u32, pub cell12: u32,
+  pub cell13: u32, pub cell14: u32, pub cell15: u32, pub cell16: u32,
+  pub cell17: u32, pub cell18: u32, pub cell19: u32, pub cell20: u32,
+  pub cell21: u32, pub cell22: u32, pub cell23: u32, pub cell24: u32,
+  pub cell25: u32, pub cell26: u32, pub cell27: u32, pub cell28: u32,
+  pub cell29: u32, pub cell30: u32, pub cell31: u32, pub cell32: u32,
+}
+
+impl Default for SliderConfig {
+  fn default() -> Self {
+    Self {
+      enable: true,
+      cell1: 0, cell2: 0, cell3: 0, cell4: 0,
+      cell5: 0, cell6: 0, cell7: 0, cell8: 0,
+      cell9: 0, cell10: 0, cell11: 0, cell12: 0,
+      cell13: 0, cell14: 0, cell15: 0, cell16: 0,
+      cell17: 0, cell18: 0, cell19: 0, cell20: 0,
+      cell21: 0, cell22: 0, cell23: 0, cell24: 0,
+      cell25: 0, cell26: 0, cell27: 0, cell28: 0,
+      cell29: 0, cell30: 0, cell31: 0, cell32: 0,
+    }
+  }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IrConfig {
+  pub ir1: u32,
+  pub ir2: u32,
+  pub ir3: u32,
+  pub ir4: u32,
+  pub ir5: u32,
+  pub ir6: u32,
+}
+
+impl Default for IrConfig {
+  fn default() -> Self {
+    Self {
+      ir1: 0, ir2: 0, ir3: 0, ir4: 0, ir5: 0, ir6: 0,
     }
   }
 }
