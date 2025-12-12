@@ -9,6 +9,7 @@ type FieldSpec = {
   type: 'text' | 'number' | 'checkbox' | 'key';
   helper?: string;
   required?: boolean;
+  options?: { label: string; value: string }[];
 };
 
 type SectionSpec = {
@@ -74,7 +75,15 @@ function getSections(gameName?: string): SectionSpec[] {
   {
     key: 'dns',
     fields: [
-      { name: 'default', type: 'text' },
+      { 
+        name: 'default', 
+        type: 'text',
+        options: [
+          { label: 'AquaDX', value: 'aquadx.hydev.org' },
+          { label: 'RinNET', value: 'aqua.naominet.live' },
+          { label: 'Localhost', value: '127.0.0.1' }
+        ]
+      },
       { name: 'title', type: 'text' },
       { name: 'router', type: 'text' },
       { name: 'startup', type: 'text' },
@@ -309,6 +318,7 @@ function SegatoolsEditor({ config, onChange, activeGame }: Props) {
                 description={t(`segatools.${section.key}.${field.name}.desc`, '')}
                 onChange={(val) => updateValue(section.key, field.name, val)}
                 required={field.required}
+                options={field.options}
               />
             ))}
           </div>

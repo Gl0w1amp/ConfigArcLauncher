@@ -11,9 +11,10 @@ type Props = {
   helper?: string;
   description?: string;
   required?: boolean;
+  options?: { label: string; value: string }[];
 };
 
-function OptionField({ label, type, value, onChange, helper, description, required }: Props) {
+function OptionField({ label, type, value, onChange, helper, description, required, options }: Props) {
   const { t } = useTranslation();
   const [isRecording, setIsRecording] = useState(false);
 
@@ -71,6 +72,37 @@ function OptionField({ label, type, value, onChange, helper, description, requir
         />
       );
     }
+    
+    if (options && options.length > 0) {
+      return (
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            type="text"
+            className={inputClass}
+            value={value ?? ''}
+            onChange={(e) => onChange(e.target.value)}
+            style={{ flex: 1 }}
+          />
+          <select
+            className="option-input"
+            style={{ width: 'auto', paddingRight: 32, cursor: 'pointer' }}
+            onChange={(e) => {
+              if (e.target.value) onChange(e.target.value);
+              e.target.value = '';
+            }}
+            value=""
+          >
+            <option value="" disabled>Presets</option>
+            {options.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      );
+    }
+
     return (
       <input
         type="text"
