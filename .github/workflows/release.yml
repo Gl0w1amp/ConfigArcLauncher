@@ -56,7 +56,7 @@ jobs:
           args: ${{ matrix.platform == 'macos-latest' && '--target universal-apple-darwin' || '' }}
 
       - name: Upload Portable Executable
-        if: matrix.platform == 'windows-latest'
+        if: matrix.platform == 'windows-latest' && github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
           files: src-tauri/target/release/configarc-launcher.exe
