@@ -310,7 +310,7 @@ impl Default for DnsConfig {
   fn default() -> Self {
     Self {
       default: "localhost".to_string(),
-      title: "title".to_string(),
+      title: String::new(),
       router: String::new(),
       startup: String::new(),
       billing: String::new(),
