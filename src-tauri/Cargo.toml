@@ -15,7 +15,13 @@ zip = { version = "0.6", default-features = false, features = ["deflate"] }
 sha2 = "0.10"
 hex = "0.4"
 minisign-verify = "0.2.4"
-chrono = { version = "0.4", default-features = false, features = ["clock"] }
+chrono = { version = "0.4", features = ["clock", "serde"] }
+anyhow = "1.0.81"
+binary-reader = "0.4.5"
+cbc = { version = "0.1.2", features = ["std"] }
+aes = "0.8.3"
+crc32fast = "1.4.0"
+hex-literal = "0.4.1"
 
 [build-dependencies]
 tauri-build = { version = "=2.5.3", features = [] }

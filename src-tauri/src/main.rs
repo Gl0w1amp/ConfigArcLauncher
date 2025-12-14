@@ -4,6 +4,7 @@ mod commands;
 mod config;
 mod error;
 mod games;
+mod icf;
 mod trusted;
 
 use commands::*;
@@ -23,11 +24,18 @@ fn main() {
             pick_game_folder_cmd,
             default_segatoools_config_cmd,
             segatoools_path_cmd,
+            get_data_paths_cmd,
             get_active_game_cmd,
             set_active_game_cmd,
             list_json_configs_cmd,
             load_json_config_cmd,
             save_json_config_cmd,
+            load_icf_cmd,
+            save_icf_cmd,
+            list_option_files_cmd,
+            get_mods_status_cmd,
+            add_mods_cmd,
+            delete_mod_cmd,
             segatools_trust_status_cmd,
             deploy_segatoools_cmd,
             rollback_segatoools_cmd

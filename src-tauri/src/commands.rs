@@ -1,6 +1,6 @@
 use crate::config::{
     paths::{
-        ensure_default_segatoools_exists, get_active_game_id, segatoools_path_for_active,
+        active_game_dir, ensure_default_segatoools_exists, get_active_game_id, segatoools_path_for_active,
         set_active_game_id,
     },
     profiles::{delete_profile, list_profiles, load_profile, save_profile, ConfigProfile},
@@ -10,13 +10,16 @@ use crate::config::{
     {default_segatoools_config, load_segatoools_config, load_segatoools_config_from_string, save_segatoools_config as persist_segatoools_config},
 };
 use crate::games::{launcher::launch_game, model::Game, store};
+use crate::icf::{decode_icf, encrypt_icf, serialize_icf, IcfData};
 use crate::trusted::{
     deploy_segatoools_for_active, rollback_segatoools_for_active, verify_segatoools_for_active,
     DeployResult, RollbackResult, SegatoolsTrustStatus,
 };
+use serde::Serialize;
 use tauri::command;
 use serde_json::Value;
-use std::path::Path;
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -72,6 +75,95 @@ fn scan_game_folder_logic(path: &str) -> Result<Game, String> {
     }
 
     Ok(game)
+}
+
+fn active_game() -> Result<Game, String> {
+    let active_id = get_active_game_id()
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "No active game selected".to_string())?;
+    let games = store::list_games().map_err(|e| e.to_string())?;
+    games
+        .into_iter()
+        .find(|g| g.id == active_id)
+        .ok_or_else(|| "Active game not found".to_string())
+}
+
+fn active_game_root_dir() -> Result<PathBuf, String> {
+    let game = active_game()?;
+    store::game_root_dir(&game).ok_or_else(|| "Game path missing".to_string())
+}
+
+fn resolve_with_base(base: &Path, target: &str) -> PathBuf {
+    let raw = PathBuf::from(target);
+    if raw.is_absolute() {
+        raw
+    } else {
+        base.join(target)
+    }
+}
+
+fn load_active_seg_config() -> Result<(SegatoolsConfig, PathBuf), String> {
+    let base = active_game_dir().map_err(|e| e.to_string())?;
+    let seg_path = segatoools_path_for_active().map_err(|e| e.to_string())?;
+    if !seg_path.exists() {
+        return Err("segatools.ini not found. Please deploy first.".to_string());
+    }
+    let cfg = load_segatoools_config(&seg_path).map_err(|e| e.to_string())?;
+    Ok((cfg, base))
+}
+
+#[derive(Serialize)]
+pub struct PathInfo {
+    pub configured: String,
+    pub resolved: String,
+    pub exists: bool,
+}
+
+#[derive(Serialize)]
+pub struct DataPaths {
+    pub game_root: String,
+    pub amfs: Option<PathInfo>,
+    pub appdata: Option<PathInfo>,
+    pub option: Option<PathInfo>,
+}
+
+#[derive(Serialize)]
+pub struct OptionEntry {
+    pub name: String,
+    pub path: String,
+    pub is_dir: bool,
+    pub size: u64,
+    pub version: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct ModEntry {
+    pub name: String,
+    pub path: String,
+    pub size: u64,
+}
+
+#[derive(Serialize)]
+pub struct ModsStatus {
+    pub supported: bool,
+    pub game: Option<String>,
+    pub melonloader_installed: bool,
+    pub mods_dir: Option<String>,
+    pub mods: Vec<ModEntry>,
+    pub message: Option<String>,
+}
+
+fn build_path_info(base: &Path, raw: &str) -> Option<PathInfo> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let resolved = resolve_with_base(base, trimmed);
+    Some(PathInfo {
+        configured: trimmed.to_string(),
+        resolved: resolved.to_string_lossy().into_owned(),
+        exists: resolved.exists(),
+    })
 }
 
 #[command]
@@ -213,6 +305,157 @@ pub fn segatoools_path_cmd() -> Result<String, String> {
 }
 
 #[command]
+pub fn get_data_paths_cmd() -> Result<DataPaths, String> {
+    let (cfg, base) = load_active_seg_config()?;
+    Ok(DataPaths {
+        game_root: base.to_string_lossy().into_owned(),
+        amfs: build_path_info(&base, &cfg.vfs.amfs),
+        appdata: build_path_info(&base, &cfg.vfs.appdata),
+        option: build_path_info(&base, &cfg.vfs.option),
+    })
+}
+
+fn amfs_path() -> Result<PathBuf, String> {
+    let (cfg, base) = load_active_seg_config()?;
+    let trimmed = cfg.vfs.amfs.trim();
+    if trimmed.is_empty() {
+        return Err("AMFS path is empty in segatools.ini".to_string());
+    }
+    Ok(resolve_with_base(&base, trimmed))
+}
+
+fn option_dir() -> Result<PathBuf, String> {
+    let (cfg, base) = load_active_seg_config()?;
+    let trimmed = cfg.vfs.option.trim();
+    if trimmed.is_empty() {
+        return Err("OPTION path is empty in segatools.ini".to_string());
+    }
+    Ok(resolve_with_base(&base, trimmed))
+}
+
+fn icf_path(kind: &str) -> Result<PathBuf, String> {
+    let icf_name = kind.trim().to_uppercase();
+    if icf_name.is_empty() {
+        return Err("ICF name missing".to_string());
+    }
+    let mut path = amfs_path()?;
+    path.push(icf_name);
+    Ok(path)
+}
+
+fn is_option_folder(name: &str) -> bool {
+    let chars: Vec<char> = name.chars().collect();
+    if chars.len() != 4 {
+        return false;
+    }
+    chars[0].is_ascii_uppercase()
+        && chars[1].is_ascii_digit()
+        && chars[2].is_ascii_digit()
+        && chars[3].is_ascii_digit()
+}
+
+fn find_case_insensitive(dir: &Path, candidates: &[&str]) -> Option<PathBuf> {
+    let lower_candidates: Vec<String> = candidates.iter().map(|s| s.to_lowercase()).collect();
+    let entries = fs::read_dir(dir).ok()?;
+    for entry in entries.flatten() {
+        let fname = entry.file_name();
+        let name = fname.to_string_lossy().to_lowercase();
+        if lower_candidates.contains(&name) {
+            return Some(entry.path());
+        }
+    }
+    None
+}
+
+fn parse_data_conf_version(path: &Path) -> Option<String> {
+    let content = fs::read_to_string(path).ok()?;
+    let mut major: Option<u32> = None;
+    let mut minor: Option<u32> = None;
+    let mut release: Option<u32> = None;
+    for line in content.lines() {
+        let line = line.trim();
+        if line.starts_with('#') || line.is_empty() {
+            continue;
+        }
+        if let Some(idx) = line.find('=') {
+            let key = line[..idx].trim();
+            let val = line[idx + 1..].trim();
+            match key {
+                "VerMajor" => major = val.parse::<u32>().ok(),
+                "VerMinor" => minor = val.parse::<u32>().ok(),
+                "VerRelease" => release = val.parse::<u32>().ok(),
+                _ => {}
+            }
+        }
+    }
+    match (major, minor, release) {
+        (Some(a), Some(b), Some(c)) => Some(format!("Ver {a}.{b}.{c}")),
+        _ => None,
+    }
+}
+
+fn extract_tag_value(content: &str, tag: &str) -> Option<String> {
+    let open = format!("<{tag}>");
+    let close = format!("</{tag}>");
+    let start = content.to_lowercase().find(&open.to_lowercase())?;
+    let end = content.to_lowercase().find(&close.to_lowercase())?;
+    if end <= start {
+        return None;
+    }
+    let inner_start = start + open.len();
+    Some(content[inner_start..end].trim().to_string())
+}
+
+fn parse_dataconfig_xml_version(path: &Path) -> Option<String> {
+    let content = fs::read_to_string(path).ok()?;
+    let major = extract_tag_value(&content, "major")?.parse::<u32>().ok()?;
+    let minor = extract_tag_value(&content, "minor")?.parse::<u32>().ok()?;
+    let release = extract_tag_value(&content, "release")?.parse::<u32>().ok()?;
+    Some(format!("Ver {major}.{minor}.{release}"))
+}
+
+fn detect_option_version(dir: &Path) -> Option<String> {
+    if let Some(conf) = find_case_insensitive(dir, &["data.conf"]) {
+        if let Some(ver) = parse_data_conf_version(&conf) {
+            return Some(ver);
+        }
+    }
+    if let Some(xml) = find_case_insensitive(dir, &["dataconfig.xml", "DataConfig.xml"]) {
+        if let Some(ver) = parse_dataconfig_xml_version(&xml) {
+            return Some(ver);
+        }
+    }
+    None
+}
+
+fn detect_melonloader(base: &Path) -> bool {
+    base.join("MelonLoader").is_dir()
+        || base.join("version.dll").exists()
+        || base.join("winhttp.dll").exists()
+        || base.join("mods").join("version.dll").exists()
+}
+
+fn list_mods(dir: &Path) -> Result<Vec<ModEntry>, String> {
+    if !dir.exists() {
+        return Ok(vec![]);
+    }
+    let mut mods = Vec::new();
+    for entry in fs::read_dir(dir).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let meta = entry.metadata().map_err(|e| e.to_string())?;
+        if meta.is_file() {
+            mods.push(ModEntry {
+                name: entry.file_name().to_string_lossy().into_owned(),
+                path: entry.path().to_string_lossy().into_owned(),
+                size: meta.len(),
+            });
+        }
+    }
+    mods.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    Ok(mods)
+}
+
+#[command]
 pub fn get_active_game_cmd() -> Result<Option<String>, String> {
     get_active_game_id().map_err(|e| e.to_string())
 }
@@ -260,6 +503,141 @@ pub fn load_json_config_cmd(name: String) -> Result<Value, String> {
 #[command]
 pub fn save_json_config_cmd(name: String, content: Value) -> Result<(), String> {
     save_json_config_for_active(&name, &content).map_err(|e| e.to_string())
+}
+
+#[command]
+pub fn load_icf_cmd(kind: String) -> Result<Vec<IcfData>, String> {
+    let path = icf_path(&kind)?;
+    let kind_upper = kind.trim().to_uppercase();
+    if !path.exists() {
+        if kind_upper == "ICF2" {
+            return Ok(vec![]);
+        }
+        return Err(format!("{} not found", kind_upper));
+    }
+    let mut buf = fs::read(path).map_err(|e| e.to_string())?;
+    decode_icf(&mut buf).map_err(|e| e.to_string())
+}
+
+#[command]
+pub fn save_icf_cmd(kind: String, entries: Vec<IcfData>) -> Result<(), String> {
+    let path = icf_path(&kind)?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let serialized = serialize_icf(&entries).map_err(|e| e.to_string())?;
+    let encrypted = encrypt_icf(&serialized, crate::icf::ICF_KEY, crate::icf::ICF_IV).map_err(|e| e.to_string())?;
+    if path.exists() {
+        let backup = path.with_extension("bak");
+        let _ = fs::copy(&path, &backup);
+    }
+    fs::write(path, encrypted).map_err(|e| e.to_string())
+}
+
+#[command]
+pub fn list_option_files_cmd() -> Result<Vec<OptionEntry>, String> {
+    let dir = option_dir()?;
+    if !dir.exists() {
+        return Ok(vec![]);
+    }
+    let mut entries = Vec::new();
+    for entry in fs::read_dir(&dir).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let meta = entry.metadata().map_err(|e| e.to_string())?;
+        if !meta.is_dir() {
+            continue;
+        }
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if !is_option_folder(&name) {
+            continue;
+        }
+        let version = detect_option_version(&entry.path());
+        entries.push(OptionEntry {
+            name,
+            path: entry.path().to_string_lossy().into_owned(),
+            is_dir: true,
+            size: meta.len(),
+            version,
+        });
+    }
+    entries.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    Ok(entries)
+}
+
+#[command]
+pub fn get_mods_status_cmd() -> Result<ModsStatus, String> {
+    let game = active_game()?;
+    let root = active_game_root_dir()?;
+    let supported = game.name.eq_ignore_ascii_case("sinmai");
+    let mods_dir = root.join("Mods");
+    let melonloader_installed = detect_melonloader(&root);
+
+    let mods = if supported {
+        list_mods(&mods_dir)?
+    } else {
+        vec![]
+    };
+
+    Ok(ModsStatus {
+        supported,
+        game: Some(game.name),
+        melonloader_installed,
+        mods_dir: if supported {
+            Some(mods_dir.to_string_lossy().into_owned())
+        } else {
+            None
+        },
+        mods,
+        message: if supported {
+            None
+        } else {
+            Some("Mods are only supported for Sinmai right now".to_string())
+        },
+    })
+}
+
+#[command]
+pub fn add_mods_cmd(paths: Vec<String>) -> Result<Vec<ModEntry>, String> {
+    let game = active_game()?;
+    if !game.name.eq_ignore_ascii_case("sinmai") {
+        return Err("Mods are only supported for Sinmai".to_string());
+    }
+    let mods_dir = active_game_root_dir()?.join("Mods");
+    fs::create_dir_all(&mods_dir).map_err(|e| e.to_string())?;
+
+    for src in paths {
+        let src_path = PathBuf::from(&src);
+        if !src_path.exists() || !src_path.is_file() {
+            return Err(format!("Mod file not found: {}", src));
+        }
+        let Some(name) = src_path.file_name() else {
+            return Err("Invalid mod file name".to_string());
+        };
+        let dest = mods_dir.join(name);
+        fs::copy(&src_path, &dest).map_err(|e| e.to_string())?;
+    }
+
+    list_mods(&mods_dir)
+}
+
+#[command]
+pub fn delete_mod_cmd(name: String) -> Result<Vec<ModEntry>, String> {
+    let game = active_game()?;
+    if !game.name.eq_ignore_ascii_case("sinmai") {
+        return Err("Mods are only supported for Sinmai".to_string());
+    }
+    let mods_dir = active_game_root_dir()?.join("Mods");
+    let sanitized = PathBuf::from(&name);
+    let Some(fname) = sanitized.file_name() else {
+        return Err("Invalid mod name".to_string());
+    };
+    let target = mods_dir.join(fname);
+    if target.exists() {
+        fs::remove_file(&target).map_err(|e| e.to_string())?;
+    } else {
+        return Err("Mod not found".to_string());
+    }
+    list_mods(&mods_dir)
 }
 
 #[command]
