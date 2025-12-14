@@ -55,7 +55,7 @@ pub fn ensure_default_segatoools_exists() -> Result<(), ConfigError> {
   let path = segatoools_path_for_active()?;
   if !path.exists() {
     return Err(ConfigError::NotFound(
-      "segatools.ini not found. Please deploy segatools first.".to_string(),
+      "segatools.ini not found. Please deploy first.".to_string(),
     ));
   }
   Ok(())

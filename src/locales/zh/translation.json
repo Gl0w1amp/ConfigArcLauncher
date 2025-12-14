@@ -20,7 +20,7 @@
   "nav": {
     "games": "游戏",
     "config": "INI 编辑器",
-    "deploy": "部署 segatools",
+    "deploy": "部署",
     "json": "JSON 编辑器",
     "settings": "设置"
   },
@@ -628,11 +628,11 @@
     }
   },
   "deploy": {
-    "title": "部署 segatools",
+    "title": "部署",
     "subtitle": "为当前游戏自动下载、验证并覆盖部署可信版本。",
     "loading": "正在加载可信状态...",
     "noActiveGame": "未选择游戏",
-    "activateFirst": "请先在游戏列表中激活一个游戏再部署 segatools。",
+    "activateFirst": "请先在游戏列表中激活一个游戏再进行部署。",
     "trusted": "可信",
     "untrusted": "未通过校验",
     "buildId": "版本: {{build}}",
@@ -642,7 +642,7 @@
     "hashOk": "校验通过",
     "hashMismatch": "哈希不匹配",
     "noHashes": "没有可用的可信哈希。",
-    "deploy": "部署可信 segatools",
+    "deploy": "部署可信组件",
     "deploying": "正在部署...",
     "deployOk": "部署完成",
     "deployUnknown": "部署完成，但状态未知",
@@ -653,8 +653,8 @@
     "rollingBack": "正在回滚...",
     "rollbackOk": "回滚完成",
     "rollbackError": "回滚失败：{{error}}",
-    "confirmTitle": "覆盖现有 segatools？",
-    "confirmMessage": "将备份并覆盖现有 segatools，共 {{count}} 个文件（示例：{{files}}）",
+    "confirmTitle": "覆盖现有文件？",
+    "confirmMessage": "将备份并覆盖现有文件，共 {{count}} 个文件（示例：{{files}}）",
     "missing": "缺失",
     "missingDetail": "检测到缺少 segatools 文件。"
   }

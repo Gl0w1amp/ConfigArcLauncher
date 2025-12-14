@@ -103,7 +103,7 @@ pub fn get_segatoools_config() -> Result<SegatoolsConfig, String> {
 pub fn save_segatoools_config(config: SegatoolsConfig) -> Result<(), String> {
     let path = segatoools_path_for_active().map_err(|e| e.to_string())?;
     if !path.exists() {
-        return Err("segatools.ini not found. Please deploy segatools first.".to_string());
+        return Err("segatools.ini not found. Please deploy first.".to_string());
     }
     persist_segatoools_config(&path, &config).map_err(|e| e.to_string())
 }

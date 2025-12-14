@@ -416,7 +416,7 @@ fn check_files(
     } else if all_match {
         None
     } else if missing_files {
-        Some("Missing segatools binaries; please deploy segatools.".to_string())
+        Some("Missing segatools binaries; please deploy.".to_string())
     } else {
         Some("Detected untrusted segatools binaries".to_string())
     };

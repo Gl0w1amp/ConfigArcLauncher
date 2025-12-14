@@ -17,13 +17,13 @@
     "name": "Name",
     "error": "Error"
   },
-  "nav": {
-    "games": "Games",
-    "config": "INI Editor",
-    "deploy": "Deploy segatools",
-    "json": "JSON Editor",
-    "settings": "Settings"
-  },
+    "nav": {
+      "games": "Games",
+      "config": "INI Editor",
+      "deploy": "Deploy",
+      "json": "JSON Editor",
+      "settings": "Settings"
+    },
   "games": {
     "title": "Games",
     "subtitle": "Manage local executables and launch with selected profile.",
@@ -84,11 +84,11 @@
     "trustReason": "Details: {{reason}}"
   },
   "deploy": {
-    "title": "Deploy segatools",
-    "subtitle": "Download, verify, and install trusted segatools for the active game.",
+    "title": "Deploy",
+    "subtitle": "Download, verify, and install trusted components for the active game.",
     "loading": "Loading trusted status...",
     "noActiveGame": "No Active Game Selected",
-    "activateFirst": "Please activate a game in the Game List to deploy segatools.",
+    "activateFirst": "Please activate a game in the Game List to deploy.",
     "trusted": "Trusted",
     "untrusted": "Untrusted",
     "missing": "Missing",
@@ -100,9 +100,9 @@
     "hashOk": "Hash OK",
     "hashMismatch": "Hash mismatch",
     "noHashes": "No trusted hashes available.",
-    "deploy": "Deploy trusted segatools",
+    "deploy": "Deploy",
     "deploying": "Deploying...",
-    "deployOk": "segatools deployed",
+    "deployOk": "Deployment completed",
     "deployUnknown": "Deployment finished with unknown status",
     "deployError": "Deployment failed: {{error}}",
     "statusError": "Failed to load trust status: {{error}}",
@@ -111,8 +111,8 @@
     "rollingBack": "Rolling back...",
     "rollbackOk": "Rollback completed",
     "rollbackError": "Rollback failed: {{error}}",
-    "confirmTitle": "Overwrite existing segatools?",
-    "confirmMessage": "Existing segatools files will be backed up and overwritten ({{count}} file(s)). Sample: {{files}}"
+    "confirmTitle": "Overwrite existing files?",
+    "confirmMessage": "Existing files will be backed up and overwritten ({{count}} file(s)). Sample: {{files}}"
   },
   "json": {
     "title": "JSON Editor",
