@@ -334,6 +334,8 @@ const ALL_SECTIONS: SectionSpec[] = [
 ];
 
 function allowedSections(gameName?: string): Set<string> {
+  const blacklist = blacklistedSections(gameName);
+  const filterBlacklisted = (sections: string[]) => sections.filter((s) => !blacklist.has(s));
   const common = [
     'aimeio', 'aime', 'vfd', 'amvideo', 'clock', 'dns', 'ds', 'eeprom', 'gpio', 'hwmon',
     'jvs', 'keychip', 'netenv', 'pcbid', 'sram', 'vfs', 'epay', 'openssl', 'system',
@@ -341,23 +343,28 @@ function allowedSections(gameName?: string): Set<string> {
 
   switch (gameName) {
     case 'Chunithm':
-      return new Set([
+      return new Set(filterBlacklisted([
         ...common,
         'gfx', 'led15093', 'led', 'chuniio', 'io3', 'ir', 'slider',
-      ]);
+      ]));
     case 'Sinmai':
-      return new Set([
+      return new Set(filterBlacklisted([
         ...common,
         'led15070', 'unity', 'mai2io', 'io4', 'button', 'touch', 'gfx',
-      ]);
+      ]));
     case 'Ongeki':
-      return new Set([
+      return new Set(filterBlacklisted([
         ...common,
         'gfx', 'unity', 'led15093', 'led', 'mu3io', 'io4',
-      ]);
+      ]));
     default:
-      return new Set(ALL_SECTIONS.map(s => s.key as string));
+      return new Set(filterBlacklisted(ALL_SECTIONS.map(s => s.key as string)));
   }
+}
+
+function blacklistedSections(_gameName?: string): Set<string> {
+  // Global blacklist for now; extend per-game if needed.
+  return new Set(['ds', 'eeprom', 'gpio', 'jvs']);
 }
 
 function getSections(gameName?: string): SectionSpec[] {

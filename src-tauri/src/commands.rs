@@ -70,12 +70,29 @@ fn gen_profile_id(prefix: &str) -> String {
     format!("{}-{}", prefix, ts)
 }
 
+fn blacklist_sections_for_game(name: &str) -> HashSet<&'static str> {
+    let mut blacklist: HashSet<&'static str> = ["ds", "eeprom", "gpio", "jvs"].into_iter().collect();
+
+    match name {
+        // Extendable per-game blacklist
+        _ => {}
+    }
+
+    blacklist
+}
+
 fn allowed_sections_for_game(name: &str) -> HashSet<&'static str> {
+    let all_sections: &[&str] = &[
+        "aimeio", "aime", "vfd", "amvideo", "clock", "dns", "ds", "eeprom", "gpio", "gfx", "hwmon",
+        "jvs", "io4", "keychip", "netenv", "pcbid", "sram", "vfs", "epay", "openssl", "system",
+        "led15070", "unity", "mai2io", "chuniio", "mu3io", "button", "touch", "led15093", "led",
+        "io3", "slider", "ir",
+    ];
     let common: &[&str] = &[
         "aimeio", "aime", "vfd", "amvideo", "clock", "dns", "ds", "eeprom", "gpio", "hwmon",
         "jvs", "keychip", "netenv", "pcbid", "sram", "vfs", "epay", "openssl", "system",
     ];
-    match name {
+    let mut allowed: HashSet<&'static str> = match name {
         "Chunithm" => common.iter().copied()
             .chain(["gfx", "led15093", "led", "chuniio", "io3", "ir", "slider"].iter().copied())
             .collect(),
@@ -85,8 +102,14 @@ fn allowed_sections_for_game(name: &str) -> HashSet<&'static str> {
         "Ongeki" => common.iter().copied()
             .chain(["gfx", "unity", "led15093", "led", "mu3io", "io4"].iter().copied())
             .collect(),
-        _ => common.iter().copied().collect(),
+        _ => all_sections.iter().copied().collect(),
+    };
+
+    for section in blacklist_sections_for_game(name) {
+        allowed.remove(section);
     }
+
+    allowed
 }
 
 fn scan_game_folder_logic(path: &str) -> Result<Game, String> {
@@ -178,6 +201,40 @@ fn load_active_seg_config() -> Result<(SegatoolsConfig, PathBuf), String> {
     Ok((cfg, base))
 }
 
+fn sanitize_segatoools_for_game(mut cfg: SegatoolsConfig, game_name: Option<&str>) -> SegatoolsConfig {
+    let name = game_name.unwrap_or("");
+    let allowed_sections = allowed_sections_for_game(name);
+    let blacklist = blacklist_sections_for_game(name);
+
+    let allowed_lower: HashSet<String> = allowed_sections.into_iter().map(|s| s.to_lowercase()).collect();
+    let blacklist_lower: HashSet<String> = blacklist.into_iter().map(|s| s.to_lowercase()).collect();
+
+    let mut present: Vec<String> = cfg
+        .present_sections
+        .into_iter()
+        .filter(|s| allowed_lower.contains(&s.to_lowercase()))
+        .collect();
+
+    if present.is_empty() {
+        present = allowed_lower.iter().cloned().collect();
+    }
+
+    let mut filter_keys = |keys: &mut Vec<String>| {
+        keys.retain(|k| {
+            k.split('.')
+                .next()
+                .map(|sec| !blacklist_lower.contains(&sec.to_lowercase()))
+                .unwrap_or(true)
+        });
+    };
+
+    filter_keys(&mut cfg.present_keys);
+    filter_keys(&mut cfg.commented_keys);
+    cfg.present_sections = present;
+
+    cfg
+}
+
 #[derive(Serialize)]
 pub struct PathInfo {
     pub configured: String,
@@ -254,7 +311,9 @@ pub fn pick_game_folder_cmd() -> Result<Game, String> {
 pub fn get_segatoools_config() -> Result<SegatoolsConfig, String> {
     ensure_default_segatoools_exists().map_err(|e| e.to_string())?;
     let path = segatoools_path_for_active().map_err(|e| e.to_string())?;
-    load_segatoools_config(&path).map_err(|e| e.to_string())
+    let game_name = active_game().ok().map(|g| g.name);
+    let cfg = load_segatoools_config(&path).map_err(|e| e.to_string())?;
+    Ok(sanitize_segatoools_for_game(cfg, game_name.as_deref()))
 }
 
 #[command]
@@ -263,7 +322,9 @@ pub fn save_segatoools_config(config: SegatoolsConfig) -> Result<(), String> {
     if !path.exists() {
         return Err("segatools.ini not found. Please deploy first.".to_string());
     }
-    persist_segatoools_config(&path, &config).map_err(|e| e.to_string())
+    let game_name = active_game().ok().map(|g| g.name);
+    let sanitized = sanitize_segatoools_for_game(config, game_name.as_deref());
+    persist_segatoools_config(&path, &sanitized).map_err(|e| e.to_string())
 }
 
 #[command]
@@ -271,21 +332,26 @@ pub fn export_segatoools_config_cmd() -> Result<String, String> {
     ensure_default_segatoools_exists().map_err(|e| e.to_string())?;
     let path = segatoools_path_for_active().map_err(|e| e.to_string())?;
     let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let game_name = active_game().ok().map(|g| g.name);
     let mut cfg = load_segatoools_config_from_string(&content).map_err(|e| e.to_string())?;
     cfg.keychip.id.clear();
-    let rendered = render_segatoools_config(&cfg, Some(&content)).map_err(|e| e.to_string())?;
+    let sanitized = sanitize_segatoools_for_game(cfg, game_name.as_deref());
+    let rendered = render_segatoools_config(&sanitized, Some(&content)).map_err(|e| e.to_string())?;
     Ok(redact_keychip_id(&rendered))
 }
 
 #[command]
 pub fn import_segatoools_config_cmd(content: String) -> Result<SegatoolsConfig, String> {
-    load_segatoools_config_from_string(&content).map_err(|e| e.to_string())
+    let game_name = active_game().ok().map(|g| g.name);
+    let cfg = load_segatoools_config_from_string(&content).map_err(|e| e.to_string())?;
+    Ok(sanitize_segatoools_for_game(cfg, game_name.as_deref()))
 }
 
 #[command]
 pub fn export_profile_cmd(profile_id: Option<String>) -> Result<String, String> {
     ensure_default_segatoools_exists().map_err(|e| e.to_string())?;
     let game = active_game()?;
+    let game_name = game.name.clone();
     let allowed = allowed_sections_for_game(&game.name);
 
     let (name, description, mut cfg) = if let Some(id) = profile_id {
@@ -297,6 +363,7 @@ pub fn export_profile_cmd(profile_id: Option<String>) -> Result<String, String> 
         ("Shared Profile".to_string(), None, cfg)
     };
 
+    cfg = sanitize_segatoools_for_game(cfg, Some(game_name.as_str()));
     cfg.keychip.id.clear();
 
     let mut payload = serde_json::to_value(serde_json::json!({
@@ -346,8 +413,9 @@ pub fn import_profile_cmd(content: String) -> Result<ConfigProfile, String> {
     let mut payload: ImportProfilePayload = serde_json::from_str(&content).map_err(|e| e.to_string())?;
     payload.segatools.keychip.id.clear();
 
+    let game_name = active_game().ok().map(|g| g.name);
     let now = chrono::Utc::now().to_rfc3339();
-    let profile = ConfigProfile {
+    let mut profile = ConfigProfile {
         id: gen_profile_id("import"),
         name: payload.name.unwrap_or_else(|| "Imported Profile".to_string()),
         description: payload.description,
@@ -355,6 +423,7 @@ pub fn import_profile_cmd(content: String) -> Result<ConfigProfile, String> {
         created_at: now.clone(),
         updated_at: now,
     };
+    profile.segatools = sanitize_segatoools_for_game(profile.segatools, game_name.as_deref());
     save_profile(&profile).map_err(|e| e.to_string())?;
     Ok(profile)
 }
@@ -366,11 +435,17 @@ pub fn list_profiles_cmd() -> Result<Vec<ConfigProfile>, String> {
 
 #[command]
 pub fn load_profile_cmd(id: String) -> Result<ConfigProfile, String> {
-    load_profile(&id).map_err(|e| e.to_string())
+    let game_name = active_game().ok().map(|g| g.name);
+    let mut profile = load_profile(&id).map_err(|e| e.to_string())?;
+    profile.segatools = sanitize_segatoools_for_game(profile.segatools, game_name.as_deref());
+    Ok(profile)
 }
 
 #[command]
 pub fn save_profile_cmd(profile: ConfigProfile) -> Result<(), String> {
+    let game_name = active_game().ok().map(|g| g.name);
+    let mut profile = profile;
+    profile.segatools = sanitize_segatoools_for_game(profile.segatools, game_name.as_deref());
     save_profile(&profile).map_err(|e| e.to_string())
 }
 
@@ -401,18 +476,21 @@ pub fn launch_game_cmd(id: String, profile_id: Option<String>) -> Result<(), Str
         .into_iter()
         .find(|g| g.id == id)
         .ok_or_else(|| "Game not found".to_string())?;
+    let game_name = game.name.clone();
 
     let config_to_validate = if let Some(pid) = profile_id.filter(|s| !s.is_empty()) {
         let profile = load_profile(&pid).map_err(|e| e.to_string())?;
         let game_root = store::game_root_dir(&game).ok_or_else(|| "Game path missing".to_string())?;
         let seg_path = game_root.join("segatools.ini");
-        persist_segatoools_config(&seg_path, &profile.segatools).map_err(|e| e.to_string())?;
-        profile.segatools
+        let sanitized = sanitize_segatoools_for_game(profile.segatools, Some(game_name.as_str()));
+        persist_segatoools_config(&seg_path, &sanitized).map_err(|e| e.to_string())?;
+        sanitized
     } else {
         let game_root = store::game_root_dir(&game).ok_or_else(|| "Game path missing".to_string())?;
         let seg_path = game_root.join("segatools.ini");
         if seg_path.exists() {
-            load_segatoools_config(&seg_path).map_err(|e| e.to_string())?
+            let cfg = load_segatoools_config(&seg_path).map_err(|e| e.to_string())?;
+            sanitize_segatoools_for_game(cfg, Some(game_name.as_str()))
         } else {
             return Err("segatools.ini not found. Please configure the game.".to_string());
         }
@@ -434,24 +512,33 @@ pub fn launch_game_cmd(id: String, profile_id: Option<String>) -> Result<(), Str
 #[command]
 pub fn default_segatoools_config_cmd() -> Result<SegatoolsConfig, String> {
     // Try to load game-specific default if an active game is selected
-    if let Ok(Some(id)) = get_active_game_id() {
+    let active = if let Ok(Some(id)) = get_active_game_id() {
         if let Ok(games) = store::list_games() {
-            if let Some(game) = games.iter().find(|g| g.id == id) {
-                let content = match game.name.as_str() {
-                    "Chunithm" => Some(templates::CHUSAN_TEMPLATE),
-                    "Sinmai" => Some(templates::MAI2_TEMPLATE),
-                    "Ongeki" => Some(templates::MU3_TEMPLATE),
-                    _ => None
-                };
-
-                if let Some(ini_content) = content {
-                    return load_segatoools_config_from_string(ini_content).map_err(|e| e.to_string());
-                }
-            }
+            games.iter().find(|g| g.id == id).cloned()
+        } else {
+            None
         }
+    } else {
+        None
+    };
+
+    if let Some(game) = active {
+        let content = match game.name.as_str() {
+            "Chunithm" => Some(templates::CHUSAN_TEMPLATE),
+            "Sinmai" => Some(templates::MAI2_TEMPLATE),
+            "Ongeki" => Some(templates::MU3_TEMPLATE),
+            _ => None
+        };
+
+        if let Some(ini_content) = content {
+            let cfg = load_segatoools_config_from_string(ini_content).map_err(|e| e.to_string())?;
+            return Ok(sanitize_segatoools_for_game(cfg, Some(game.name.as_str())));
+        }
+
+        return Ok(sanitize_segatoools_for_game(default_segatoools_config(), Some(game.name.as_str())));
     }
 
-    Ok(default_segatoools_config())
+    Ok(sanitize_segatoools_for_game(default_segatoools_config(), None))
 }
 
 #[command]
@@ -623,6 +710,10 @@ pub fn get_active_game_cmd() -> Result<Option<String>, String> {
 pub fn set_active_game_cmd(id: String) -> Result<(), String> {
     set_active_game_id(&id).map_err(|e| e.to_string())?;
 
+    let game_name = store::list_games()
+        .ok()
+        .and_then(|games| games.into_iter().find(|g| g.id == id).map(|g| g.name));
+
     // Auto-backup logic: Check if "Original INI" profile exists, if not, create it from current file
     if let Ok(path) = segatoools_path_for_active() {
         if path.exists() {
@@ -631,12 +722,13 @@ pub fn set_active_game_cmd(id: String) -> Result<(), String> {
             
             if !has_original {
                 if let Ok(current_cfg) = load_segatoools_config(&path) {
+                    let sanitized = sanitize_segatoools_for_game(current_cfg, game_name.as_deref());
                     let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
                     let backup_profile = ConfigProfile {
                         id: format!("original-{}", timestamp),
                         name: "Original INI".to_string(),
                         description: Some("Automatically created from initial configuration".to_string()),
-                        segatools: current_cfg,
+                        segatools: sanitized,
                         created_at: timestamp.to_string(),
                         updated_at: timestamp.to_string(),
                     };
