@@ -21,7 +21,7 @@ type Props = {
   config: SegatoolsConfig;
   onChange: (next: SegatoolsConfig) => void;
   activeGame?: Game;
-  trusted?: boolean;
+  advanced?: boolean;
 };
 
 const ALL_SECTIONS: SectionSpec[] = [
@@ -384,14 +384,14 @@ function getSections(gameName?: string): SectionSpec[] {
     });
 }
 
-function SegatoolsEditor({ config, onChange, activeGame, trusted = false }: Props) {
+function SegatoolsEditor({ config, onChange, activeGame, advanced = false }: Props) {
   const { t } = useTranslation();
   const allowed = allowedSections(activeGame?.name);
   const sections = getSections(activeGame?.name);
   const presentSections = (config.presentSections ?? [])
     .map((s) => s.toLowerCase())
     .filter((s) => allowed.has(s));
-  const shouldFilterSections = presentSections.length > 0 && !trusted;
+  const shouldFilterSections = presentSections.length > 0 && !advanced;
   const presentKeys = (config.presentKeys ?? []).map((k) => k.toLowerCase());
   const commentedKeys = (config.commentedKeys ?? []).map((k) => k.toLowerCase());
 

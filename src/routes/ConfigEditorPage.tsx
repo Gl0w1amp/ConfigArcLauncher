@@ -11,6 +11,7 @@ import { PromptDialog } from '../components/common/PromptDialog';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { Link } from 'react-router-dom';
 import { exportProfile, importProfile } from '../api/configApi';
+import '../components/config/config.css';
 
 function ConfigEditorPage() {
   const { t } = useTranslation();
@@ -23,6 +24,18 @@ function ConfigEditorPage() {
 
   const [showNewProfileDialog, setShowNewProfileDialog] = useState(false);
   const [showDeleteProfileDialog, setShowDeleteProfileDialog] = useState(false);
+  const [showAdvancedConfirm, setShowAdvancedConfirm] = useState(false);
+  const [advancedMode, setAdvancedMode] = useState<boolean>(() => {
+    return localStorage.getItem('config:advancedMode') === '1';
+  });
+
+  const handleAdvancedModeChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setShowAdvancedConfirm(true);
+    } else {
+      setAdvancedMode(false);
+    }
+  };
 
   const activeGame = useMemo(() => games.find(g => g.id === activeGameId), [games, activeGameId]);
   const [initialized, setInitialized] = useState(false);
@@ -30,6 +43,10 @@ function ConfigEditorPage() {
   useEffect(() => {
     reloadProfiles();
   }, [reloadProfiles]);
+
+  useEffect(() => {
+    localStorage.setItem('config:advancedMode', advancedMode ? '1' : '0');
+  }, [advancedMode]);
 
   // Removed redundant useEffect that was causing double-load issues
 
@@ -216,9 +233,22 @@ function ConfigEditorPage() {
           {trustLoading ? t('config.trustChecking') : trustStatus?.trusted ? t('config.trustOk') : trustStatus?.missing_files ? t('config.trustMissing') : t('config.trustFailed')}
         </span>
         <button onClick={refreshTrust} disabled={trustLoading}>{trustLoading ? t('config.trustChecking') : t('config.trustRefresh')}</button>
+        
         <Link to="/deploy" style={{ textDecoration: 'none' }}>
           <button type="button">{t('config.openDeploy')}</button>
         </Link>
+
+        <div style={{ marginLeft: 'auto' }}>
+          <label className="toggle-switch">
+            <input
+              type="checkbox"
+              checked={advancedMode}
+              onChange={handleAdvancedModeChange}
+            />
+            <span className="toggle-slider"></span>
+            <span className="toggle-label">{t('config.advancedMode', { defaultValue: 'Advanced mode' })}</span>
+          </label>
+        </div>
       </div>
       {!trustStatus?.trusted && (
         <div style={{ background: 'rgba(248,113,113,0.1)', border: '1px solid var(--danger)', padding: 10, borderRadius: 8, marginBottom: 12 }}>
@@ -232,7 +262,7 @@ function ConfigEditorPage() {
         config={config}
         onChange={(next: SegatoolsConfig) => setConfig(next)}
         activeGame={activeGame}
-        trusted={!!trustStatus?.trusted}
+        advanced={advancedMode}
       />
       <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
         <button onClick={() => { save(config); showToast(t('config.saved'), 'success'); }} disabled={saving}>{t('config.saveConfig')}</button>
@@ -265,8 +295,19 @@ function ConfigEditorPage() {
           onCancel={() => setShowDeleteProfileDialog(false)}
           isDangerous={true}
         />
-      )}
-      <ToastContainer toasts={toasts} />
+      )}      {showAdvancedConfirm && (
+        <ConfirmDialog
+          title={t('config.advancedModeTitle', 'Enable Advanced Mode?')}
+          message={t('config.advancedModeWarning', 'Advanced mode allows you to edit all configuration fields. Incorrect settings may cause the game to fail to start or behave unexpectedly. Are you sure you know what you are doing?')}
+          confirmLabel={t('common.enable', 'Enable')}
+          onConfirm={() => {
+            setAdvancedMode(true);
+            setShowAdvancedConfirm(false);
+          }}
+          onCancel={() => setShowAdvancedConfirm(false)}
+          isDangerous
+        />
+      )}      <ToastContainer toasts={toasts} />
     </div>
   );
 }
