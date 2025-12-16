@@ -7,7 +7,7 @@ import { AlertDialog } from '../components/common/AlertDialog';
 import { useGamesState } from '../state/gamesStore';
 import { useProfilesState } from '../state/configStore';
 import { Game } from '../types/games';
-import { launchGame } from '../api/gamesApi';
+import { applyProfileToGame, launchGame } from '../api/gamesApi';
 
 const emptyGame = (): Game => ({
   id: crypto.randomUUID ? crypto.randomUUID() : `game-${Date.now()}`,
@@ -37,6 +37,15 @@ function GameListPage() {
   const handleLaunch = async (gameId: string, profileId?: string) => {
     try {
       await launchGame(gameId, profileId);
+    } catch (err) {
+      console.error(err);
+      setAlertMessage(t('games.launchFailed', { error: err }));
+    }
+  };
+
+  const handleApplyProfile = async (gameId: string, profileId: string) => {
+    try {
+      await applyProfileToGame(gameId, profileId);
     } catch (err) {
       console.error(err);
       setAlertMessage(t('games.launchFailed', { error: err }));
@@ -73,6 +82,7 @@ function GameListPage() {
         onDelete={handleDeleteRequest}
         onLaunch={handleLaunch}
         onActivate={activateGame}
+        onApplyProfile={handleApplyProfile}
         onRefresh={reload}
       />
       {editing && (

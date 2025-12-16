@@ -33,8 +33,8 @@ export function useGamesState() {
     await reload();
   }, [reload]);
 
-  const activateGame = useCallback(async (id: string) => {
-    await setActiveGame(id);
+  const activateGame = useCallback(async (id: string, profileId?: string) => {
+    await setActiveGame(id, profileId);
     await reload();
   }, [reload]);
 

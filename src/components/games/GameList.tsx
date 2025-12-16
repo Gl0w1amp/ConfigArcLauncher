@@ -10,11 +10,12 @@ type Props = {
   onEdit: (game: Game) => void;
   onDelete: (id: string) => Promise<void>;
   onLaunch: (id: string, profileId?: string) => void;
-  onActivate: (id: string) => Promise<void>;
+  onActivate: (id: string, profileId?: string) => Promise<void>;
+  onApplyProfile: (id: string, profileId: string) => Promise<void>;
   onRefresh: () => void;
 };
 
-function GameList({ games, profiles, activeGameId, onEdit, onDelete, onLaunch, onActivate }: Props) {
+function GameList({ games, profiles, activeGameId, onEdit, onDelete, onLaunch, onActivate, onApplyProfile }: Props) {
   const { t } = useTranslation();
 
   if (!games.length) {
@@ -32,7 +33,8 @@ function GameList({ games, profiles, activeGameId, onEdit, onDelete, onLaunch, o
           onEdit={() => onEdit(game)}
           onDelete={() => onDelete(game.id)}
           onLaunch={(profileId) => onLaunch(game.id, profileId)}
-          onActivate={() => onActivate(game.id)}
+          onActivate={(profileId) => onActivate(game.id, profileId)}
+          onApplyProfile={(profileId) => profileId ? onApplyProfile(game.id, profileId) : Promise.resolve()}
         />
       ))}
     </div>

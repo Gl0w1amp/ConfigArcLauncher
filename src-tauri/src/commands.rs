@@ -707,12 +707,13 @@ pub fn get_active_game_cmd() -> Result<Option<String>, String> {
 }
 
 #[command]
-pub fn set_active_game_cmd(id: String) -> Result<(), String> {
+pub fn set_active_game_cmd(id: String, profile_id: Option<String>) -> Result<(), String> {
     set_active_game_id(&id).map_err(|e| e.to_string())?;
 
-    let game_name = store::list_games()
+    let game_opt = store::list_games()
         .ok()
-        .and_then(|games| games.into_iter().find(|g| g.id == id).map(|g| g.name));
+        .and_then(|games| games.into_iter().find(|g| g.id == id));
+    let game_name = game_opt.as_ref().map(|g| g.name.clone());
 
     // Auto-backup logic: Check if "Original INI" profile exists, if not, create it from current file
     if let Ok(path) = segatoools_path_for_active() {
@@ -738,7 +739,37 @@ pub fn set_active_game_cmd(id: String) -> Result<(), String> {
         }
     }
 
+    // If a profile is supplied when activating a game, apply it immediately (so switching config does not require launch)
+    if let Some(pid) = profile_id.filter(|s| !s.is_empty()) {
+        let game = game_opt.ok_or_else(|| "Game not found".to_string())?;
+        let seg_path = segatoools_path_for_active().map_err(|e| e.to_string())?;
+        if !seg_path.exists() {
+            return Err("segatools.ini not found. Please deploy first.".to_string());
+        }
+        let profile = load_profile(&pid).map_err(|e| e.to_string())?;
+        let sanitized = sanitize_segatoools_for_game(profile.segatools, Some(game.name.as_str()));
+        persist_segatoools_config(&seg_path, &sanitized).map_err(|e| e.to_string())?;
+    }
+
     Ok(())
+}
+
+#[command]
+pub fn apply_profile_to_game_cmd(game_id: String, profile_id: String) -> Result<(), String> {
+    let games = store::list_games().map_err(|e| e.to_string())?;
+    let game = games
+        .into_iter()
+        .find(|g| g.id == game_id)
+        .ok_or_else(|| "Game not found".to_string())?;
+    let seg_path = store::game_root_dir(&game)
+        .ok_or_else(|| "Game path missing".to_string())?
+        .join("segatools.ini");
+    if !seg_path.exists() {
+        return Err("segatools.ini not found. Please deploy first.".to_string());
+    }
+    let profile = load_profile(&profile_id).map_err(|e| e.to_string())?;
+    let sanitized = sanitize_segatoools_for_game(profile.segatools, Some(game.name.as_str()));
+    persist_segatoools_config(&seg_path, &sanitized).map_err(|e| e.to_string())
 }
 
 #[command]

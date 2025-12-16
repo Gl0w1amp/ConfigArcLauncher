@@ -10,12 +10,20 @@ type Props = {
   onEdit: () => void;
   onDelete: () => void;
   onLaunch: (profileId?: string) => void;
-  onActivate: () => void;
+  onActivate: (profileId?: string) => void;
+  onApplyProfile: (profileId: string) => void;
 };
 
-function GameCard({ game, profiles, isActive, onEdit, onDelete, onLaunch, onActivate }: Props) {
+function GameCard({ game, profiles, isActive, onEdit, onDelete, onLaunch, onActivate, onApplyProfile }: Props) {
   const { t } = useTranslation();
   const [profileId, setProfileId] = useState<string>('');
+
+  const handleProfileChange = (value: string) => {
+    setProfileId(value);
+    if (value) {
+      onApplyProfile(value);
+    }
+  };
 
   return (
     <div className="game-card">
@@ -26,7 +34,7 @@ function GameCard({ game, profiles, isActive, onEdit, onDelete, onLaunch, onActi
           {!game.enabled && <span className="game-status disabled">{t('common.disabled')}</span>}
         </div>
         <div className="game-actions">
-          <button onClick={onActivate}>{isActive ? t('common.active') : t('common.activate')}</button>
+          <button onClick={() => onActivate(profileId || undefined)}>{isActive ? t('common.active') : t('common.activate')}</button>
           <button onClick={onEdit}>{t('common.edit')}</button>
           <button className="danger" onClick={onDelete}>{t('common.delete')}</button>
         </div>
@@ -40,7 +48,7 @@ function GameCard({ game, profiles, isActive, onEdit, onDelete, onLaunch, onActi
         <select 
           className="game-launch-select"
           value={profileId} 
-          onChange={(e) => setProfileId(e.target.value)}
+          onChange={(e) => handleProfileChange(e.target.value)}
         >
           <option value="">{t('games.currentFile')}</option>
           {profiles.map((p) => (
