@@ -71,7 +71,7 @@ fn gen_profile_id(prefix: &str) -> String {
 }
 
 fn blacklist_sections_for_game(name: &str) -> HashSet<&'static str> {
-    let blacklist: HashSet<&'static str> = ["ds", "eeprom", "gpio", "jvs"].into_iter().collect();
+    let blacklist: HashSet<&'static str> = ["ds", "eeprom", "gpio", "jvs", "sram"].into_iter().collect();
 
     match name {
         // Extendable per-game blacklist
