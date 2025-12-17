@@ -6,6 +6,7 @@ import './games.css';
 type Props = {
   games: Game[];
   profiles: ConfigProfile[];
+  profilesLoading: boolean;
   activeGameId?: string;
   onEdit: (game: Game) => void;
   onDelete: (id: string) => Promise<void>;
@@ -15,7 +16,7 @@ type Props = {
   onRefresh: () => void;
 };
 
-function GameList({ games, profiles, activeGameId, onEdit, onDelete, onLaunch, onActivate, onApplyProfile }: Props) {
+function GameList({ games, profiles, profilesLoading, activeGameId, onEdit, onDelete, onLaunch, onActivate, onApplyProfile }: Props) {
   const { t } = useTranslation();
 
   if (!games.length) {
@@ -29,6 +30,7 @@ function GameList({ games, profiles, activeGameId, onEdit, onDelete, onLaunch, o
           key={game.id}
           game={game}
           profiles={profiles}
+          profilesLoading={profilesLoading}
           isActive={activeGameId === game.id}
           onEdit={() => onEdit(game)}
           onDelete={() => onDelete(game.id)}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Game, ConfigProfile } from '../../types/games';
 import './games.css';
@@ -6,6 +6,7 @@ import './games.css';
 type Props = {
   game: Game;
   profiles: ConfigProfile[];
+  profilesLoading: boolean;
   isActive?: boolean;
   onEdit: () => void;
   onDelete: () => void;
@@ -14,14 +15,26 @@ type Props = {
   onApplyProfile: (profileId: string) => void;
 };
 
-function GameCard({ game, profiles, isActive, onEdit, onDelete, onLaunch, onActivate, onApplyProfile }: Props) {
+function GameCard({ game, profiles, profilesLoading, isActive, onEdit, onDelete, onLaunch, onActivate, onApplyProfile }: Props) {
   const { t } = useTranslation();
-  const [profileId, setProfileId] = useState<string>('');
+  const storageKey = `lastProfile:${game.id}`;
+  const [profileId, setProfileId] = useState<string>(() => localStorage.getItem(storageKey) ?? '');
+
+  useEffect(() => {
+    if (profilesLoading || !profileId) return;
+    const exists = profiles.some((p) => p.id === profileId);
+    if (exists) return;
+    localStorage.removeItem(storageKey);
+    setProfileId('');
+  }, [profiles, profilesLoading, profileId, storageKey]);
 
   const handleProfileChange = (value: string) => {
     setProfileId(value);
     if (value) {
+      localStorage.setItem(storageKey, value);
       onApplyProfile(value);
+    } else {
+      localStorage.removeItem(storageKey);
     }
   };
 

@@ -22,7 +22,7 @@ const emptyGame = (): Game => ({
 function GameListPage() {
   const { t } = useTranslation();
   const { games, loading, error, activeGameId, reload, saveGame, deleteGame, activateGame } = useGamesState();
-  const { profiles } = useProfilesState();
+  const { profiles, loading: profilesLoading } = useProfilesState();
   const [editing, setEditing] = useState<Game | null>(null);
   const [gameToDelete, setGameToDelete] = useState<string | null>(null);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
@@ -77,6 +77,7 @@ function GameListPage() {
       <GameList
         games={sortedGames}
         profiles={profiles}
+        profilesLoading={profilesLoading}
         activeGameId={activeGameId || undefined}
         onEdit={setEditing}
         onDelete={handleDeleteRequest}
