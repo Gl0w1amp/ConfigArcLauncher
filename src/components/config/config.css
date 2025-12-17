@@ -143,12 +143,19 @@
 }
 
 .section-summary::after {
-  content: '+';
-  font-size: 32px;
-  font-weight: 250;
-  line-height: 1;
-  color: var(--text-secondary);
+  content: '';
   transition: transform 0.2s;
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  margin-left: 12px;
+  background:
+    linear-gradient(var(--text-secondary), var(--text-secondary)),
+    linear-gradient(var(--text-secondary), var(--text-secondary));
+  background-size: 100% 2px, 2px 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+  transform-origin: 50% 50%;
 }
 
 details[open] .section-summary::after {

@@ -290,21 +290,25 @@ fn build_path_info(base: &Path, raw: &str) -> Option<PathInfo> {
 }
 
 #[command]
-pub fn pick_game_folder_cmd() -> Result<Game, String> {
-    let ps_script = "Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.FolderBrowserDialog; if ($f.ShowDialog() -eq 'OK') { Write-Output $f.SelectedPath }";
-    
-    let output = Command::new("powershell")
-        .args(&["-NoProfile", "-Command", ps_script])
-        .output()
-        .map_err(|e| e.to_string())?;
-        
-    let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    
-    if path.is_empty() {
-        return Err("No folder selected".to_string());
-    }
-    
-    scan_game_folder_logic(&path)
+pub async fn pick_game_folder_cmd() -> Result<Game, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let ps_script = "Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.FolderBrowserDialog; if ($f.ShowDialog() -eq 'OK') { Write-Output $f.SelectedPath }";
+
+        let output = Command::new("powershell")
+            .args(&["-NoProfile", "-Command", ps_script])
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+
+        if path.is_empty() {
+            return Err("No folder selected".to_string());
+        }
+
+        scan_game_folder_logic(&path)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[command]
