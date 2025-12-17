@@ -63,3 +63,9 @@ export interface ModsStatus {
   mods: ModEntry[];
   message?: string | null;
 }
+
+export interface AimeEntry {
+  id: string;
+  name: string;
+  number: string;
+}

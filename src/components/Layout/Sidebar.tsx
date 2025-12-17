@@ -47,6 +47,12 @@ function Sidebar() {
       <div className="layout-sidebar-title">{t('nav.manage')}</div>
       <div className="sidebar-group">
         <NavLink 
+          to="/manage/aime" 
+          className={({ isActive }) => `sidebar-link sidebar-sublink ${isActive ? 'active' : ''}`}
+        >
+          {t('nav.manageAime')}
+        </NavLink>
+        <NavLink 
           to="/manage/data" 
           className={({ isActive }) => `sidebar-link sidebar-sublink ${isActive ? 'active' : ''}`}
         >

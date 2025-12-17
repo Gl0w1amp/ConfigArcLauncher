@@ -25,6 +25,7 @@
   border: 1px solid var(--text-muted);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(4px);
+  transition-delay: 0s;
 }
 
 .option-tooltip::after {
@@ -42,6 +43,7 @@
   opacity: 1;
   visibility: visible;
   transform: translateX(-50%) translateY(-4px);
+  transition-delay: 0.4s;
 }
 
 .option-header {

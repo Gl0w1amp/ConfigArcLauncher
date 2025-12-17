@@ -34,4 +34,5 @@ src-tauri/gen/
 *.ini
 src-tauri/configarc_games.json
 src-tauri/configarc_active_game.json
+src-tauri/configarc_aime.json
 

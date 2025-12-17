@@ -276,6 +276,13 @@ pub struct ModsStatus {
     pub message: Option<String>,
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+pub struct AimeEntry {
+    pub id: String,
+    pub name: String,
+    pub number: String,
+}
+
 fn build_path_info(base: &Path, raw: &str) -> Option<PathInfo> {
     let trimmed = raw.trim();
     if trimmed.is_empty() {
@@ -705,6 +712,36 @@ fn list_mods(dir: &Path) -> Result<Vec<ModEntry>, String> {
     Ok(mods)
 }
 
+fn aime_store_path() -> PathBuf {
+    Path::new(".").join("configarc_aime.json")
+}
+
+fn load_aimes() -> Result<Vec<AimeEntry>, String> {
+    let path = aime_store_path();
+    if !path.exists() {
+        return Ok(vec![]);
+    }
+    let data = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    if data.trim().is_empty() {
+        return Ok(vec![]);
+    }
+    serde_json::from_str(&data).map_err(|e| e.to_string())
+}
+
+fn save_aimes(entries: &[AimeEntry]) -> Result<(), String> {
+    let path = aime_store_path();
+    let json = serde_json::to_string_pretty(entries).map_err(|e| e.to_string())?;
+    fs::write(path, json).map_err(|e| e.to_string())
+}
+
+fn normalize_aime_number(raw: &str) -> Result<String, String> {
+    let cleaned: String = raw.chars().filter(|c| !c.is_whitespace()).collect();
+    if cleaned.len() != 20 || !cleaned.chars().all(|c| c.is_ascii_digit()) {
+        return Err("Aime number must be exactly 20 digits".to_string());
+    }
+    Ok(cleaned)
+}
+
 #[command]
 pub fn get_active_game_cmd() -> Result<Option<String>, String> {
     get_active_game_id().map_err(|e| e.to_string())
@@ -880,6 +917,102 @@ pub fn get_mods_status_cmd() -> Result<ModsStatus, String> {
             Some("Mods are only supported for Sinmai right now".to_string())
         },
     })
+}
+
+#[command]
+pub fn list_aimes_cmd() -> Result<Vec<AimeEntry>, String> {
+    load_aimes()
+}
+
+#[command]
+pub fn save_aime_cmd(name: String, number: String) -> Result<AimeEntry, String> {
+    let trimmed_name = name.trim().to_string();
+    if trimmed_name.is_empty() {
+        return Err("Name is required".to_string());
+    }
+    let cleaned_number = normalize_aime_number(&number)?;
+    let mut entries = load_aimes()?;
+    let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis();
+    let entry = AimeEntry {
+        id: format!("aime-{}", ts),
+        name: trimmed_name,
+        number: cleaned_number,
+    };
+    entries.push(entry.clone());
+    save_aimes(&entries)?;
+    Ok(entry)
+}
+
+#[command]
+pub fn update_aime_cmd(id: String, name: String, number: String) -> Result<AimeEntry, String> {
+    let trimmed_name = name.trim().to_string();
+    if trimmed_name.is_empty() {
+        return Err("Name is required".to_string());
+    }
+    let cleaned_number = normalize_aime_number(&number)?;
+    let mut entries = load_aimes()?;
+    
+    if let Some(entry) = entries.iter_mut().find(|e| e.id == id) {
+        entry.name = trimmed_name;
+        entry.number = cleaned_number;
+        let result = entry.clone();
+        save_aimes(&entries)?;
+        Ok(result)
+    } else {
+        Err("Aime not found".to_string())
+    }
+}
+
+#[command]
+pub fn delete_aime_cmd(id: String) -> Result<(), String> {
+    let mut entries = load_aimes()?;
+    let before = entries.len();
+    entries.retain(|e| e.id != id);
+    if entries.len() == before {
+        return Err("Aime not found".to_string());
+    }
+    save_aimes(&entries)
+}
+
+#[command]
+pub fn apply_aime_to_active_cmd(id: String) -> Result<(), String> {
+    let entries = load_aimes()?;
+    let entry = entries
+        .into_iter()
+        .find(|e| e.id == id)
+        .ok_or_else(|| "Aime not found".to_string())?;
+    let (cfg, base) = load_active_seg_config()?;
+    let raw_path = cfg.aime.aime_path.trim();
+    if raw_path.is_empty() {
+        return Err("aimePath is empty in segatools.ini".to_string());
+    }
+    let target = resolve_with_base(&base, raw_path);
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    fs::write(target, entry.number).map_err(|e| e.to_string())
+}
+
+#[command]
+pub fn get_active_aime_cmd() -> Result<Option<String>, String> {
+    let (cfg, base) = match load_active_seg_config() {
+        Ok(res) => res,
+        Err(err) => return Err(err),
+    };
+    let raw_path = cfg.aime.aime_path.trim();
+    if raw_path.is_empty() {
+        return Ok(None);
+    }
+    let target = resolve_with_base(&base, raw_path);
+    if !target.exists() {
+        return Ok(None);
+    }
+    let content = fs::read_to_string(target).map_err(|e| e.to_string())?;
+    let trimmed = content.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(trimmed.to_string()))
 }
 
 #[command]
