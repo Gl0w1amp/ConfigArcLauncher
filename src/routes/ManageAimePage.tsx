@@ -196,6 +196,19 @@ function ManageAimePage() {
     setActiveAimeName(`${prefix}${t('manage.aime.currentDefaultName')}`);
   }, [activeAimeNumber, activeMatch, activeGame?.name, activeAimeName, t]);
 
+  const isRainbow = useMemo(() => entries.some(e => e.name.toLowerCase() === 'imgay'), [entries]);
+
+  useEffect(() => {
+    if (isRainbow) {
+      document.body.classList.add('rainbow-mode');
+    } else {
+      document.body.classList.remove('rainbow-mode');
+    }
+    return () => {
+      document.body.classList.remove('rainbow-mode');
+    };
+  }, [isRainbow]);
+
   if (loading) {
     return (
       <div className="empty-state">

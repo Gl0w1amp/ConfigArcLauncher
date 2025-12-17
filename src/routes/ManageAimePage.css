@@ -266,7 +266,7 @@
  100% { filter: hue-rotate(360deg); }
 }
 
-.rainbow-mode {
- animation: rainbow-spin 0.2s linear infinite;
+body.rainbow-mode {
+ animation: rainbow-spin 1.0s linear infinite;
 }
 
