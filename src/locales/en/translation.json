@@ -90,8 +90,8 @@
     "trustReason": "Details: {{reason}}"
   },
   "deploy": {
-    "title": "Deploy",
-    "subtitle": "Download, verify, and install trusted components for the active game.",
+    "title": "Deploy segatools",
+    "subtitle": "Download, verify, and install a trusted segatools build for the active game.",
     "loading": "Loading trusted status...",
     "noActiveGame": "No Active Game Selected",
     "activateFirst": "Please activate a game in the Game List to deploy.",

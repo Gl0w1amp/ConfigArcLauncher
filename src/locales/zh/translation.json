@@ -716,8 +716,8 @@
     }
   },
   "deploy": {
-    "title": "部署",
-    "subtitle": "为当前游戏自动下载、验证并覆盖部署可信版本。",
+    "title": "segatools 部署",
+    "subtitle": "为当前游戏下载、验证并安装可信的 segatools 版本。",
     "loading": "正在加载可信状态...",
     "noActiveGame": "未选择游戏",
     "activateFirst": "请先在游戏列表中激活一个游戏再进行部署。",
