@@ -16,43 +16,27 @@ type Props = {
   onApplyProfile: (profileId: string) => void;
 };
 
-function GameCard({ game, profiles: parentProfiles, profilesLoading: parentLoading, isActive, onEdit, onDelete, onLaunch, onActivate, onApplyProfile }: Props) {
+function GameCard({ game, isActive, onEdit, onDelete, onLaunch, onActivate, onApplyProfile }: Props) {
   const { t } = useTranslation();
   const storageKey = `lastProfile:${game.id}`;
   const [profileId, setProfileId] = useState<string>(() => localStorage.getItem(storageKey) ?? '');
   
-  const [localProfiles, setLocalProfiles] = useState<ConfigProfile[]>([]);
-  const [localLoading, setLocalLoading] = useState(false);
-
-  // If parent provides profiles (e.g. for active game), use them. Otherwise fetch our own.
-  // Actually, parent currently provides active game profiles for EVERYONE, which is wrong for inactive games.
-  // We should ignore parent profiles if we are not active, OR parent should provide correct profiles.
-  // Given the previous architecture, let's fetch our own profiles if we are not active.
-  
-  const profiles = isActive ? (parentProfiles || []) : localProfiles;
-  const loading = isActive ? (parentLoading || false) : localLoading;
+  const [profiles, setProfiles] = useState<ConfigProfile[]>([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!isActive) {
-      setLocalLoading(true);
-      listProfiles(game.id)
-        .then(setLocalProfiles)
-        .catch(console.error)
-        .finally(() => setLocalLoading(false));
-    }
-  }, [isActive, game.id]);
+    setLoading(true);
+    listProfiles(game.id)
+      .then(setProfiles)
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [game.id]);
 
   useEffect(() => {
-    if (loading || !profileId) return;
-    // If we have profiles loaded, check if our selected one exists
-    if (profiles.length > 0) {
-        const exists = profiles.some((p) => p.id === profileId);
-        if (!exists) {
-            localStorage.removeItem(storageKey);
-            setProfileId('');
-        }
-    }
-  }, [profiles, loading, profileId, storageKey]);
+    // Removed auto-clearing logic to prevent race conditions when switching games.
+    // If a profile ID is invalid, it will simply not match any option in the select box (showing empty or first option),
+    // or the launch will fail with a clear error.
+  }, []);
 
   const handleProfileChange = (value: string) => {
     setProfileId(value);
