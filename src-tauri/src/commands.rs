@@ -366,7 +366,7 @@ pub fn export_profile_cmd(profile_id: Option<String>) -> Result<String, String> 
     let allowed = allowed_sections_for_game(&game.name);
 
     let (name, description, mut cfg) = if let Some(id) = profile_id {
-        let profile = load_profile(&id).map_err(|e| e.to_string())?;
+        let profile = load_profile(&id, None).map_err(|e| e.to_string())?;
         (profile.name, profile.description, profile.segatools)
     } else {
         let path = segatoools_path_for_active().map_err(|e| e.to_string())?;
@@ -440,14 +440,14 @@ pub fn import_profile_cmd(content: String) -> Result<ConfigProfile, String> {
 }
 
 #[command]
-pub fn list_profiles_cmd() -> Result<Vec<ConfigProfile>, String> {
-    list_profiles().map_err(|e| e.to_string())
+pub fn list_profiles_cmd(game_id: Option<String>) -> Result<Vec<ConfigProfile>, String> {
+    list_profiles(game_id.as_deref()).map_err(|e| e.to_string())
 }
 
 #[command]
 pub fn load_profile_cmd(id: String) -> Result<ConfigProfile, String> {
     let game_name = active_game().ok().map(|g| g.name);
-    let mut profile = load_profile(&id).map_err(|e| e.to_string())?;
+    let mut profile = load_profile(&id, None).map_err(|e| e.to_string())?;
     profile.segatools = sanitize_segatoools_for_game(profile.segatools, game_name.as_deref());
     Ok(profile)
 }
@@ -490,7 +490,7 @@ pub fn launch_game_cmd(id: String, profile_id: Option<String>) -> Result<(), Str
     let game_name = game.name.clone();
 
     let config_to_validate = if let Some(pid) = profile_id.filter(|s| !s.is_empty()) {
-        let profile = load_profile(&pid).map_err(|e| e.to_string())?;
+        let profile = load_profile(&pid, Some(&id)).map_err(|e| e.to_string())?;
         let game_root = store::game_root_dir(&game).ok_or_else(|| "Game path missing".to_string())?;
         let seg_path = game_root.join("segatools.ini");
         let sanitized = sanitize_segatoools_for_game(profile.segatools, Some(game_name.as_str()));
@@ -759,7 +759,7 @@ pub fn set_active_game_cmd(id: String, profile_id: Option<String>) -> Result<(),
     // Auto-backup logic: Check if "Original INI" profile exists, if not, create it from current file
     if let Ok(path) = segatoools_path_for_active() {
         if path.exists() {
-            let profiles = list_profiles().unwrap_or_default();
+            let profiles = list_profiles(None).unwrap_or_default();
             let has_original = profiles.iter().any(|p| p.name == "Original INI");
             
             if !has_original {
@@ -787,7 +787,7 @@ pub fn set_active_game_cmd(id: String, profile_id: Option<String>) -> Result<(),
         if !seg_path.exists() {
             return Err("segatools.ini not found. Please deploy first.".to_string());
         }
-        let profile = load_profile(&pid).map_err(|e| e.to_string())?;
+        let profile = load_profile(&pid, Some(&id)).map_err(|e| e.to_string())?;
         let sanitized = sanitize_segatoools_for_game(profile.segatools, Some(game.name.as_str()));
         persist_segatoools_config(&seg_path, &sanitized).map_err(|e| e.to_string())?;
     }
@@ -808,7 +808,7 @@ pub fn apply_profile_to_game_cmd(game_id: String, profile_id: String) -> Result<
     if !seg_path.exists() {
         return Err("segatools.ini not found. Please deploy first.".to_string());
     }
-    let profile = load_profile(&profile_id).map_err(|e| e.to_string())?;
+    let profile = load_profile(&profile_id, Some(&game_id)).map_err(|e| e.to_string())?;
     let sanitized = sanitize_segatoools_for_game(profile.segatools, Some(game.name.as_str()));
     persist_segatoools_config(&seg_path, &sanitized).map_err(|e| e.to_string())
 }

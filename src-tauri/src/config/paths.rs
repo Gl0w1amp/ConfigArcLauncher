@@ -25,16 +25,20 @@ pub fn set_active_game_id(id: &str) -> Result<(), ConfigError> {
   Ok(())
 }
 
-pub fn active_game_dir() -> Result<PathBuf, ConfigError> {
-  let active = get_active_game_id()?
-    .ok_or_else(|| ConfigError::NotFound("No active game selected".to_string()))?;
+pub fn game_dir(game_id: &str) -> Result<PathBuf, ConfigError> {
   let games = store::list_games().map_err(|e| ConfigError::Parse(e.to_string()))?;
   let game = games
     .into_iter()
-    .find(|g| g.id == active)
-    .ok_or_else(|| ConfigError::NotFound("Active game not found".to_string()))?;
+    .find(|g| g.id == game_id)
+    .ok_or_else(|| ConfigError::NotFound(format!("Game {} not found", game_id)))?;
   store::game_root_dir(&game)
     .ok_or_else(|| ConfigError::NotFound("Game path missing".to_string()))
+}
+
+pub fn active_game_dir() -> Result<PathBuf, ConfigError> {
+  let active = get_active_game_id()?
+    .ok_or_else(|| ConfigError::NotFound("No active game selected".to_string()))?;
+  game_dir(&active)
 }
 
 pub fn segatoools_path_for_active() -> Result<PathBuf, ConfigError> {
@@ -44,6 +48,11 @@ pub fn segatoools_path_for_active() -> Result<PathBuf, ConfigError> {
     return Ok(PathBuf::from(p));
   }
   Ok(dir.join("segatools.ini"))
+}
+
+pub fn profiles_dir_for_game(game_id: &str) -> Result<PathBuf, ConfigError> {
+  let dir = game_dir(game_id)?;
+  Ok(dir.join("Segatools_Config"))
 }
 
 pub fn profiles_dir_for_active() -> Result<PathBuf, ConfigError> {

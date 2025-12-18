@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import GameList from '../components/games/GameList';
 import GameEditorDialog from '../components/games/GameEditorDialog';
@@ -22,10 +22,17 @@ const emptyGame = (): Game => ({
 function GameListPage() {
   const { t } = useTranslation();
   const { games, loading, error, activeGameId, reload, saveGame, deleteGame, activateGame } = useGamesState();
-  const { profiles, loading: profilesLoading } = useProfilesState();
+  const { profiles, loading: profilesLoading, reload: reloadProfiles } = useProfilesState();
   const [editing, setEditing] = useState<Game | null>(null);
   const [gameToDelete, setGameToDelete] = useState<string | null>(null);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
+
+
+  useEffect(() => {
+    if (activeGameId) {
+      reloadProfiles();
+    }
+  }, [activeGameId, reloadProfiles]);
 
   const sortedGames = useMemo(() => [...games].sort((a, b) => a.name.localeCompare(b.name)), [games]);
 
