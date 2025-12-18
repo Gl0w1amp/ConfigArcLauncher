@@ -191,10 +191,9 @@ function ManageAimePage() {
   useEffect(() => {
     if (!activeAimeNumber) return;
     if (activeMatch) return;
-    if (activeAimeName.trim()) return;
     const prefix = activeGame?.name ? `${activeGame.name} ` : '';
     setActiveAimeName(`${prefix}${t('manage.aime.currentDefaultName')}`);
-  }, [activeAimeNumber, activeMatch, activeGame?.name, activeAimeName, t]);
+  }, [activeAimeNumber, activeMatch, activeGame?.name, t]);
 
   const isRainbow = useMemo(() => entries.some(e => e.name.toLowerCase() === 'imgay'), [entries]);
 
