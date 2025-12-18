@@ -59,11 +59,12 @@ function SettingsForm() {
 
       <h3 style={{ marginBottom: 'var(--spacing-md)' }}>{t('settings.language')}</h3>
       
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--spacing-md)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--spacing-md)' }}>
         {[
           { id: 'system', label: t('settings.lang.system') },
           { id: 'en', label: t('settings.lang.en') },
-          { id: 'zh', label: t('settings.lang.zh') }
+          { id: 'zh', label: t('settings.lang.zh') },
+          { id: 'ja', label: t('settings.lang.ja') }
         ].map((option) => {
           const isActive = option.id === 'system' 
             ? !localStorage.getItem('i18nextLng') 

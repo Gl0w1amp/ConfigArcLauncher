@@ -1,0 +1,753 @@
+{
+  "common": {
+    "appName": "ConfigArc Launcher",
+    "confirm": "確認",
+    "pressAnyKey": "何かキーを押してください...",
+    "cancel": "キャンセル",
+    "save": "保存",
+    "delete": "削除",
+    "loading": "読み込み中...",
+    "back": "戻る",
+    "edit": "編集",
+    "active": "有効",
+    "disabled": "無効",
+    "activate": "有効化",
+    "launch": "起動",
+    "enabled": "有効",
+    "name": "名前",
+    "error": "エラー"
+  },
+  "nav": {
+    "games": "ゲーム",
+    "editor": "エディタ",
+    "editorIni": "INI エディタ",
+    "editorJson": "JSON エディタ",
+    "deploy": "デプロイ",
+    "deploySegatools": "Segatools",
+    "manage": "管理",
+    "manageData": "データ",
+    "manageAime": "Aime",
+    "manageMods": "Mods",
+    "settings": "設定"
+  },
+  "games": {
+    "title": "ゲーム",
+    "subtitle": "ローカルの実行ファイルを管理し、選択したプロファイルで起動します。",
+    "add": "ゲームを追加",
+    "noGames": "まだゲームが追加されていません。",
+    "exec": "実行ファイル",
+    "workdir": "作業ディレクトリ",
+    "args": "引数",
+    "currentFile": "現在のファイル (segatools.ini)",
+    "launchFailed": "ゲーム起動に失敗しました: {{error}}",
+    "deleteConfirmTitle": "ゲームを削除",
+    "deleteConfirmMessage": "本当にこのゲームを削除しますか？この操作は元に戻せません。",
+    "editor": {
+      "editTitle": "ゲームを編集",
+      "addTitle": "ゲームを追加",
+      "autoDetect": "フォルダーから自動検出",
+      "scanning": "スキャン中...",
+      "execPath": "実行ファイルパス",
+      "workdirOptional": "作業ディレクトリ (任意)",
+      "launchArgs": "起動引数 (スペース区切り)",
+      "save": "ゲームを保存"
+    }
+  },
+  "config": {
+    "title": "INI エディタ",
+    "subtitle": "segatools.ini の値を編集し、プロファイルを管理します。",
+    "noActiveGame": "アクティブなゲームがありません",
+    "activateFirst": "まずゲームリストでゲームを有効化してから設定を編集してください。",
+    "loadError": "設定の読み込みに失敗しました。",
+    "loading": "設定を読み込み中...",
+    "newProfile": "新しいプロファイル",
+    "saveProfile": "プロファイルを保存",
+    "deleteProfile": "プロファイルを削除",
+    "saveConfig": "設定を保存",
+    "resetDefaults": "既定にリセット",
+    "reloadDisk": "ディスクから再読み込み",
+    "saved": "設定をディスクに保存しました",
+    "reloaded": "ディスクから再読み込みしました",
+    "profileSaved": "プロファイルを保存しました！",
+    "profileDeleted": "プロファイルを削除しました",
+    "profileCreated": "プロファイルを作成しました",
+    "loadedCurrent": "現在のファイルを読み込みました",
+    "loadedProfile": "プロファイルを読み込みました: {{name}}",
+    "createProfileTitle": "新しいプロファイルを作成",
+    "createProfileMessage": "新しいプロファイル名を入力してください:",
+    "deleteProfileTitle": "プロファイルを削除",
+    "deleteProfileMessage": "本当にこのプロファイルを削除しますか？この操作は元に戻せません。",
+    "trustChecking": "segatools の信頼性を検証中...",
+    "trustOk": "信頼できる segatools を確認",
+    "trustFailed": "信頼されていない segatools を検出",
+    "trustMissing": "segatools が見つかりません",
+    "trustRefresh": "再検証",
+    "openDeploy": "デプロイを開く",
+    "trustWarningTitle": "非信頼の segatools を検出",
+    "trustWarningMessage": "オープンソースではない信頼版の segatools を検出しました。信頼できるバージョンを再デプロイしてください。",
+    "trustMissingTitle": "segatools が不足しています",
+    "trustMissingMessage": "segatools ファイルが見つかりません。信頼できるバージョンをデプロイしてください。",
+    "trustReason": "詳細: {{reason}}"
+  },
+  "deploy": {
+    "title": "segatools をデプロイ",
+    "subtitle": "アクティブなゲーム向けに信頼できる segatools をダウンロード・検証・インストールします。",
+    "loading": "信頼状態を読み込み中...",
+    "noActiveGame": "アクティブなゲームが選択されていません",
+    "activateFirst": "まずゲームリストでゲームを有効化してからデプロイしてください。",
+    "trusted": "信頼済み",
+    "untrusted": "信頼されていません",
+    "missing": "不足",
+    "updateAvailable": "アップデートがあります",
+    "updateDetail": "新しいバージョンの segatools が利用可能です。",
+    "buildId": "ビルド: {{build}}",
+    "currentGame": "アクティブなゲーム:",
+    "untrustedDetail": "信頼されていない segatools バイナリを検出しました。",
+    "missingDetail": "segatools バイナリが不足しています。",
+    "reason": "理由: {{reason}}",
+    "hashOk": "ハッシュ OK",
+    "hashMismatch": "ハッシュ不一致",
+    "noHashes": "利用できる信頼ハッシュがありません。",
+    "deploy": "デプロイ",
+    "deploying": "デプロイ中...",
+    "deployOk": "デプロイ完了",
+    "deployUnknown": "デプロイは完了しましたが状態は不明です",
+    "deployError": "デプロイに失敗しました: {{error}}",
+    "statusError": "信頼状態の取得に失敗しました: {{error}}",
+    "refresh": "ステータスを更新",
+    "rollback": "バックアップからロールバック",
+    "rollingBack": "ロールバック中...",
+    "rollbackOk": "ロールバック完了",
+    "rollbackError": "ロールバックに失敗しました: {{error}}",
+    "confirmTitle": "既存ファイルを上書きしますか？",
+    "confirmMessage": "既存のファイルはバックアップされ上書きされます（{{count}} 件）。サンプル: {{files}}",
+    "files": "ファイル検証"
+  },
+  "json": {
+    "title": "JSON エディタ",
+    "subtitle": "アクティブなゲームディレクトリ内の config_xxxx.json を編集します。",
+    "noActiveGame": "アクティブなゲームが選択されていません",
+    "activateFirst": "まずゲームリストでゲームを有効化してから JSON 設定を編集してください。",
+    "loadingList": "config_xxxx.json をスキャン中...",
+    "noneFound": "ゲームフォルダーに config_xxxx.json が見つかりません。",
+    "reloadFiles": "ファイルを更新",
+    "reloadFile": "再読み込み",
+    "save": "JSON を保存",
+    "saved": "JSON を保存しました",
+    "invalidJson": "無効な JSON: {{error}}",
+    "commonNotice": "common では credit、allnet_auth、allnet_accounting、aime、emoney のみ編集できます。",
+    "rawEditorLabel": "生の JSON",
+    "fileList": "設定ファイル"
+  },
+  "manage": {
+    "data": {
+      "title": "データ",
+      "subtitle": "segatools のパスを使って AMFS/OPTION/APPDATA コンテンツを管理します。",
+      "pathsError": "パスの取得に失敗しました: {{error}}",
+      "path": "パス",
+      "pathOk": "ディスク上に存在",
+      "notConfigured": "segatools.ini で未設定",
+      "missingPath": "ディスク上に見つかりません",
+      "amfs": "AMFS",
+      "option": "Option",
+      "appdata": "Appdata",
+      "icf1": "ICF1",
+      "icf2": "ICF2",
+      "icfLoadError": "{{kind}} の読み込みに失敗しました: {{error}}",
+      "icfSaveOk": "{{kind}} を保存しました",
+      "icfSaveError": "{{kind}} の保存に失敗しました: {{error}}",
+      "rawEditorLabel": "生の ICF JSON",
+      "reload": "再読み込み",
+      "refresh": "更新",
+      "save": "保存",
+      "optionList": "インストール済み Option",
+      "optionEmpty": "このフォルダーには Option がありません。",
+      "optionLoadError": "option リストの読み込みに失敗しました: {{error}}",
+      "appdataComing": "Appdata 管理は後日対応予定です。",
+      "amfsMissing": "AMFS パスが不足または存在しません。先に segatools.ini で設定してください。"
+    },
+    "aime": {
+      "title": "Aime",
+      "subtitle": "グローバルな Aime カードIDを管理し、アクティブなゲームに適用します。",
+      "refresh": "更新",
+      "loadError": "Aime リストの読み込みに失敗しました: {{error}}",
+      "noActiveGame": "Aime を適用するにはアクティブなゲームを選択してください。",
+      "noActiveGameHint": "アクティブなゲームがなくてもグローバルリストは管理できます。",
+      "addTitle": "Aime を追加",
+      "addName": "表示名",
+      "addNumber": "20 桁の Aime 番号",
+      "addButton": "Aime を追加",
+      "generate": "ランダム生成",
+      "addOk": "Aime を保存しました。",
+      "addError": "Aime の保存に失敗しました: {{error}}",
+      "deleteOk": "Aime を削除しました。",
+      "deleteError": "Aime の削除に失敗しました: {{error}}",
+      "apply": "アクティブなゲームに適用",
+      "applyOk": "Aime をアクティブなゲームに適用しました。",
+      "applyError": "Aime の適用に失敗しました: {{error}}",
+      "activeLoadError": "現在の Aime 読み取りに失敗しました: {{error}}",
+      "currentTitle": "現在の Aime",
+      "currentMissing": "アクティブなゲームの Aime が見つかりません (aimePath が空またはファイルなし)。",
+      "currentLinked": "連携済み: {{name}}",
+      "currentNotSaved": "この Aime はリストに保存されていません。",
+      "currentNamePlaceholder": "現在の Aime の名前",
+      "currentDefaultName": "Aime",
+      "saveCurrent": "現在の Aime を保存",
+      "invalidNumber": "Aime 番号は20桁でなければなりません。",
+      "nameRequired": "名前は必須です。",
+      "targetHint": "segatools.ini の aimePath (現在のプロファイル) に書き込みます。",
+      "listTitle": "保存済み Aime IDs",
+      "empty": "まだ Aime がありません。"
+    },
+    "mods": {
+      "title": "Mods",
+      "subtitle": "Sinmai 用の MelonLoader モッドを管理します。",
+      "noActiveGame": "モッドを管理するにはアクティブなゲームを選択してください。",
+      "unsupported": "現在は Sinmai のみモッド管理に対応しています。",
+      "modsDir": "Mods ディレクトリ",
+      "melonloaderMissing": "MelonLoader を検出できません。先にゲームフォルダーへインストールしてください。",
+      "melonloaderOk": "MelonLoader を検出しました。",
+      "listTitle": "インストール済みモッド",
+      "empty": "Mods フォルダーが空です。",
+      "add": "モッドを追加",
+      "refresh": "更新",
+      "delete": "削除",
+      "addOk": "モッドを追加しました。",
+      "deleteOk": "モッドを削除しました。",
+      "statusError": "モッドの状態取得に失敗しました: {{error}}",
+      "addError": "モッドの追加に失敗しました: {{error}}",
+      "deleteError": "モッドの削除に失敗しました: {{error}}",
+      "dropHint": "ここにファイルをドロップしてモッドを追加",
+      "unsupportedGame": "このゲームはモッドに対応していません。"
+    }
+  },
+  "settings": {
+    "title": "設定",
+    "appearance": "外観",
+    "theme": {
+      "system": "システム",
+      "light": "ライト",
+      "dark": "ダーク"
+    },
+    "language": "言語",
+    "lang": {
+      "system": "システム",
+      "en": "English",
+      "zh": "中文",
+      "ja": "日本語"
+    }
+  },
+  "segatools": {
+    "aimeio": {
+      "title": "aimeio",
+      "path": {
+        "label": "ドライバーパス",
+        "desc": "サードパーティ製カードリーダードライバー DLL のパスを指定します。既定は空 (テキストファイルとキーボード入力に基づく内蔵エミュレーションを使用)。"
+      }
+    },
+    "mai2io": {
+      "title": "mai2io",
+      "path": {
+        "label": "ドライバーパス",
+        "desc": "サードパーティ製 maimai DX IO ドライバー DLL のパスを指定します。"
+      }
+    },
+    "aime": {
+      "title": "aime",
+      "enable": {
+        "label": "Aime エミュレーションを有効化",
+        "desc": "Aime カードリーダーのエミュレーションを有効にします。無効にすると実機 SEGA Aime リーダーを使用します。"
+      },
+      "portNo": {
+        "label": "COM ポート",
+        "desc": "Aime カードリーダーで使用する COM ポートを設定します。"
+      },
+      "highBaud": {
+        "label": "高速ボーレート (115200)",
+        "desc": "Aime リーダーのボーレートを 115200 (デフォルトは 38400) にします。Chunithm など一部ゲームで必要です。"
+      },
+      "gen": {
+        "label": "世代",
+        "desc": "Aime カードリーダーの世代を変更します (1、2、または 3)。"
+      },
+      "aimePath": {
+        "label": "Aime カードファイル",
+        "desc": "従来の Aime IC カード ID が含まれるテキストファイルのパス。"
+      },
+      "aimeGen": {
+        "label": "Aime ID を生成",
+        "desc": "aimePath にファイルが存在しない場合、ランダムな Aime ID を生成するかどうか。"
+      },
+      "felicaPath": {
+        "label": "FeliCa ファイル",
+        "desc": "FeliCa 電子マネーカードの IDm シリアル番号が含まれるテキストファイルのパス。"
+      },
+      "felicaGen": {
+        "label": "FeliCa ID を生成",
+        "desc": "felicaPath にファイルが存在しない場合、ランダムな FeliCa ID を生成するかどうか。"
+      },
+      "scan": {
+        "label": "スキャンキー (VK コード)",
+        "desc": "仮想キーコード。押下中は IC カードリーダーがカードを検出した状態をエミュレートします。"
+      },
+      "proxyFlag": {
+        "label": "プロキシフラグ"
+      },
+      "authdataPath": {
+        "label": "認証データパス"
+      }
+    },
+    "vfd": {
+      "title": "vfd",
+      "enable": {
+        "label": "VFD エミュレーションを有効化",
+        "desc": "VFD エミュレーションを有効にします。無効にすると実機 VFD GP1232A02A FUTABA を使用します。"
+      },
+      "portNo": {
+        "label": "COM ポート",
+        "desc": "VFD で使用する COM ポートを設定します。"
+      },
+      "utfConversion": {
+        "label": "UTF に変換",
+        "desc": "VFD からの文字列をそれぞれのエンコードから UTF に変換します。"
+      }
+    },
+    "amvideo": {
+      "title": "amvideo",
+      "enable": {
+        "label": "amvideo スタブを有効化",
+        "desc": "スタブの amvideo.dll を有効にします。無効にすると実機の amvideo.dll ビルドを使用します。"
+      }
+    },
+    "clock": {
+      "title": "clock",
+      "timezone": {
+        "label": "JST タイムゾーンを強制",
+        "desc": "システムのタイムゾーンを JST に見せます。JST 以外では SEGA ゲームが正しく動作しないことがあります。"
+      },
+      "timewarp": {
+        "label": "タイムワープ",
+        "desc": "ハードコードされたサーバーメンテナンス期間をスキップする実験的な時間ワープフック。"
+      },
+      "writeable": {
+        "label": "時計書き込みを許可",
+        "desc": "ゲームによるシステム時刻とタイムゾーン設定の変更を許可します。"
+      }
+    },
+    "dns": {
+      "sectionTitle": "DNS",
+      "title": {
+        "label": "タイトルサーバー",
+        "desc": "一部ゲームのタイトルサーバーのホスト名を書き換えます。"
+      },
+      "default": {
+        "label": "デフォルトホスト",
+        "desc": "共通ネットワークサービスのホスト名を設定します。"
+      },
+      "router": {
+        "label": "ルーター上書き",
+        "desc": "tenporouter.loc と bbrouter.loc の名前解決先を上書きします。"
+      },
+      "startup": {
+        "label": "スタートアップホスト",
+        "desc": "naominet.jp の名前解決先を上書きします。"
+      },
+      "billing": {
+        "label": "課金ホスト",
+        "desc": "ib.naominet.jp の名前解決先を上書きします。"
+      },
+      "aimedb": {
+        "label": "AimeDB ホスト",
+        "desc": "aime.naominet.jp の名前解決先を上書きします。"
+      },
+      "replaceHost": {
+        "label": "HTTP Host ヘッダーを置き換える",
+        "desc": "HTTP リクエストヘッダーの HOST を上記の設定で置き換えます。"
+      },
+      "startupPort": {
+        "label": "スタートアップポート",
+        "desc": "スタートアップサーバーへの接続ポートを上書きします。"
+      },
+      "billingPort": {
+        "label": "課金ポート",
+        "desc": "課金サーバーへの接続ポートを上書きします。"
+      },
+      "aimedbPort": {
+        "label": "AimeDB ポート",
+        "desc": "AimeDB サーバーへの接続ポートを上書きします。"
+      }
+    },
+    "ds": {
+      "title": "ds",
+      "enable": {
+        "label": "DS EEPROM を有効化",
+        "desc": "DS EEPROM エミュレーションを有効にします。無効にすると実機 AMEX の DS EEPROM チップを使用します。"
+      },
+      "region": {
+        "label": "リージョンマスク",
+        "desc": "AMEX ボードのリージョンコード (1: Japan, 4: Export, 8: China)。"
+      },
+      "serialNo": {
+        "label": "MAIN ID",
+        "desc": "\"MAIN ID\" シリアル番号。"
+      }
+    },
+    "eeprom": {
+      "title": "eeprom",
+      "enable": {
+        "label": "EEPROM を有効化",
+        "desc": "バルク EEPROM エミュレーションを有効にします。無効にすると実機 AMEX の EEPROM を使用します。"
+      },
+      "path": {
+        "label": "EEPROM パス",
+        "desc": "EEPROM エミュレーション用のストレージファイルのパス。"
+      }
+    },
+    "gpio": {
+      "title": "gpio",
+      "enable": {
+        "label": "GPIO を有効化",
+        "desc": "GPIO エミュレーションを有効にします。無効にすると実機 AMEX の GPIO コントローラーを使用します。"
+      },
+      "sw1": {
+        "label": "SW1 キー",
+        "desc": "Nu シャーシ SW1 ボタンのキーボード割り当て (テスト代替)。"
+      },
+      "sw2": {
+        "label": "SW2 キー",
+        "desc": "Nu シャーシ SW2 ボタンのキーボード割り当て (サービス代替)。"
+      },
+      "dipsw1": {
+        "label": "DIP 1",
+        "desc": "Nu シャーシの DIP スイッチ 1。"
+      },
+      "dipsw2": {
+        "label": "DIP 2",
+        "desc": "Nu シャーシの DIP スイッチ 2。"
+      },
+      "dipsw3": {
+        "label": "DIP 3",
+        "desc": "Nu シャーシの DIP スイッチ 3。"
+      },
+      "dipsw4": {
+        "label": "DIP 4",
+        "desc": "Nu シャーシの DIP スイッチ 4。"
+      },
+      "dipsw5": {
+        "label": "DIP 5",
+        "desc": "Nu シャーシの DIP スイッチ 5。"
+      },
+      "dipsw6": {
+        "label": "DIP 6",
+        "desc": "Nu シャーシの DIP スイッチ 6。"
+      },
+      "dipsw7": {
+        "label": "DIP 7",
+        "desc": "Nu シャーシの DIP スイッチ 7。"
+      },
+      "dipsw8": {
+        "label": "DIP 8",
+        "desc": "Nu シャーシの DIP スイッチ 8。"
+      }
+    },
+    "gfx": {
+      "title": "gfx",
+      "enable": {
+        "label": "グラフィックフックを有効化",
+        "desc": "グラフィックフックを有効にします。"
+      },
+      "windowed": {
+        "label": "ウィンドウモードを強制",
+        "desc": "ゲームをウィンドウモードで実行します。"
+      },
+      "framed": {
+        "label": "ウィンドウ枠を追加",
+        "desc": "ウィンドウモード時にゲームウィンドウへ枠を追加します。"
+      },
+      "monitor": {
+        "label": "モニター番号",
+        "desc": "ゲームを実行するモニターを選択します。(全画面のみ、0 = メイン)"
+      },
+      "dpiAware": {
+        "label": "DPI 対応",
+        "desc": "ゲームを DPI 対応に設定します。Windows の拡大縮小を防ぎます。"
+      }
+    },
+    "hwmon": {
+      "title": "hwmon",
+      "enable": {
+        "label": "ハードウェアモニターを有効化",
+        "desc": "hwmon エミュレーションを有効にします。無効にすると実機の hwmon ドライバーを使用します。"
+      }
+    },
+    "jvs": {
+      "title": "jvs",
+      "enable": {
+        "label": "JVS を有効化",
+        "desc": "JVS ポートのエミュレーションを有効にします。無効にすると実機 AMEX の JVS ポートを使用します。"
+      },
+      "foreground": {
+        "label": "フォーカス時のみ入力",
+        "desc": "ゲームのメインウィンドウがフォーカスされているときのみ入力を有効にします。"
+      }
+    },
+    "io4": {
+      "title": "io4",
+      "enable": {
+        "label": "IO4 を有効化",
+        "desc": "IO4 ポートのエミュレーションを有効にします。無効にすると実機 ALLS の IO4 ポートを使用します。"
+      },
+      "foreground": {
+        "label": "フォーカス時のみ入力",
+        "desc": "ゲームのメインウィンドウがフォーカスされているときのみ入力を有効にします。"
+      },
+      "test": {
+        "label": "テストキー",
+        "desc": "テストボタンの仮想キーコード。"
+      },
+      "service": {
+        "label": "サービスキー",
+        "desc": "サービスボタンの仮想キーコード。"
+      },
+      "coin": {
+        "label": "コインキー",
+        "desc": "コインカウンターを増加させるキーボードキー。"
+      }
+    },
+    "button": {
+      "title": "button",
+      "enable": {
+        "label": "ボタンエミュレーションを有効化"
+      },
+      "p1Btn1": {
+        "label": "P1 ボタン 1"
+      },
+      "p1Btn2": {
+        "label": "P1 ボタン 2"
+      },
+      "p1Btn3": {
+        "label": "P1 ボタン 3"
+      },
+      "p1Btn4": {
+        "label": "P1 ボタン 4"
+      },
+      "p1Btn5": {
+        "label": "P1 ボタン 5"
+      },
+      "p1Btn6": {
+        "label": "P1 ボタン 6"
+      },
+      "p1Btn7": {
+        "label": "P1 ボタン 7"
+      },
+      "p1Btn8": {
+        "label": "P1 ボタン 8"
+      },
+      "p1Select": {
+        "label": "P1 セレクト"
+      },
+      "p2Btn1": {
+        "label": "P2 ボタン 1"
+      },
+      "p2Btn2": {
+        "label": "P2 ボタン 2"
+      },
+      "p2Btn3": {
+        "label": "P2 ボタン 3"
+      },
+      "p2Btn4": {
+        "label": "P2 ボタン 4"
+      },
+      "p2Btn5": {
+        "label": "P2 ボタン 5"
+      },
+      "p2Btn6": {
+        "label": "P2 ボタン 6"
+      },
+      "p2Btn7": {
+        "label": "P2 ボタン 7"
+      },
+      "p2Btn8": {
+        "label": "P2 ボタン 8"
+      },
+      "p2Select": {
+        "label": "P2 セレクト"
+      }
+    },
+    "touch": {
+      "title": "touch",
+      "p1Enable": {
+        "label": "P1 タッチを有効化"
+      },
+      "p2Enable": {
+        "label": "P2 タッチを有効化"
+      }
+    },
+    "keychip": {
+      "title": "keychip",
+      "enable": {
+        "label": "キーチップエミュレーションを有効化",
+        "desc": "キーチップのエミュレーションを有効にします。無効にすると実機キーチップを使用します。"
+      },
+      "id": {
+        "label": "キーチップ ID",
+        "desc": "キーチップのシリアル番号。"
+      },
+      "gameId": {
+        "label": "ゲーム ID",
+        "desc": "ゲームの 4 文字モデルコードを上書きします。"
+      },
+      "platformId": {
+        "label": "プラットフォーム ID",
+        "desc": "ゲームの 4 文字プラットフォームコードを上書きします。"
+      },
+      "region": {
+        "label": "リージョンマスク",
+        "desc": "キーチップのリージョンコードを上書きします。"
+      },
+      "billingCa": {
+        "label": "課金 CA パス",
+        "desc": "課金証明書のパスを設定します。"
+      },
+      "billingPub": {
+        "label": "課金公開鍵パス",
+        "desc": "実際のキーチップ RSA 公開鍵のパスを設定します。"
+      },
+      "billingType": {
+        "label": "課金タイプ",
+        "desc": "課金タイプを設定します (1 = レンタル, 0 = 購入)。"
+      },
+      "systemFlag": {
+        "label": "システムフラグ",
+        "desc": "詳細不明の 8 ビットビットフィールド。"
+      },
+      "subnet": {
+        "label": "サブネット",
+        "desc": "ゲームが想定する LAN IP 範囲。"
+      }
+    },
+    "netenv": {
+      "title": "netenv",
+      "enable": {
+        "label": "ネットワーク仮想化を有効化",
+        "desc": "ネットワーク環境の仮想化を有効にします。"
+      },
+      "addrSuffix": {
+        "label": "アドレスサフィックス",
+        "desc": "仮想サブネット上のローカルホスト IP の末尾オクテット。"
+      },
+      "routerSuffix": {
+        "label": "ゲートウェイサフィックス",
+        "desc": "仮想サブネット上のデフォルトゲートウェイ IP の末尾オクテット。"
+      },
+      "macAddr": {
+        "label": "MAC アドレス",
+        "desc": "仮想イーサネットアダプターの MAC アドレス。"
+      }
+    },
+    "pcbid": {
+      "title": "pcbid",
+      "enable": {
+        "label": "ホスト名仮想化を有効化",
+        "desc": "Windows ホスト名の仮想化を有効にします。"
+      },
+      "serialNo": {
+        "label": "シリアル番号",
+        "desc": "Windows ホスト名を設定します。ALLS MAIN ID を推奨します。"
+      }
+    },
+    "sram": {
+      "title": "sram",
+      "enable": {
+        "label": "SRAM エミュレーションを有効化",
+        "desc": "SRAM エミュレーションを有効にします。無効にすると実機 AMEX の SRAM を使用します。"
+      },
+      "path": {
+        "label": "SRAM パス",
+        "desc": "SRAM エミュレーション用のストレージファイルのパス。"
+      }
+    },
+    "vfs": {
+      "title": "vfs",
+      "enable": {
+        "label": "パスリダイレクトを有効化",
+        "desc": "パスのリダイレクトを有効にします。"
+      },
+      "amfs": {
+        "label": "AMFS パス",
+        "desc": "SEGA AMFS ボリュームの場所を設定します。"
+      },
+      "appdata": {
+        "label": "APPDATA パス",
+        "desc": "SEGA \"APPDATA\" ボリュームの場所を設定します。"
+      },
+      "option": {
+        "label": "Option パス",
+        "desc": "\"Option\" データのマウントポイントの場所を設定します。"
+      }
+    },
+    "epay": {
+      "title": "epay",
+      "enable": {
+        "label": "E-pay を有効化",
+        "desc": "Thinca エミュレーションを有効にします。"
+      },
+      "hook": {
+        "label": "フックを有効化",
+        "desc": "Thinca DLL の関数をフックし、電子マネーの存在をエミュレートします。"
+      }
+    },
+    "openssl": {
+      "title": "openssl",
+      "enable": {
+        "label": "OpenSSL フックを有効化",
+        "desc": "OpenSSL フックを有効にし、Intel CPU 上の SHA 拡張バグを修正します。"
+      },
+      "override": {
+        "label": "強制上書き",
+        "desc": "OpenSSL 環境変数を常にフックするように上書きします。"
+      }
+    },
+    "system": {
+      "title": "system",
+      "enable": {
+        "label": "ALLS システムを有効化",
+        "desc": "ALLS システム設定を有効にします。"
+      },
+      "freeplay": {
+        "label": "フリープレイ",
+        "desc": "フリープレイモードを有効化します。コインスロットが無効になります。"
+      },
+      "dipsw1": {
+        "label": "DIP 1 (LAN Install)",
+        "desc": "LAN Install: 1 = サーバー, 0 = クライアント。"
+      },
+      "dipsw2": {
+        "label": "DIP 2 (Monitor)",
+        "desc": "モニタータイプ: 0 = 120FPS, 1 = 60FPS (Chunithm)。"
+      },
+      "dipsw3": {
+        "label": "DIP 3 (Cab Type)",
+        "desc": "筐体タイプ: 0 = SP, 1 = CVT (Chunithm)。"
+      }
+    },
+    "led15070": {
+      "title": "led15070",
+      "enable": {
+        "label": "LED エミュレーションを有効化",
+        "desc": "837-15070-04 制御のライトのエミュレーションを有効にします。"
+      }
+    },
+    "unity": {
+      "title": "unity",
+      "enable": {
+        "label": "Unity フックを有効化",
+        "desc": "Unity フックを有効にします。ゲーム起動前にカスタム .NET コードを実行できます。"
+      },
+      "targetAssembly": {
+        "label": "ターゲットアセンブリ",
+        "desc": "ゲームの前に実行する .NET DLL のパス。"
+      }
+    }
+  }
+}
