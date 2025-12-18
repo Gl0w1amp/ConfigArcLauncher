@@ -10,7 +10,7 @@ import { useToast, ToastContainer } from '../components/common/Toast';
 import { PromptDialog } from '../components/common/PromptDialog';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { Link } from 'react-router-dom';
-import { exportProfile, importProfile } from '../api/configApi';
+import { exportProfile, importProfile, loadDefaultSegatoolsConfig } from '../api/configApi';
 import '../components/config/config.css';
 
 function ConfigEditorPage() {
@@ -93,11 +93,12 @@ function ConfigEditorPage() {
 
   const onConfirmCreateProfile = async (name: string) => {
     if (!config || !name) return;
+    const defaultConfig = await loadDefaultSegatoolsConfig();
     const profile: ConfigProfile = {
       id: crypto.randomUUID ? crypto.randomUUID() : `profile-${Date.now()}`,
       name,
       description: '',
-      segatools: config,
+      segatools: defaultConfig,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
