@@ -31,6 +31,7 @@ fn main() {
             segatoools_path_cmd,
             get_data_paths_cmd,
             get_active_game_cmd,
+            scan_game_vfs_folders_cmd,
             set_active_game_cmd,
             list_json_configs_cmd,
             load_json_config_cmd,

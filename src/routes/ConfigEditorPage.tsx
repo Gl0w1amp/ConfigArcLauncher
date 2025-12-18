@@ -10,7 +10,7 @@ import { useToast, ToastContainer } from '../components/common/Toast';
 import { PromptDialog } from '../components/common/PromptDialog';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { Link } from 'react-router-dom';
-import { exportProfile, importProfile, loadDefaultSegatoolsConfig } from '../api/configApi';
+import { exportProfile, importProfile, loadDefaultSegatoolsConfig, scanGameVfsFolders } from '../api/configApi';
 import '../components/config/config.css';
 
 function ConfigEditorPage() {
@@ -28,6 +28,32 @@ function ConfigEditorPage() {
   const [advancedMode, setAdvancedMode] = useState<boolean>(() => {
     return localStorage.getItem('config:advancedMode') === '1';
   });
+
+  const handleAutoCompleteVfs = async () => {
+    try {
+      const result = await scanGameVfsFolders();
+      if (!config) return;
+      
+      const newVfs = { ...config.vfs };
+      let changed = false;
+      
+      if (result.amfs) { newVfs.amfs = result.amfs; changed = true; }
+      if (result.appdata) { newVfs.appdata = result.appdata; changed = true; }
+      if (result.option) { newVfs.option = result.option; changed = true; }
+      
+      if (changed) {
+        setConfig({
+          ...config,
+          vfs: newVfs
+        });
+        showToast(t('config.vfsAutoCompleted', { defaultValue: 'VFS paths auto-completed' }), 'success');
+      } else {
+        showToast(t('config.vfsNoPathsFound', { defaultValue: 'No VFS folders found' }), 'info');
+      }
+    } catch (err) {
+      showToast(t('config.vfsScanFailed', { reason: String(err), defaultValue: `Scan failed: ${String(err)}` }), 'danger');
+    }
+  };
 
   const handleAdvancedModeChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
@@ -239,7 +265,10 @@ function ConfigEditorPage() {
           <button type="button">{t('config.openDeploy')}</button>
         </Link>
 
-        <div style={{ marginLeft: 'auto' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button onClick={handleAutoCompleteVfs} style={{ padding: '4px 8px', fontSize: '0.9em' }}>
+            {t('config.autoComplete', { defaultValue: 'Auto Complete' })}
+          </button>
           <label className="toggle-switch">
             <input
               type="checkbox"

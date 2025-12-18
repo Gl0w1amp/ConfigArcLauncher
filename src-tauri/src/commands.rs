@@ -754,6 +754,91 @@ fn normalize_aime_number(raw: &str) -> Result<String, String> {
     Ok(cleaned)
 }
 
+#[derive(Serialize)]
+pub struct VfsScanResult {
+    pub amfs: Option<String>,
+    pub appdata: Option<String>,
+    pub option: Option<String>,
+}
+
+#[command]
+pub fn scan_game_vfs_folders_cmd() -> Result<VfsScanResult, String> {
+    let game_dir = active_game_dir().map_err(|e| e.to_string())?;
+    
+    let mut result = VfsScanResult {
+        amfs: None,
+        appdata: None,
+        option: None,
+    };
+
+    let read_dir = fs::read_dir(&game_dir).map_err(|e| e.to_string())?;
+
+    for entry in read_dir {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        
+        let dir_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        
+        // Check for AMFS (contains ICF*)
+        if result.amfs.is_none() {
+            if let Ok(sub_entries) = fs::read_dir(&path) {
+                for sub in sub_entries {
+                    if let Ok(sub) = sub {
+                        if let Some(name) = sub.file_name().to_str() {
+                            if name.starts_with("ICF") {
+                                result.amfs = Some(dir_name.to_string());
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Check for AppData (contains S[A-Z]{3})
+        if result.appdata.is_none() {
+             if let Ok(sub_entries) = fs::read_dir(&path) {
+                for sub in sub_entries {
+                    if let Ok(sub) = sub {
+                        if sub.path().is_dir() {
+                            if let Some(name) = sub.file_name().to_str() {
+                                if name.len() == 4 && name.starts_with('S') && name.chars().skip(1).all(|c| c.is_ascii_uppercase()) {
+                                    result.appdata = Some(dir_name.to_string());
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Check for Option (contains X*** or A***)
+        if result.option.is_none() {
+             if let Ok(sub_entries) = fs::read_dir(&path) {
+                for sub in sub_entries {
+                    if let Ok(sub) = sub {
+                        if sub.path().is_dir() {
+                            if let Some(name) = sub.file_name().to_str() {
+                                // User requested X***, standard is A***. Support both.
+                                if name.len() == 4 && (name.starts_with('X') || name.starts_with('A')) {
+                                    result.option = Some(dir_name.to_string());
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(result)
+}
+
 #[command]
 pub fn get_active_game_cmd() -> Result<Option<String>, String> {
     get_active_game_id().map_err(|e| e.to_string())
