@@ -63,7 +63,6 @@ function GameCard({ game, profiles, profilesLoading, isActive, onEdit, onDelete,
           value={profileId} 
           onChange={(e) => handleProfileChange(e.target.value)}
         >
-          <option value="">{t('games.currentFile')}</option>
           {profiles.map((p) => (
             <option key={p.id} value={p.id}>{p.name}</option>
           ))}
