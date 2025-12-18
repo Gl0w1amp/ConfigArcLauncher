@@ -51,7 +51,7 @@ function ConfigEditorPage() {
         showToast(t('config.vfsNoPathsFound', { defaultValue: 'No VFS folders found' }), 'info');
       }
     } catch (err) {
-      showToast(t('config.vfsScanFailed', { reason: String(err), defaultValue: `Scan failed: ${String(err)}` }), 'danger');
+      showToast(t('config.vfsScanFailed', { reason: String(err), defaultValue: `Scan failed: ${String(err)}` }), 'error');
     }
   };
 
@@ -167,7 +167,7 @@ function ConfigEditorPage() {
       URL.revokeObjectURL(url);
       showToast(t('config.exportedIni', { defaultValue: 'Profile exported' }), 'success');
     } catch (err) {
-      showToast(t('config.exportFailed', { reason: String(err), defaultValue: `Export failed: ${String(err)}` }), 'danger');
+      showToast(t('config.exportFailed', { reason: String(err), defaultValue: `Export failed: ${String(err)}` }), 'error');
     }
   };
 
@@ -186,7 +186,7 @@ function ConfigEditorPage() {
       setConfig(profile.segatools);
       showToast(t('config.importedIni', { name: profile.name, defaultValue: 'Profile imported' }), 'success');
     } catch (err) {
-      showToast(t('config.importFailed', { reason: String(err), defaultValue: `Import failed: ${String(err)}` }), 'danger');
+      showToast(t('config.importFailed', { reason: String(err), defaultValue: `Import failed: ${String(err)}` }), 'error');
     } finally {
       e.target.value = '';
     }
