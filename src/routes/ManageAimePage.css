@@ -270,3 +270,19 @@ body.rainbow-mode {
  animation: rainbow-spin 0.5s linear infinite;
 }
 
+.aime-save-current {
+  margin-top: var(--spacing-sm);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--border-color);
+}
+
+.aime-save-row {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: center;
+}
+
+.aime-save-row input {
+  flex: 1;
+  width: auto;
+}

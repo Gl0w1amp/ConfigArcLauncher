@@ -268,7 +268,7 @@ function ManageAimePage() {
                   placeholder={t('manage.aime.currentNamePlaceholder')}
                 />
                 <button type="button" className="btn-primary" onClick={handleSaveCurrent}>
-                  <Icons.Save /> {t('manage.aime.saveCurrent')}
+                  <Icons.Save /> {t('common.save')}
                 </button>
               </div>
             </div>
