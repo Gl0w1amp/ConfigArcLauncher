@@ -216,6 +216,18 @@ fn sanitize_segatoools_for_game(mut cfg: SegatoolsConfig, game_name: Option<&str
         .collect();
 
     if present.is_empty() {
+        let template = match name {
+            "Chunithm" => Some(templates::CHUSAN_TEMPLATE),
+            "Sinmai" => Some(templates::MAI2_TEMPLATE),
+            "Ongeki" => Some(templates::MU3_TEMPLATE),
+            _ => None
+        };
+
+        if let Some(tmpl) = template {
+            if let Ok(default_cfg) = load_segatoools_config_from_string(tmpl) {
+                return default_cfg;
+            }
+        }
         present = allowed_lower.iter().cloned().collect();
     }
 
