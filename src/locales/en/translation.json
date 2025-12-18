@@ -98,6 +98,8 @@
     "trusted": "Trusted",
     "untrusted": "Untrusted",
     "missing": "Missing",
+    "updateAvailable": "Update Available",
+    "updateDetail": "A newer version of segatools is available.",
     "buildId": "Build: {{build}}",
     "currentGame": "Active game:",
     "untrustedDetail": "Untrusted segatools binaries detected.",
@@ -118,7 +120,8 @@
     "rollbackOk": "Rollback completed",
     "rollbackError": "Rollback failed: {{error}}",
     "confirmTitle": "Overwrite existing files?",
-    "confirmMessage": "Existing files will be backed up and overwritten ({{count}} file(s)). Sample: {{files}}"
+    "confirmMessage": "Existing files will be backed up and overwritten ({{count}} file(s)). Sample: {{files}}",
+    "files": "File Verification"
   },
   "json": {
     "title": "JSON Editor",

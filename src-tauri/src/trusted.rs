@@ -142,7 +142,46 @@ pub struct SegatoolsTrustStatus {
     pub checked_files: Vec<FileCheckResult>,
     pub has_backup: bool,
     pub missing_files: bool,
+    pub local_build_time: Option<String>,
 }
+
+fn get_pe_timestamp(path: &Path) -> Option<u32> {
+    let mut file = fs::File::open(path).ok()?;
+    let mut dos_header = [0u8; 0x40];
+    file.read_exact(&mut dos_header).ok()?;
+    
+    if &dos_header[0..2] != b"MZ" {
+        return None;
+    }
+    
+    let e_lfanew = u32::from_le_bytes(dos_header[0x3C..0x40].try_into().ok()?);
+    file.seek(SeekFrom::Start(e_lfanew as u64)).ok()?;
+    
+    let mut pe_sig = [0u8; 4];
+    file.read_exact(&mut pe_sig).ok()?;
+    if &pe_sig != b"PE\0\0" {
+        return None;
+    }
+    
+    // Skip Machine (2) + NumberOfSections (2)
+    file.seek(SeekFrom::Current(4)).ok()?;
+    
+    let mut timestamp_bytes = [0u8; 4];
+    file.read_exact(&mut timestamp_bytes).ok()?;
+    
+    Some(u32::from_le_bytes(timestamp_bytes))
+}
+
+fn format_timestamp(ts: u32) -> String {
+    use chrono::{DateTime, NaiveDateTime, Utc};
+    if let Some(naive) = NaiveDateTime::from_timestamp_opt(ts as i64, 0) {
+        let datetime: DateTime<Utc> = DateTime::from_naive_utc_and_offset(naive, Utc);
+        datetime.format("%Y-%m-%d %H:%M:%S").to_string()
+    } else {
+        String::new()
+    }
+}
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BackupMetadata {
@@ -475,9 +514,21 @@ fn check_files(
         .join(BACKUP_META_NAME)
         .exists();
     let mut results = Vec::new();
+    let mut local_build_time = None;
+
     for file in files {
         let target = root.join(Path::new(&file.path));
         if target.exists() {
+            // Try to get timestamp from the first existing binary if not yet found
+            if local_build_time.is_none() {
+                let lower = file.path.to_lowercase();
+                if lower.ends_with(".dll") || lower.ends_with(".exe") {
+                     if let Some(ts) = get_pe_timestamp(&target) {
+                         local_build_time = Some(format_timestamp(ts));
+                     }
+                }
+            }
+
             let sha = fs::File::open(&target)
                 .and_then(|mut f| {
                     let res = sha256_reader(&mut f);
@@ -525,6 +576,7 @@ fn check_files(
         checked_files: results,
         has_backup,
         missing_files,
+        local_build_time,
     }
 }
 

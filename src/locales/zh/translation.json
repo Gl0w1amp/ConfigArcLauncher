@@ -744,6 +744,9 @@
     "confirmTitle": "覆盖现有文件？",
     "confirmMessage": "将备份并覆盖现有文件，共 {{count}} 个文件（示例：{{files}}）",
     "missing": "缺失",
-    "missingDetail": "检测到缺少 segatools 文件。"
+    "updateAvailable": "有可用更新",
+    "updateDetail": "检测到新版本的 segatools。",
+    "missingDetail": "检测到缺少 segatools 文件。",
+    "files": "文件校验"
   }
 }

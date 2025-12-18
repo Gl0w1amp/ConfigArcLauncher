@@ -16,6 +16,7 @@ export interface SegatoolsTrustStatus {
   checked_files: FileCheckResult[];
   has_backup?: boolean;
   missing_files?: boolean;
+  local_build_time?: string | null;
 }
 
 export interface DeployResult {
