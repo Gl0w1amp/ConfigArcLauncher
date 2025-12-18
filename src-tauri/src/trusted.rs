@@ -173,9 +173,8 @@ fn get_pe_timestamp(path: &Path) -> Option<u32> {
 }
 
 fn format_timestamp(ts: u32) -> String {
-    use chrono::{DateTime, NaiveDateTime, Utc};
-    if let Some(naive) = NaiveDateTime::from_timestamp_opt(ts as i64, 0) {
-        let datetime: DateTime<Utc> = DateTime::from_naive_utc_and_offset(naive, Utc);
+    use chrono::DateTime;
+    if let Some(datetime) = DateTime::from_timestamp(ts as i64, 0) {
         datetime.format("%Y-%m-%d %H:%M:%S").to_string()
     } else {
         String::new()
