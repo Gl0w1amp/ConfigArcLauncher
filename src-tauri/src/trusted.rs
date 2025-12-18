@@ -514,21 +514,11 @@ fn check_files(
         .join(BACKUP_META_NAME)
         .exists();
     let mut results = Vec::new();
-    let mut local_build_time = None;
+    let mut max_mismatch_ts: Option<u32> = None;
 
     for file in files {
         let target = root.join(Path::new(&file.path));
         if target.exists() {
-            // Try to get timestamp from the first existing binary if not yet found
-            if local_build_time.is_none() {
-                let lower = file.path.to_lowercase();
-                if lower.ends_with(".dll") || lower.ends_with(".exe") {
-                     if let Some(ts) = get_pe_timestamp(&target) {
-                         local_build_time = Some(format_timestamp(ts));
-                     }
-                }
-            }
-
             let sha = fs::File::open(&target)
                 .and_then(|mut f| {
                     let res = sha256_reader(&mut f);
@@ -536,6 +526,18 @@ fn check_files(
                 })
                 .ok();
             let matches = sha.as_ref().map(|s| s == &file.sha256).unwrap_or(false);
+            
+            if !matches {
+                let lower = file.path.to_lowercase();
+                if lower.ends_with(".dll") || lower.ends_with(".exe") {
+                     if let Some(ts) = get_pe_timestamp(&target) {
+                         if max_mismatch_ts.map_or(true, |current| ts > current) {
+                             max_mismatch_ts = Some(ts);
+                         }
+                     }
+                }
+            }
+
             results.push(FileCheckResult {
                 path: file.path.clone(),
                 expected_sha256: file.sha256.clone(),
@@ -553,6 +555,8 @@ fn check_files(
             });
         }
     }
+
+    let local_build_time = max_mismatch_ts.map(format_timestamp);
 
     let missing_files = results.iter().any(|r| !r.exists);
     let all_match = !results.is_empty() && results.iter().all(|r| r.matches);

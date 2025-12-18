@@ -210,9 +210,9 @@ function SegatoolsDeployPage() {
                     <span className="file-path">{f.path}</span>
                     <span className="file-hash">{f.actual_sha256 ? f.actual_sha256.substring(0, 8) : 'No Hash'}</span>
                   </div>
-                  <span className={`file-status-badge ${f.matches ? 'ok' : 'mismatch'}`}>
-                    {f.matches ? <Icons.Check /> : <Icons.X />}
-                    {f.matches ? 'Verified' : 'Mismatch'}
+                  <span className={`file-status-badge ${f.matches ? 'ok' : (f.exists ? 'mismatch' : 'missing')}`}>
+                    {f.matches ? <Icons.Check /> : (f.exists ? <Icons.X /> : <Icons.Alert />)}
+                    {f.matches ? 'Verified' : (f.exists ? 'Mismatch' : 'Missing')}
                   </span>
                 </div>
               ))}

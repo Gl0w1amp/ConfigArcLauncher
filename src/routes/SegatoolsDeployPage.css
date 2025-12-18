@@ -271,6 +271,12 @@
   border-color: rgba(239, 68, 68, 0.2);
 }
 
+.file-status-badge.missing { 
+  color: var(--warning); 
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.2);
+}
+
 .empty-files {
   padding: 32px;
   text-align: center;

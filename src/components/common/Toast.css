@@ -28,22 +28,22 @@
 }
 
 .toast-success {
-  border-left: 6px solid var(--success);
+  border-left: 4px solid var(--success);
   background: linear-gradient(90deg, rgba(16, 185, 129, 0.35) 0%, transparent 90%), color-mix(in srgb, var(--bg-secondary), transparent 30%);
 }
 
 .toast-error {
-  border-left: 6px solid var(--danger);
+  border-left: 4px solid var(--danger);
   background: linear-gradient(90deg, rgba(239, 68, 68, 0.35) 0%, transparent 90%), color-mix(in srgb, var(--bg-secondary), transparent 30%);
 }
 
 .toast-info {
-  border-left: 6px solid var(--accent-primary);
+  border-left: 4px solid var(--accent-primary);
   background: linear-gradient(90deg, rgba(59, 130, 246, 0.35) 0%, transparent 90%), color-mix(in srgb, var(--bg-secondary), transparent 30%);
 }
 
 .toast-warning {
-  border-left: 6px solid var(--warning);
+  border-left: 4px solid var(--warning);
   background: linear-gradient(90deg, rgba(245, 158, 11, 0.35) 0%, transparent 90%), color-mix(in srgb, var(--bg-secondary), transparent 30%);
 }
 
