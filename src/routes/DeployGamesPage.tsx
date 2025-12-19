@@ -81,6 +81,12 @@ function DeployGamesPage() {
     }
   };
 
+  const getSourceDisplay = (source: string) => {
+    if (source.startsWith('local:')) return t('deployGames.sourceLocal');
+    if (source.startsWith('url:')) return t('deployGames.sourceRemote');
+    return source;
+  };
+
   return (
     <div className="deploy-games-container">
       <div className="deploy-games-header">
@@ -95,9 +101,20 @@ function DeployGamesPage() {
           <div className="card-header">
             <h3><Icons.Key /> {t('deployGames.keyTitle')}</h3>
             <div className="card-badges">
-              <span className={`meta-badge ${keyStatus ? 'key-loaded' : 'key-missing'}`}>
-                {keyStatus ? 'Keys loaded' : t('deployGames.keyStatusMissing')}
-              </span>
+              {keyStatus ? (
+                <>
+                  <span className="meta-badge key-loaded">
+                    {t('deployGames.keySource')}: {getSourceDisplay(keyStatus.key_source)}
+                  </span>
+                  <span className="meta-badge key-loaded">
+                    {t('deployGames.keyCount', { count: keyStatus.key_game_count })}
+                  </span>
+                </>
+              ) : (
+                <span className="meta-badge key-missing">
+                  {t('deployGames.keyStatusMissing')}
+                </span>
+              )}
             </div>
           </div>
           <div className="card-content">

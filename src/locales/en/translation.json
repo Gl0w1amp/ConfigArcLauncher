@@ -152,7 +152,9 @@
     "resultExtracted": "Extracted",
     "resultWritten": "Written",
     "keySource": "Key source",
-    "keyCount": "Keys: {{count}}"
+    "keyCount": "Keys: {{count}}",
+    "sourceLocal": "Local",
+    "sourceRemote": "Remote"
   },
   "json": {
     "title": "JSON Editor",
