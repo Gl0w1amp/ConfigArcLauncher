@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { decryptGameFiles, loadDecryptKeys, pickDecryptFiles } from '../api/deployGamesApi';
 import { DecryptResult, KeyStatus } from '../types/deployGames';
@@ -27,6 +27,14 @@ function DeployGamesPage() {
   const [results, setResults] = useState<DecryptResult[]>([]);
   const [keyStatus, setKeyStatus] = useState<KeyStatus | null>(null);
   const [checkingKeys, setCheckingKeys] = useState<boolean>(false);
+
+  useEffect(() => {
+    loadDecryptKeys().then(status => {
+      setKeyStatus(status);
+    }).catch(() => {
+      // Ignore errors on auto-check
+    });
+  }, []);
 
   const handlePickFiles = async () => {
     try {
@@ -88,19 +96,8 @@ function DeployGamesPage() {
             <h3><Icons.Key /> {t('deployGames.keyTitle')}</h3>
             <div className="card-badges">
               <span className={`meta-badge ${keyStatus ? 'key-loaded' : 'key-missing'}`}>
-                {keyStatus ? t('deployGames.keyStatusLoaded') : t('deployGames.keyStatusMissing')}
+                {keyStatus ? 'Keys loaded' : t('deployGames.keyStatusMissing')}
               </span>
-              {keyStatus?.key_source && (
-                <span className="meta-badge">
-                  <Icons.Link />
-                  {t('deployGames.keySource')}: {keyStatus.key_source}
-                </span>
-              )}
-              {typeof keyStatus?.key_game_count === 'number' && (
-                <span className="meta-badge">
-                  {t('deployGames.keyCount', { count: keyStatus.key_game_count })}
-                </span>
-              )}
             </div>
           </div>
           <div className="card-content">
@@ -144,7 +141,9 @@ function DeployGamesPage() {
                 <div className="empty-text">{t('deployGames.noFiles')}</div>
               )}
               {files.map((file) => (
-                <div key={file} className="file-item" title={file}>{file}</div>
+                <div key={file} className="file-item" title={file}>
+                  {file.split(/[\\/]/).pop()}
+                </div>
               ))}
             </div>
           </div>
@@ -168,6 +167,7 @@ function DeployGamesPage() {
       <div className="deploy-games-card results-card">
         <div className="card-header">
           <h3>{t('deployGames.resultsTitle')}</h3>
+        </div>
         <div className="card-content">
           {results.length === 0 && (
             <div className="empty-text">{t('deployGames.resultsEmpty')}</div>
@@ -201,9 +201,7 @@ function DeployGamesPage() {
                 </div>
               );
             })}
-          </div> </div>
-            );
-          })}
+          </div>
         </div>
       </div>
 
