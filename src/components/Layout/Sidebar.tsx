@@ -22,8 +22,15 @@ function Sidebar() {
       </NavLink>
       <div className="layout-sidebar-title">{t('nav.deploy')}</div>
       <div className="sidebar-group">
+        <NavLink
+          to="/deploy/games"
+          className={({ isActive }) => `sidebar-link sidebar-sublink ${isActive ? 'active' : ''}`}
+        >
+          {t('nav.deployGames')}
+        </NavLink>
         <NavLink 
           to="/deploy" 
+          end
           className={({ isActive }) => `sidebar-link sidebar-sublink ${isActive ? 'active' : ''}`}
         >
           {t('nav.deploySegatools')}

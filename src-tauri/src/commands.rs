@@ -15,6 +15,7 @@ use crate::trusted::{
     deploy_segatoools_for_active, rollback_segatoools_for_active, verify_segatoools_for_active,
     DeployResult, RollbackResult, SegatoolsTrustStatus,
 };
+use crate::fsdecrypt;
 use serde::{Serialize, Deserialize};
 use std::collections::HashSet;
 use tauri::command;
@@ -325,6 +326,33 @@ pub async fn pick_game_folder_cmd() -> Result<Game, String> {
         }
 
         scan_game_folder_logic(&path)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[command]
+pub async fn pick_decrypt_files_cmd() -> Result<Vec<String>, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let ps_script = "Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.OpenFileDialog; $f.Multiselect = $true; $f.Filter = 'Container files (*.app;*.opt;*.pack)|*.app;*.opt;*.pack|All files (*.*)|*.*'; if ($f.ShowDialog() -eq 'OK') { $f.FileNames }";
+
+        let output = Command::new("powershell")
+            .args(&["-NoProfile", "-Command", ps_script])
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        let raw = String::from_utf8_lossy(&output.stdout);
+        let files: Vec<String> = raw
+            .lines()
+            .map(|line| line.trim().to_string())
+            .filter(|line| !line.is_empty())
+            .collect();
+
+        if files.is_empty() {
+            return Err("No files selected".to_string());
+        }
+
+        Ok(files)
     })
     .await
     .map_err(|e| e.to_string())?
@@ -1154,6 +1182,46 @@ pub fn delete_mod_cmd(name: String) -> Result<Vec<ModEntry>, String> {
         return Err("Mod not found".to_string());
     }
     list_mods(&mods_dir)
+}
+
+#[command]
+pub async fn load_fsdecrypt_keys_cmd(key_url: Option<String>) -> Result<fsdecrypt::KeyStatus, String> {
+    let key_url = key_url.and_then(|url| {
+        let trimmed = url.trim().to_string();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
+    });
+    tauri::async_runtime::spawn_blocking(move || fsdecrypt::load_key_status(key_url))
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())
+}
+
+#[command]
+pub async fn decrypt_game_files_cmd(
+    files: Vec<String>,
+    no_extract: bool,
+    key_url: Option<String>,
+) -> Result<fsdecrypt::DecryptSummary, String> {
+    if files.is_empty() {
+        return Err("No files provided".to_string());
+    }
+    let paths: Vec<PathBuf> = files.into_iter().map(PathBuf::from).collect();
+    let key_url = key_url.and_then(|url| {
+        let trimmed = url.trim().to_string();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
+    });
+    tauri::async_runtime::spawn_blocking(move || fsdecrypt::decrypt_game_files(paths, no_extract, key_url))
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())
 }
 
 #[command]

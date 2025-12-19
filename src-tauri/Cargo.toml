@@ -22,6 +22,8 @@ cbc = { version = "0.1.2", features = ["std"] }
 aes = "0.8.3"
 crc32fast = "1.4.0"
 hex-literal = "0.4.1"
+exfat-fs = "0.1.3"
+ntfs = "0.4.0"
 
 [build-dependencies]
 tauri-build = { version = "=2.5.3", features = [] }

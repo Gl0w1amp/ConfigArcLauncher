@@ -5,6 +5,7 @@ import SettingsPage from './routes/SettingsPage';
 import JsonEditorPage from './routes/JsonEditorPage';
 import AppLayout from './components/Layout/AppLayout';
 import SegatoolsDeployPage from './routes/SegatoolsDeployPage';
+import DeployGamesPage from './routes/DeployGamesPage';
 import ManageDataPage from './routes/ManageDataPage';
 import ManageModsPage from './routes/ManageModsPage';
 import ManageAimePage from './routes/ManageAimePage';
@@ -17,6 +18,7 @@ function App() {
           <Route path="/games" element={<GameListPage />} />
           <Route path="/config" element={<ConfigEditorPage />} />
           <Route path="/deploy" element={<SegatoolsDeployPage />} />
+          <Route path="/deploy/games" element={<DeployGamesPage />} />
           <Route path="/json" element={<JsonEditorPage />} />
           <Route path="/manage/data" element={<ManageDataPage />} />
           <Route path="/manage/aime" element={<ManageAimePage />} />

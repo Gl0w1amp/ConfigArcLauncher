@@ -3,6 +3,7 @@
 mod commands;
 mod config;
 mod error;
+mod fsdecrypt;
 mod games;
 mod icf;
 mod trusted;
@@ -27,6 +28,7 @@ fn main() {
             launch_game_cmd,
             apply_profile_to_game_cmd,
             pick_game_folder_cmd,
+            pick_decrypt_files_cmd,
             default_segatoools_config_cmd,
             segatoools_path_cmd,
             get_data_paths_cmd,
@@ -48,6 +50,8 @@ fn main() {
             get_active_aime_cmd,
             add_mods_cmd,
             delete_mod_cmd,
+            load_fsdecrypt_keys_cmd,
+            decrypt_game_files_cmd,
             segatools_trust_status_cmd,
             deploy_segatoools_cmd,
             rollback_segatoools_cmd
