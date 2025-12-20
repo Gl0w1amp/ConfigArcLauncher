@@ -270,6 +270,23 @@ body.rainbow-mode {
  animation: rainbow-spin 0.5s linear infinite;
 }
 
+body.toast-mode {
+  filter: grayscale(1);
+}
+
+body.dinnerbone-mode {
+  transform: rotate(180deg);
+  transform-origin: center;
+}
+
+body.johnny-mode button {
+  transform: translate(var(--johnny-x, 0px), var(--johnny-y, 0px));
+}
+
+body.johnny-mode button:active {
+  transform: translate(var(--johnny-x, 0px), calc(var(--johnny-y, 0px) + 1px));
+}
+
 .aime-save-current {
   margin-top: var(--spacing-sm);
   padding-top: var(--spacing-sm);

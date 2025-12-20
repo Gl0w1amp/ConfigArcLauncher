@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGamesState } from '../state/gamesStore';
 import { AimeEntry } from '../types/manage';
@@ -47,6 +47,7 @@ function ManageAimePage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState<string>('');
   const [editNumber, setEditNumber] = useState<string>('');
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   const loadEntries = async () => {
     setLoading(true);
@@ -195,18 +196,172 @@ function ManageAimePage() {
     setActiveAimeName(`${prefix}${t('manage.aime.currentDefaultName')}`);
   }, [activeAimeNumber, activeMatch, activeGame?.name, t]);
 
-  const isRainbow = useMemo(() => entries.some(e => e.name.toLowerCase() === 'imgay'), [entries]);
+  const isRainbow = useMemo(
+    () => entries.some((e) => {
+      const name = e.name.toLowerCase();
+      return name === 'imgay' || name === 'jeb_';
+    }),
+    [entries]
+  );
+  const isDinnerbone = useMemo(() => entries.some(e => e.name.toLowerCase() === 'dinnerbone'), [entries]);
+  const isJohnny = useMemo(() => entries.some(e => e.name.toLowerCase() === 'johnny'), [entries]);
+  const isToast = useMemo(() => entries.some(e => e.name.toLowerCase() === 'toast'), [entries]);
 
   useEffect(() => {
+    if (isDinnerbone) {
+      document.body.classList.add('dinnerbone-mode');
+    } else {
+      document.body.classList.remove('dinnerbone-mode');
+    }
+    if (isJohnny) {
+      document.body.classList.add('johnny-mode');
+    } else {
+      document.body.classList.remove('johnny-mode');
+    }
+    if (isToast) {
+      document.body.classList.add('toast-mode');
+    } else {
+      document.body.classList.remove('toast-mode');
+    }
     if (isRainbow) {
       document.body.classList.add('rainbow-mode');
     } else {
       document.body.classList.remove('rainbow-mode');
     }
     return () => {
+      document.body.classList.remove('dinnerbone-mode');
+      document.body.classList.remove('johnny-mode');
+      document.body.classList.remove('toast-mode');
       document.body.classList.remove('rainbow-mode');
     };
-  }, [isRainbow]);
+  }, [isDinnerbone, isJohnny, isToast, isRainbow]);
+
+  useEffect(() => {
+    if (!isJohnny) return;
+    const container = containerRef.current;
+    if (!container) return;
+    const states = new WeakMap<HTMLButtonElement, { x: number; y: number; vx: number; vy: number }>();
+    const pointer = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    const maxSpeed = 14;
+    const friction = 0.88;
+    const wander = 0.35;
+    const forceStrength = 220;
+    const padding = 8;
+    let rafId = 0;
+    let running = true;
+
+    const updateButtons = () => {
+      if (!running) return;
+      const buttons = container.querySelectorAll<HTMLButtonElement>('button');
+      buttons.forEach((button) => {
+        const rect = button.getBoundingClientRect();
+        if (rect.width === 0 && rect.height === 0) {
+          return;
+        }
+        const boundaryElement = button.closest('.aime-item') as HTMLElement | null;
+        const boundary = boundaryElement || container;
+        const boundaryRect = boundary.getBoundingClientRect();
+        const bounds = {
+          left: boundaryRect.left + padding,
+          right: boundaryRect.right - padding,
+          top: boundaryRect.top + padding,
+          bottom: boundaryRect.bottom - padding,
+        };
+        const pointerInBounds =
+          pointer.x >= bounds.left &&
+          pointer.x <= bounds.right &&
+          pointer.y >= bounds.top &&
+          pointer.y <= bounds.bottom;
+        let state = states.get(button);
+        if (!state) {
+          state = { x: 0, y: 0, vx: 0, vy: 0 };
+          states.set(button, state);
+        }
+
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        let dx = centerX - pointer.x;
+        let dy = centerY - pointer.y;
+        let distance = Math.hypot(dx, dy);
+        if (distance < 1) {
+          dx = 1;
+          dy = 0;
+          distance = 1;
+        }
+        if (pointerInBounds) {
+          const force = Math.min(3.5, forceStrength / (distance + 40));
+          state.vx += (dx / distance) * force;
+          state.vy += (dy / distance) * force;
+        }
+        state.vx += (Math.random() - 0.5) * wander;
+        state.vy += (Math.random() - 0.5) * wander;
+
+        const speed = Math.hypot(state.vx, state.vy);
+        if (speed > maxSpeed) {
+          state.vx = (state.vx / speed) * maxSpeed;
+          state.vy = (state.vy / speed) * maxSpeed;
+        }
+
+        const nextX = state.x + state.vx;
+        const nextY = state.y + state.vy;
+        let adjustedX = nextX;
+        let adjustedY = nextY;
+        const deltaX = nextX - state.x;
+        const deltaY = nextY - state.y;
+
+        const nextLeft = rect.left + deltaX;
+        const nextRight = rect.right + deltaX;
+        const nextTop = rect.top + deltaY;
+        const nextBottom = rect.bottom + deltaY;
+
+        if (nextLeft < bounds.left) {
+          adjustedX += bounds.left - nextLeft;
+          state.vx = Math.abs(state.vx) * 0.5;
+        } else if (nextRight > bounds.right) {
+          adjustedX -= nextRight - bounds.right;
+          state.vx = -Math.abs(state.vx) * 0.5;
+        }
+
+        if (nextTop < bounds.top) {
+          adjustedY += bounds.top - nextTop;
+          state.vy = Math.abs(state.vy) * 0.5;
+        } else if (nextBottom > bounds.bottom) {
+          adjustedY -= nextBottom - bounds.bottom;
+          state.vy = -Math.abs(state.vy) * 0.5;
+        }
+
+        state.x = adjustedX;
+        state.y = adjustedY;
+        state.vx *= friction;
+        state.vy *= friction;
+
+        button.style.setProperty('--johnny-x', `${state.x.toFixed(2)}px`);
+        button.style.setProperty('--johnny-y', `${state.y.toFixed(2)}px`);
+      });
+
+      rafId = window.requestAnimationFrame(updateButtons);
+    };
+
+    const handleMove = (event: MouseEvent) => {
+      pointer.x = event.clientX;
+      pointer.y = event.clientY;
+    };
+
+    document.addEventListener('mousemove', handleMove);
+    rafId = window.requestAnimationFrame(updateButtons);
+    return () => {
+      running = false;
+      document.removeEventListener('mousemove', handleMove);
+      if (rafId) {
+        window.cancelAnimationFrame(rafId);
+      }
+      const buttons = container.querySelectorAll<HTMLButtonElement>('button');
+      buttons.forEach((button) => {
+        button.style.removeProperty('--johnny-x');
+        button.style.removeProperty('--johnny-y');
+      });
+    };
+  }, [isJohnny]);
 
   if (loading) {
     return (
@@ -217,7 +372,7 @@ function ManageAimePage() {
   }
 
   return (
-    <div className="aime-page">
+    <div className="aime-page" ref={containerRef}>
       <div className="aime-header">
         <div>
           <h2>{t('manage.aime.title')}{activeGame ? ` · ${activeGame.name}` : ''}</h2>
