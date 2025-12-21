@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
+import { useUpdate } from '../../context/UpdateContext';
 import { AUTO_UPDATE_STORAGE_KEY } from '../../constants/storage';
 
 function SettingsForm() {
   const { t, i18n } = useTranslation();
   const { theme, setTheme } = useTheme();
+  const { checkForUpdates, isChecking } = useUpdate();
   const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(
     () => localStorage.getItem(AUTO_UPDATE_STORAGE_KEY) === '1'
   );
+  const [checkMessage, setCheckMessage] = useState<string | null>(null);
 
   const changeLanguage = (lang: string) => {
     if (lang === 'system') {
@@ -33,6 +36,15 @@ function SettingsForm() {
       localStorage.setItem(AUTO_UPDATE_STORAGE_KEY, '1');
     } else {
       localStorage.removeItem(AUTO_UPDATE_STORAGE_KEY);
+    }
+  };
+
+  const handleCheckUpdate = async () => {
+    setCheckMessage(null);
+    const hasUpdate = await checkForUpdates(true);
+    if (!hasUpdate) {
+      setCheckMessage(t('updater.noUpdate', 'No updates available'));
+      setTimeout(() => setCheckMessage(null), 3000);
     }
   };
 
@@ -150,30 +162,70 @@ function SettingsForm() {
       </div>
 
       <h3 style={{ marginBottom: 'var(--spacing-md)', marginTop: 'var(--spacing-lg)' }}>{t('settings.updates')}</h3>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 'var(--spacing-md)',
-          border: '1px solid var(--border-color)',
-          borderRadius: 'var(--radius-md)',
-          padding: 'var(--spacing-md)',
-          background: 'var(--bg-tertiary)'
-        }}
-      >
-        <div>
-          <div style={{ fontWeight: 600 }}>{t('settings.autoUpdate.title')}</div>
-          <div style={{ color: 'var(--text-muted)', marginTop: 6, fontSize: '0.85rem' }}>
-            {t('settings.autoUpdate.desc')}
+      
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 'var(--spacing-md)',
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-md)',
+            padding: 'var(--spacing-md)',
+            background: 'var(--bg-tertiary)'
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 600 }}>{t('settings.autoUpdate.title')}</div>
+            <div style={{ color: 'var(--text-muted)', marginTop: 6, fontSize: '0.85rem' }}>
+              {t('settings.autoUpdate.desc')}
+            </div>
           </div>
+          <input
+            type="checkbox"
+            checked={autoUpdateEnabled}
+            onChange={(e) => setAutoUpdate(e.target.checked)}
+            style={{ width: 18, height: 18, cursor: 'pointer' }}
+          />
         </div>
-        <input
-          type="checkbox"
-          checked={autoUpdateEnabled}
-          onChange={(e) => setAutoUpdate(e.target.checked)}
-          style={{ width: 18, height: 18 }}
-        />
+
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 'var(--spacing-md)',
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-md)',
+            padding: 'var(--spacing-md)',
+            background: 'var(--bg-tertiary)'
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 600 }}>{t('updater.checkUpdate', 'Check for Updates')}</div>
+            <div style={{ color: 'var(--text-muted)', marginTop: 6, fontSize: '0.85rem' }}>
+              {checkMessage || t('updater.checkUpdateDesc', 'Check if a new version is available')}
+            </div>
+          </div>
+          <button
+            onClick={handleCheckUpdate}
+            disabled={isChecking}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 'var(--radius-sm)',
+              border: 'none',
+              background: 'var(--accent-primary)',
+              color: 'white',
+              cursor: isChecking ? 'wait' : 'pointer',
+              opacity: isChecking ? 0.7 : 1,
+              fontWeight: 500,
+              minWidth: 100
+            }}
+          >
+            {isChecking ? t('updater.checking', 'Checking...') : t('updater.check', 'Check Now')}
+          </button>
+        </div>
       </div>
     </div>
   );

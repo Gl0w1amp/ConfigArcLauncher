@@ -282,7 +282,12 @@
     "cancel": "Later",
     "installing": "Installing...",
     "errorTitle": "Update Failed",
-    "errorMessage": "Failed to install the update: {{error}}"
+    "errorMessage": "Failed to install the update: {{error}}",
+    "checkUpdate": "Check for Updates",
+    "checkUpdateDesc": "Check if a new version is available",
+    "checking": "Checking...",
+    "check": "Check Now",
+    "noUpdate": "No updates available"
   },
   "segatools": {
     "aimeio": {
