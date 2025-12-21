@@ -4,11 +4,15 @@ on:
   push:
     branches:
       - main
+    tags:
+      - "v*"
+      - "app-v*"
   pull_request:
     branches:
       - main
   release:
     types: [published]
+  workflow_dispatch:
 
 jobs:
   publish-tauri:
@@ -44,21 +48,46 @@ jobs:
       - name: install frontend dependencies
         run: npm install
 
+      - name: resolve release context
+        id: release_context
+        shell: pwsh
+        run: |
+          $publish = $false
+          $releaseId = ''
+          $tagName = ''
+
+          if ($env:GITHUB_EVENT_NAME -eq 'release') {
+            $publish = $true
+            $releaseId = '${{ github.event.release.id }}'
+            $tagName = '${{ github.event.release.tag_name }}'
+          } elseif ($env:GITHUB_REF -like 'refs/tags/*') {
+            $publish = $true
+            $tagName = $env:GITHUB_REF_NAME
+          }
+
+          "publish=$publish" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "release_id=$releaseId" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "tag_name=$tagName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: create release notes
+        if: steps.release_context.outputs.publish == 'true' && steps.release_context.outputs.release_id == ''
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_context.outputs.tag_name }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version
-          releaseName: "App v__VERSION__"
-          releaseBody: "See the assets to download this version and install."
-          releaseDraft: true
+          releaseId: ${{ steps.create_release.outputs.id || steps.release_context.outputs.release_id }}
+          tagName: ${{ steps.release_context.outputs.tag_name }}
+          releaseDraft: false
           prerelease: false
+          uploadPlainBinary: true
           args: ${{ matrix.platform == 'macos-latest' && '--target universal-apple-darwin' || '' }}
-
-      - name: Upload Portable Executable
-        if: matrix.platform == 'windows-latest' && github.event_name == 'release'
-        uses: softprops/action-gh-release@v2
-        with:
-          files: src-tauri/target/release/configarc-launcher.exe
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -202,7 +202,21 @@
       "en": "English",
       "zh": "简体中文",
       "ja": "日语"
+    },
+    "updates": "更新",
+    "autoUpdate": {
+      "title": "启动时检查更新",
+      "desc": "开启后，启动时会检查 GitHub Releases 并在安装前提示确认。"
     }
+  },
+  "updater": {
+    "title": "发现新版本",
+    "message": "检测到 ConfigArc {{version}}。是否现在安装？",
+    "confirm": "安装",
+    "cancel": "稍后",
+    "installing": "正在安装...",
+    "errorTitle": "更新失败",
+    "errorMessage": "安装更新失败：{{error}}"
   },
   "segatools": {
     "aimeio": {

@@ -1,9 +1,14 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
+import { AUTO_UPDATE_STORAGE_KEY } from '../../constants/storage';
 
 function SettingsForm() {
   const { t, i18n } = useTranslation();
   const { theme, setTheme } = useTheme();
+  const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(
+    () => localStorage.getItem(AUTO_UPDATE_STORAGE_KEY) === '1'
+  );
 
   const changeLanguage = (lang: string) => {
     if (lang === 'system') {
@@ -21,6 +26,15 @@ function SettingsForm() {
   // To properly support "System", we need to know if the user explicitly set it.
   // Since we can't easily know without checking localStorage directly:
   const currentLang = localStorage.getItem('i18nextLng') ? i18n.resolvedLanguage : 'system';
+
+  const setAutoUpdate = (enabled: boolean) => {
+    setAutoUpdateEnabled(enabled);
+    if (enabled) {
+      localStorage.setItem(AUTO_UPDATE_STORAGE_KEY, '1');
+    } else {
+      localStorage.removeItem(AUTO_UPDATE_STORAGE_KEY);
+    }
+  };
 
   return (
     <div style={{ 
@@ -133,6 +147,33 @@ function SettingsForm() {
             </div>
           );
         })}
+      </div>
+
+      <h3 style={{ marginBottom: 'var(--spacing-md)', marginTop: 'var(--spacing-lg)' }}>{t('settings.updates')}</h3>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 'var(--spacing-md)',
+          border: '1px solid var(--border-color)',
+          borderRadius: 'var(--radius-md)',
+          padding: 'var(--spacing-md)',
+          background: 'var(--bg-tertiary)'
+        }}
+      >
+        <div>
+          <div style={{ fontWeight: 600 }}>{t('settings.autoUpdate.title')}</div>
+          <div style={{ color: 'var(--text-muted)', marginTop: 6, fontSize: '0.85rem' }}>
+            {t('settings.autoUpdate.desc')}
+          </div>
+        </div>
+        <input
+          type="checkbox"
+          checked={autoUpdateEnabled}
+          onChange={(e) => setAutoUpdate(e.target.checked)}
+          style={{ width: 18, height: 18 }}
+        />
       </div>
     </div>
   );

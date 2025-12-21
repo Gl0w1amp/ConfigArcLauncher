@@ -268,7 +268,21 @@
       "en": "English",
       "zh": "中文",
       "ja": "日本語"
+    },
+    "updates": "アップデート",
+    "autoUpdate": {
+      "title": "起動時にアップデートを確認",
+      "desc": "有効にすると、起動時に GitHub Releases を確認し、インストール前に確認します。"
     }
+  },
+  "updater": {
+    "title": "アップデートがあります",
+    "message": "ConfigArc {{version}} が利用可能です。今すぐインストールしますか？",
+    "confirm": "インストール",
+    "cancel": "後で",
+    "installing": "インストール中...",
+    "errorTitle": "アップデート失敗",
+    "errorMessage": "アップデートのインストールに失敗しました: {{error}}"
   },
   "segatools": {
     "aimeio": {

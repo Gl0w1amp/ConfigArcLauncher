@@ -268,7 +268,21 @@
       "en": "English",
       "zh": "Chinese",
       "ja": "Japanese"
+    },
+    "updates": "Updates",
+    "autoUpdate": {
+      "title": "Check for updates on startup",
+      "desc": "When enabled, ConfigArc checks GitHub Releases at launch and prompts before installing."
     }
+  },
+  "updater": {
+    "title": "Update Available",
+    "message": "ConfigArc {{version}} is available. Install now?",
+    "confirm": "Install",
+    "cancel": "Later",
+    "installing": "Installing...",
+    "errorTitle": "Update Failed",
+    "errorMessage": "Failed to install the update: {{error}}"
   },
   "segatools": {
     "aimeio": {
