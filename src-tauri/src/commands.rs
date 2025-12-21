@@ -24,6 +24,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
+use std::os::windows::process::CommandExt;
 
 fn redact_keychip_id(content: &str) -> String {
     let mut result = String::with_capacity(content.len());
@@ -316,6 +317,7 @@ pub async fn pick_game_folder_cmd() -> Result<Game, String> {
 
         let output = Command::new("powershell")
             .args(&["-NoProfile", "-Command", ps_script])
+            .creation_flags(0x08000000)
             .output()
             .map_err(|e| e.to_string())?;
 
@@ -338,6 +340,7 @@ pub async fn pick_decrypt_files_cmd() -> Result<Vec<String>, String> {
 
         let output = Command::new("powershell")
             .args(&["-NoProfile", "-Command", ps_script])
+            .creation_flags(0x08000000)
             .output()
             .map_err(|e| e.to_string())?;
 

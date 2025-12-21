@@ -384,9 +384,22 @@ function ManageAimePage() {
       </div>
 
       {!activeGameId && (
-        <div className="empty-state-card" style={{ gridColumn: '1 / -1' }}>
-          <h3>{t('manage.aime.noActiveGame')}</h3>
-          <p className="hint-text">{t('manage.aime.noActiveGameHint')}</p>
+        <div className="aime-card">
+          <h3><span className="icon-title"><Icons.Card /> {t('manage.aime.currentTitle')}</span></h3>
+          <div style={{ 
+            flex: 1, 
+            display: 'flex', 
+            flexDirection: 'column', 
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            textAlign: 'center',
+            color: 'var(--text-muted)',
+            padding: 'var(--spacing-md) 0',
+            minHeight: 100
+          }}>
+            <p style={{ margin: '0 0 8px 0', fontWeight: 500 }}>{t('manage.aime.noActiveGame')}</p>
+            <p style={{ margin: 0, fontSize: '0.85rem', opacity: 0.8, maxWidth: '90%' }}>{t('manage.aime.noActiveGameHint')}</p>
+          </div>
         </div>
       )}
 
