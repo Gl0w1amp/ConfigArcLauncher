@@ -177,8 +177,67 @@ fn parse_line_key(line: &str) -> Option<(String, bool)> {
     None
 }
 
-fn save_section(writer: &mut dyn ConfigWriter, name: &str, data: Vec<(&str, String)>, commented_keys: &[String]) {
+fn prune_existing_content(content: &str, cfg: &SegatoolsConfig) -> String {
+  if cfg.present_keys.is_empty() || cfg.present_sections.is_empty() {
+    return content.to_string();
+  }
+
+  let allowed: HashSet<String> = cfg
+    .present_keys
+    .iter()
+    .map(|k| k.to_lowercase())
+    .collect();
+  let managed_sections: HashSet<String> = cfg
+    .present_sections
+    .iter()
+    .map(|s| s.to_lowercase())
+    .collect();
+
+  let mut lines = Vec::new();
+  let mut current_section = String::new();
+
+  for line in content.lines() {
+    let trimmed = line.trim();
+    if trimmed.starts_with('[') && trimmed.ends_with(']') {
+      current_section = trimmed[1..trimmed.len() - 1].trim().to_lowercase();
+      lines.push(line.to_string());
+      continue;
+    }
+
+    if let Some((key, _)) = parse_line_key(line) {
+      if !current_section.is_empty() && managed_sections.contains(&current_section) {
+        let full_key = format!("{}.{}", current_section, key.to_lowercase());
+        if !allowed.contains(&full_key) {
+          continue;
+        }
+      }
+    }
+
+    lines.push(line.to_string());
+  }
+
+  lines.join("\n")
+}
+
+fn should_write_key(present_keys: &[String], section: &str, key: &str) -> bool {
+  if present_keys.is_empty() {
+    return true;
+  }
+  let full_key = format!("{}.{}", section.to_lowercase(), key.to_lowercase());
+  present_keys.contains(&full_key)
+}
+
+fn save_section(
+  writer: &mut dyn ConfigWriter,
+  name: &str,
+  data: Vec<(&str, String)>,
+  commented_keys: &[String],
+  present_keys: &[String],
+) {
   for (k, v) in data {
+    if !should_write_key(present_keys, name, k) {
+      continue;
+    }
     let full_key = format!("{}.{}", name, k);
     let is_commented = commented_keys.contains(&full_key);
     let mut should_skip = v.is_empty() || is_commented;
@@ -212,7 +271,7 @@ fn perform_save(writer: &mut dyn ConfigWriter, cfg: &SegatoolsConfig) {
   };
 
   let mut save_helper = |name: &str, data: Vec<(&str, String)>| {
-      save_section(writer, name, data, &cfg.commented_keys);
+      save_section(writer, name, data, &cfg.commented_keys, &cfg.present_keys);
   };
 
   if should_save("aimeio") {
@@ -611,6 +670,7 @@ pub fn save_segatoools_config(path: &Path, cfg: &SegatoolsConfig) -> Result<(), 
       } else {
           String::new()
       };
+      let content = prune_existing_content(&content, cfg);
       let mut updater = IniUpdater::new(&content);
       perform_save(&mut updater, cfg);
       fs::write(path, updater.to_string()).map_err(ConfigError::Io)?;
