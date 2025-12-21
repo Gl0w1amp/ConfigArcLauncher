@@ -163,66 +163,113 @@ function SettingsForm() {
 
       <h3 style={{ marginBottom: 'var(--spacing-md)', marginTop: 'var(--spacing-lg)' }}>{t('settings.updates')}</h3>
       
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 'var(--spacing-md)',
-            border: '1px solid var(--border-color)',
-            borderRadius: 'var(--radius-md)',
-            padding: 'var(--spacing-md)',
-            background: 'var(--bg-tertiary)'
-          }}
-        >
-          <div>
-            <div style={{ fontWeight: 600 }}>{t('settings.autoUpdate.title')}</div>
-            <div style={{ color: 'var(--text-muted)', marginTop: 6, fontSize: '0.85rem' }}>
-              {t('settings.autoUpdate.desc')}
+      <div style={{ 
+        border: '1px solid var(--border-color)',
+        borderRadius: 'var(--radius-md)',
+        background: 'var(--bg-tertiary)',
+        padding: 'var(--spacing-sm) var(--spacing-md)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 'var(--spacing-md)',
+        minHeight: '56px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
+          <div 
+            style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', cursor: 'pointer' }}
+            onClick={() => setAutoUpdate(!autoUpdateEnabled)}
+          >
+            <div style={{
+              width: 32, height: 32, borderRadius: 8,
+              background: 'rgba(59, 130, 246, 0.1)',
+              color: 'var(--accent-primary)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+              </svg>
             </div>
+            <span style={{ fontWeight: 500 }}>{t('settings.autoUpdate.title')}</span>
           </div>
-          <input
-            type="checkbox"
-            checked={autoUpdateEnabled}
-            onChange={(e) => setAutoUpdate(e.target.checked)}
-            style={{ width: 18, height: 18, cursor: 'pointer' }}
-          />
+          
+          <div style={{ position: 'relative', display: 'inline-block', width: 36, height: 20 }}>
+            <input
+              type="checkbox"
+              checked={autoUpdateEnabled}
+              onChange={(e) => setAutoUpdate(e.target.checked)}
+              style={{ opacity: 0, width: 0, height: 0 }}
+              id="auto-update-switch"
+            />
+            <label
+              htmlFor="auto-update-switch"
+              style={{
+                position: 'absolute',
+                cursor: 'pointer',
+                top: 0, left: 0, right: 0, bottom: 0,
+                backgroundColor: autoUpdateEnabled ? 'var(--accent-primary)' : 'var(--text-muted)',
+                transition: '.3s',
+                borderRadius: 34,
+                opacity: autoUpdateEnabled ? 1 : 0.3
+              }}
+            >
+              <span style={{
+                position: 'absolute',
+                content: '""',
+                height: 14,
+                width: 14,
+                left: 3,
+                bottom: 3,
+                backgroundColor: 'white',
+                transition: '.3s',
+                borderRadius: '50%',
+                transform: autoUpdateEnabled ? 'translateX(16px)' : 'translateX(0)'
+              }} />
+            </label>
+          </div>
         </div>
 
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 'var(--spacing-md)',
-            border: '1px solid var(--border-color)',
-            borderRadius: 'var(--radius-md)',
-            padding: 'var(--spacing-md)',
-            background: 'var(--bg-tertiary)'
-          }}
-        >
-          <div>
-            <div style={{ fontWeight: 600 }}>{t('updater.checkUpdate', 'Check for Updates')}</div>
-            <div style={{ color: 'var(--text-muted)', marginTop: 6, fontSize: '0.85rem' }}>
-              {checkMessage || t('updater.checkUpdateDesc', 'Check if a new version is available')}
-            </div>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
+          {checkMessage && (
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', animation: 'fadeIn 0.2s' }}>
+              {checkMessage}
+            </span>
+          )}
           <button
             onClick={handleCheckUpdate}
             disabled={isChecking}
             style={{
-              padding: '8px 16px',
+              padding: '6px 12px',
               borderRadius: 'var(--radius-sm)',
-              border: 'none',
-              background: 'var(--accent-primary)',
-              color: 'white',
+              border: '1px solid var(--border-color)',
+              background: 'var(--bg-primary)',
+              color: 'var(--text-primary)',
               cursor: isChecking ? 'wait' : 'pointer',
-              opacity: isChecking ? 0.7 : 1,
               fontWeight: 500,
-              minWidth: 100
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              transition: 'all 0.2s',
+              fontSize: '0.9rem',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+            }}
+            onMouseEnter={(e) => {
+               if(!isChecking) {
+                 e.currentTarget.style.borderColor = 'var(--accent-primary)';
+                 e.currentTarget.style.color = 'var(--accent-primary)';
+                 e.currentTarget.style.background = 'rgba(59, 130, 246, 0.05)';
+               }
+            }}
+            onMouseLeave={(e) => {
+               if(!isChecking) {
+                 e.currentTarget.style.borderColor = 'var(--border-color)';
+                 e.currentTarget.style.color = 'var(--text-primary)';
+                 e.currentTarget.style.background = 'var(--bg-primary)';
+               }
             }}
           >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={isChecking ? "spin" : ""}>
+              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
+            </svg>
             {isChecking ? t('updater.checking', 'Checking...') : t('updater.check', 'Check Now')}
           </button>
         </div>
