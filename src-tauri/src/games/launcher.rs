@@ -21,6 +21,7 @@ pub fn launch_game(game: &Game) -> Result<(), GameError> {
   };
 
   let segatools_root = segatools_root_for_game_id(&game.id);
+  let segatools_ini = segatools_root.join("segatools.ini");
   let inject_path = segatools_root.join("inject.exe");
   let inject_x64_path = segatools_root.join("inject_x64.exe");
   let inject_x86_path = segatools_root.join("inject_x86.exe");
@@ -124,6 +125,7 @@ pub fn launch_game(game: &Game) -> Result<(), GameError> {
       let mut cmd = Command::new("cmd");
       cmd.args(&["/c", batch_path.to_str().unwrap()]);
       cmd.current_dir(working_dir);
+      cmd.env("SEGATOOLS_CONFIG_PATH", &segatools_ini);
       cmd.creation_flags(CREATE_NEW_CONSOLE);
       
       cmd.spawn().map_err(|e| GameError::Launch(e.to_string()))?;
@@ -140,6 +142,7 @@ pub fn launch_game(game: &Game) -> Result<(), GameError> {
     }
   }
   cmd.args(&game.launch_args);
+  cmd.env("SEGATOOLS_CONFIG_PATH", &segatools_ini);
   cmd.creation_flags(CREATE_NEW_CONSOLE);
   cmd.spawn().map_err(|e| GameError::Launch(e.to_string()))?;
   Ok(())
