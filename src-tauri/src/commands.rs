@@ -1,7 +1,7 @@
 use crate::config::{
     paths::{
         active_game_dir, ensure_default_segatoools_exists, get_active_game_id, segatoools_path_for_active,
-        set_active_game_id,
+        segatoools_path_for_game_id, set_active_game_id,
     },
     profiles::{delete_profile, list_profiles, load_profile, save_profile, ConfigProfile},
     segatools::SegatoolsConfig,
@@ -531,17 +531,16 @@ pub fn launch_game_cmd(id: String, profile_id: Option<String>) -> Result<(), Str
         .find(|g| g.id == id)
         .ok_or_else(|| "Game not found".to_string())?;
     let game_name = game.name.clone();
+    let _ = store::game_root_dir(&game).ok_or_else(|| "Game path missing".to_string())?;
 
     let config_to_validate = if let Some(pid) = profile_id.filter(|s| !s.is_empty()) {
         let profile = load_profile(&pid, Some(&id)).map_err(|e| e.to_string())?;
-        let game_root = store::game_root_dir(&game).ok_or_else(|| "Game path missing".to_string())?;
-        let seg_path = game_root.join("segatools.ini");
+        let seg_path = segatoools_path_for_game_id(&id).map_err(|e| e.to_string())?;
         let sanitized = sanitize_segatoools_for_game(profile.segatools, Some(game_name.as_str()));
         persist_segatoools_config(&seg_path, &sanitized).map_err(|e| e.to_string())?;
         sanitized
     } else {
-        let game_root = store::game_root_dir(&game).ok_or_else(|| "Game path missing".to_string())?;
-        let seg_path = game_root.join("segatools.ini");
+        let seg_path = segatoools_path_for_game_id(&id).map_err(|e| e.to_string())?;
         if seg_path.exists() {
             let cfg = load_segatoools_config(&seg_path).map_err(|e| e.to_string())?;
             sanitize_segatoools_for_game(cfg, Some(game_name.as_str()))
@@ -930,9 +929,7 @@ pub fn apply_profile_to_game_cmd(game_id: String, profile_id: String) -> Result<
         .into_iter()
         .find(|g| g.id == game_id)
         .ok_or_else(|| "Game not found".to_string())?;
-    let seg_path = store::game_root_dir(&game)
-        .ok_or_else(|| "Game path missing".to_string())?
-        .join("segatools.ini");
+    let seg_path = segatoools_path_for_game_id(&game_id).map_err(|e| e.to_string())?;
     if !seg_path.exists() {
         return Err("segatools.ini not found. Please deploy first.".to_string());
     }

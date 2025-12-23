@@ -22,26 +22,12 @@ pub fn list_games() -> Result<Vec<Game>, GameError> {
 
 pub fn save_game(game: Game) -> Result<(), GameError> {
   let mut games = list_games()?;
-  let is_new = !games.iter().any(|g| g.id == game.id);
   games.retain(|g| g.id != game.id);
   games.push(game.clone());
 
   let path = games_path();
   let json = serde_json::to_string_pretty(&games)?;
   fs::write(path, json)?;
-
-  // On first add, capture existing segatools.ini as Original INI backup under Segatools_Config/original.ini
-  if is_new {
-    if let Some(root) = game_root_dir(&game) {
-      let original = root.join("segatools.ini");
-      if original.exists() {
-        let backup_dir = root.join("Segatools_Config");
-        fs::create_dir_all(&backup_dir)?;
-        let backup_path = backup_dir.join("original.ini");
-        let _ = fs::copy(&original, &backup_path);
-      }
-    }
-  }
 
   Ok(())
 }

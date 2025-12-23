@@ -1,4 +1,4 @@
-use crate::config::paths::{active_game_dir, get_active_game_id};
+use crate::config::paths::{get_active_game_id, segatools_root_for_active};
 use crate::games::{model::Game, store};
 use chrono::Utc;
 use std::collections::HashMap;
@@ -370,7 +370,7 @@ fn active_game_ctx() -> Result<ActiveGameContext, TrustedError> {
         .into_iter()
         .find(|g| g.id == active_id)
         .ok_or_else(|| TrustedError::NotFound("Active game not found".to_string()))?;
-    let root = active_game_dir().map_err(|e| TrustedError::NotFound(e.to_string()))?;
+    let root = segatools_root_for_active().map_err(|e| TrustedError::NotFound(e.to_string()))?;
     Ok(ActiveGameContext { game, root })
 }
 

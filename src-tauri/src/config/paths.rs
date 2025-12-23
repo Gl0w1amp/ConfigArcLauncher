@@ -41,23 +41,50 @@ pub fn active_game_dir() -> Result<PathBuf, ConfigError> {
   game_dir(&active)
 }
 
+fn app_root_dir() -> PathBuf {
+  std::env::current_exe()
+    .ok()
+    .and_then(|exe| exe.parent().map(|p| p.to_path_buf()))
+    .unwrap_or_else(|| Path::new(".").to_path_buf())
+}
+
+fn segatools_base_dir() -> PathBuf {
+  app_root_dir().join("Segatools")
+}
+
+pub fn segatools_root_for_game_id(game_id: &str) -> PathBuf {
+  segatools_base_dir().join(game_id)
+}
+
+pub fn segatools_root_for_active() -> Result<PathBuf, ConfigError> {
+  let active = get_active_game_id()?
+    .ok_or_else(|| ConfigError::NotFound("No active game selected".to_string()))?;
+  let _ = game_dir(&active)?;
+  Ok(segatools_root_for_game_id(&active))
+}
+
 pub fn segatoools_path_for_active() -> Result<PathBuf, ConfigError> {
-  let dir = active_game_dir()?;
   let custom = env::var("SEGATOOLS_CONFIG_PATH").ok();
   if let Some(p) = custom {
     return Ok(PathBuf::from(p));
   }
-  Ok(dir.join("segatools.ini"))
+  Ok(segatools_root_for_active()?.join("segatools.ini"))
+}
+
+pub fn segatoools_path_for_game_id(game_id: &str) -> Result<PathBuf, ConfigError> {
+  let custom = env::var("SEGATOOLS_CONFIG_PATH").ok();
+  if let Some(p) = custom {
+    return Ok(PathBuf::from(p));
+  }
+  Ok(segatools_root_for_game_id(game_id).join("segatools.ini"))
 }
 
 pub fn profiles_dir_for_game(game_id: &str) -> Result<PathBuf, ConfigError> {
-  let dir = game_dir(game_id)?;
-  Ok(dir.join("Segatools_Config"))
+  Ok(segatools_root_for_game_id(game_id).join("Segatools_Config"))
 }
 
 pub fn profiles_dir_for_active() -> Result<PathBuf, ConfigError> {
-  let dir = active_game_dir()?;
-  Ok(dir.join("Segatools_Config"))
+  Ok(segatools_root_for_active()?.join("Segatools_Config"))
 }
 
 pub fn ensure_default_segatoools_exists() -> Result<(), ConfigError> {
