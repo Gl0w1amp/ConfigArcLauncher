@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { decryptGameFiles, loadDecryptKeys, pickDecryptFiles } from '../api/deployGamesApi';
 import { DecryptResult, KeyStatus } from '../types/deployGames';
 import { useToast, ToastContainer } from '../components/common/Toast';
+import { FSDECRYPT_KEY_URL_STORAGE_KEY } from '../constants/storage';
 import './DeployGamesPage.css';
 
 const Icons = {
@@ -21,7 +22,7 @@ function DeployGamesPage() {
   const { toasts, showToast } = useToast();
 
   const [files, setFiles] = useState<string[]>([]);
-  const [keyUrl, setKeyUrl] = useState<string>('');
+  const [keyUrl, setKeyUrl] = useState<string>(() => localStorage.getItem(FSDECRYPT_KEY_URL_STORAGE_KEY) ?? '');
   const [noExtract, setNoExtract] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [results, setResults] = useState<DecryptResult[]>([]);
@@ -29,12 +30,22 @@ function DeployGamesPage() {
   const [checkingKeys, setCheckingKeys] = useState<boolean>(false);
 
   useEffect(() => {
-    loadDecryptKeys().then(status => {
+    const stored = localStorage.getItem(FSDECRYPT_KEY_URL_STORAGE_KEY);
+    loadDecryptKeys(stored?.trim() || undefined).then(status => {
       setKeyStatus(status);
     }).catch(() => {
       // Ignore errors on auto-check
     });
   }, []);
+
+  useEffect(() => {
+    const trimmed = keyUrl.trim();
+    if (trimmed) {
+      localStorage.setItem(FSDECRYPT_KEY_URL_STORAGE_KEY, trimmed);
+    } else {
+      localStorage.removeItem(FSDECRYPT_KEY_URL_STORAGE_KEY);
+    }
+  }, [keyUrl]);
 
   const handlePickFiles = async () => {
     try {
