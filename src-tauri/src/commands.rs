@@ -84,7 +84,16 @@ fn blacklist_sections_for_game(name: &str) -> HashSet<&'static str> {
     blacklist
 }
 
+fn canonical_game_key(name: &str) -> String {
+    let lower = name.trim().to_lowercase();
+    if lower.starts_with("sdez") {
+        return "sinmai".to_string();
+    }
+    lower
+}
+
 fn allowed_sections_for_game(name: &str) -> HashSet<&'static str> {
+    let key = canonical_game_key(name);
     let all_sections: &[&str] = &[
         "aimeio", "aime", "vfd", "amvideo", "clock", "dns", "ds", "eeprom", "gpio", "gfx", "hwmon",
         "jvs", "io4", "keychip", "netenv", "pcbid", "sram", "vfs", "epay", "openssl", "system",
@@ -95,14 +104,14 @@ fn allowed_sections_for_game(name: &str) -> HashSet<&'static str> {
         "aimeio", "aime", "vfd", "amvideo", "clock", "dns", "ds", "eeprom", "gpio", "hwmon",
         "jvs", "keychip", "netenv", "pcbid", "sram", "vfs", "epay", "openssl", "system",
     ];
-    let mut allowed: HashSet<&'static str> = match name {
-        "Chunithm" => common.iter().copied()
+    let mut allowed: HashSet<&'static str> = match key.as_str() {
+        "chunithm" => common.iter().copied()
             .chain(["gfx", "led15093", "led", "chuniio", "io3", "ir", "slider"].iter().copied())
             .collect(),
-        "Sinmai" => common.iter().copied()
+        "sinmai" => common.iter().copied()
             .chain(["led15070", "unity", "mai2io", "io4", "button", "touch", "gfx"].iter().copied())
             .collect(),
-        "Ongeki" => common.iter().copied()
+        "ongeki" => common.iter().copied()
             .chain(["gfx", "unity", "led15093", "led", "mu3io", "io4"].iter().copied())
             .collect(),
         _ => all_sections.iter().copied().collect(),
@@ -412,7 +421,8 @@ fn load_active_seg_config() -> Result<(SegatoolsConfig, PathBuf), String> {
 
 fn sanitize_segatoools_for_game(mut cfg: SegatoolsConfig, game_name: Option<&str>) -> SegatoolsConfig {
     let name = game_name.unwrap_or("");
-    let allowed_sections = allowed_sections_for_game(name);
+    let key = canonical_game_key(name);
+    let allowed_sections = allowed_sections_for_game(&key);
     let blacklist = blacklist_sections_for_game(name);
 
     let allowed_lower: HashSet<String> = allowed_sections.into_iter().map(|s| s.to_lowercase()).collect();
@@ -425,10 +435,10 @@ fn sanitize_segatoools_for_game(mut cfg: SegatoolsConfig, game_name: Option<&str
         .collect();
 
     if present.is_empty() {
-        let template = match name {
-            "Chunithm" => Some(templates::CHUSAN_TEMPLATE),
-            "Sinmai" => Some(templates::MAI2_TEMPLATE),
-            "Ongeki" => Some(templates::MU3_TEMPLATE),
+        let template = match key.as_str() {
+            "chunithm" => Some(templates::CHUSAN_TEMPLATE),
+            "sinmai" => Some(templates::MAI2_TEMPLATE),
+            "ongeki" => Some(templates::MU3_TEMPLATE),
             _ => None
         };
 
@@ -971,19 +981,20 @@ pub fn default_segatoools_config_cmd() -> Result<SegatoolsConfig, String> {
     };
 
     if let Some(game) = active {
-        let content = match game.name.as_str() {
-            "Chunithm" => Some(templates::CHUSAN_TEMPLATE),
-            "Sinmai" => Some(templates::MAI2_TEMPLATE),
-            "Ongeki" => Some(templates::MU3_TEMPLATE),
+        let key = canonical_game_key(&game.name);
+        let content = match key.as_str() {
+            "chunithm" => Some(templates::CHUSAN_TEMPLATE),
+            "sinmai" => Some(templates::MAI2_TEMPLATE),
+            "ongeki" => Some(templates::MU3_TEMPLATE),
             _ => None
         };
 
         if let Some(ini_content) = content {
             let cfg = load_segatoools_config_from_string(ini_content).map_err(|e| e.to_string())?;
-            return Ok(sanitize_segatoools_for_game(cfg, Some(game.name.as_str())));
+            return Ok(sanitize_segatoools_for_game(cfg, Some(key.as_str())));
         }
 
-        return Ok(sanitize_segatoools_for_game(default_segatoools_config(), Some(game.name.as_str())));
+        return Ok(sanitize_segatoools_for_game(default_segatoools_config(), Some(key.as_str())));
     }
 
     Ok(sanitize_segatoools_for_game(default_segatoools_config(), None))

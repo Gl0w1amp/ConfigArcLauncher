@@ -374,8 +374,16 @@ fn active_game_ctx() -> Result<ActiveGameContext, TrustedError> {
     Ok(ActiveGameContext { game, root })
 }
 
+fn canonical_game_name(name: &str) -> String {
+    let lower = name.trim().to_lowercase();
+    if lower.starts_with("sdez") {
+        return "sinmai".to_string();
+    }
+    lower
+}
+
 fn artifact_candidates(game: &Game) -> Vec<&'static str> {
-    match game.name.to_lowercase().as_str() {
+    match canonical_game_name(&game.name).as_str() {
         "chunithm" => vec!["chusan.zip", "chuni.zip"],
         "sinmai" => vec!["mai2.zip"],
         "ongeki" => vec!["mu3.zip"],
