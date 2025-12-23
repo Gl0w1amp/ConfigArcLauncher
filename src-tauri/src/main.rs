@@ -7,6 +7,7 @@ mod fsdecrypt;
 mod games;
 mod icf;
 mod trusted;
+mod vhd;
 
 use commands::*;
 fn main() {
@@ -26,10 +27,13 @@ fn main() {
             delete_profile_cmd,
             list_games_cmd,
             save_game_cmd,
+            load_vhd_config_cmd,
+            save_vhd_config_cmd,
             delete_game_cmd,
             launch_game_cmd,
             apply_profile_to_game_cmd,
             pick_game_folder_cmd,
+            pick_vhd_game_cmd,
             pick_decrypt_files_cmd,
             default_segatoools_config_cmd,
             segatoools_path_cmd,

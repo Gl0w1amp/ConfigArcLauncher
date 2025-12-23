@@ -51,8 +51,20 @@
       "execPath": "可执行文件路径",
       "workdirOptional": "工作目录 (可选)",
       "launchArgs": "启动参数 (空格分隔)",
-      "save": "保存游戏"
-    }
+      "save": "保存游戏",
+      "autoDetectVhd": "???? VHD ???",
+      "mode": "????",
+      "modeFolder": "???",
+      "modeVhd": "VHD",
+      "baseVhdPath": "?? VHD ??",
+      "patchVhdPath": "??? VHD ??",
+      "deltaEnabled": "????????",
+      "vhdMissing": "VHD ???????????????"
+    },
+    "mode": "??",
+    "modeFolder": "???",
+    "modeVhd": "VHD",
+    "vhdBase": "?? VHD"
   },
   "config": {
     "title": "INI 编辑器",

@@ -16,7 +16,8 @@ const emptyGame = (): Game => ({
   working_dir: '',
   launch_args: [],
   enabled: true,
-  tags: []
+  tags: [],
+  launch_mode: 'folder',
 });
 
 function GameListPage() {

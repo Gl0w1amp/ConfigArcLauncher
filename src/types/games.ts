@@ -8,6 +8,7 @@ export interface Game {
   launch_args: string[];
   enabled: boolean;
   tags: string[];
+  launch_mode?: 'folder' | 'vhd';
 }
 
 export interface ConfigProfile {

@@ -2,13 +2,13 @@ use super::model::Game;
 use crate::config::paths::segatools_root_for_game_id;
 use crate::error::GameError;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Child, Command};
 use std::fs;
 use std::os::windows::process::CommandExt;
 
 const CREATE_NEW_CONSOLE: u32 = 0x00000010;
 
-pub fn launch_game(game: &Game) -> Result<(), GameError> {
+fn build_launch_command(game: &Game) -> Result<Command, GameError> {
   if !game.enabled {
     return Err(GameError::Launch("Game is disabled".to_string()));
   }
@@ -30,11 +30,11 @@ pub fn launch_game(game: &Game) -> Result<(), GameError> {
   let hook_mai2 = segatools_root.join("mai2hook.dll");
   let hook_mu3 = segatools_root.join("mu3hook.dll");
   let has_inject = inject_path.exists() || inject_x86_path.exists() || inject_x64_path.exists();
-  
+
   // Check if we should use inject (Segatools style)
   if has_inject {
     let exe_name = exe_path.file_name().unwrap_or_default().to_string_lossy().to_string();
-    
+
     let mut batch_content = String::new();
     let mut handled = false;
 
@@ -56,7 +56,7 @@ pub fn launch_game(game: &Game) -> Result<(), GameError> {
           inject_x64.to_string_lossy(),
           hook_chusan_x64.to_string_lossy()
         ));
-        
+
         let args_str = game.launch_args.join(" ");
         batch_content.push_str(&format!(
           "\"{}\" -d -k \"{}\" chusanApp.exe {}\r\n",
@@ -87,10 +87,10 @@ pub fn launch_game(game: &Game) -> Result<(), GameError> {
         let has_amdaemon = amdaemon_path.exists();
         let inject = inject.unwrap();
         let hook_dll = hook_dll.unwrap();
-        
+
         batch_content.push_str("@echo off\r\n");
         batch_content.push_str(&format!("cd /d \"{}\"\r\n", working_dir.to_string_lossy()));
-        
+
         if has_amdaemon {
           batch_content.push_str(&format!(
             "start \"\" /min \"{}\" -d -k \"{}\" amdaemon.exe -f -c config_common.json config_server.json config_client.json\r\n",
@@ -98,7 +98,7 @@ pub fn launch_game(game: &Game) -> Result<(), GameError> {
             hook_dll.to_string_lossy()
           ));
         }
-        
+
         let args_str = game.launch_args.join(" ");
         batch_content.push_str(&format!(
           "\"{}\" -d -k \"{}\" {} {}\r\n",
@@ -107,7 +107,7 @@ pub fn launch_game(game: &Game) -> Result<(), GameError> {
           target_name,
           args_str
         ));
-        
+
         if has_amdaemon {
           batch_content.push_str("taskkill /f /im amdaemon.exe > nul 2>&1\r\n");
         }
@@ -118,19 +118,18 @@ pub fn launch_game(game: &Game) -> Result<(), GameError> {
     if handled {
       let batch_path = segatools_root.join("launch_temp.bat");
       if let Some(parent) = batch_path.parent() {
-        fs::create_dir_all(parent).map_err(|e| GameError::Launch(format!("Failed to create segatools dir: {}", e)))?;
+        fs::create_dir_all(parent)
+          .map_err(|e| GameError::Launch(format!("Failed to create segatools dir: {}", e)))?;
       }
-      fs::write(&batch_path, batch_content).map_err(|e| GameError::Launch(format!("Failed to write batch file: {}", e)))?;
+      fs::write(&batch_path, batch_content)
+        .map_err(|e| GameError::Launch(format!("Failed to write batch file: {}", e)))?;
 
       let mut cmd = Command::new("cmd");
       cmd.args(&["/c", batch_path.to_str().unwrap()]);
       cmd.current_dir(working_dir);
       cmd.env("SEGATOOLS_CONFIG_PATH", &segatools_ini);
       cmd.creation_flags(CREATE_NEW_CONSOLE);
-      
-      cmd.spawn().map_err(|e| GameError::Launch(e.to_string()))?;
-      
-      return Ok(());
+      return Ok(cmd);
     }
   }
 
@@ -144,6 +143,16 @@ pub fn launch_game(game: &Game) -> Result<(), GameError> {
   cmd.args(&game.launch_args);
   cmd.env("SEGATOOLS_CONFIG_PATH", &segatools_ini);
   cmd.creation_flags(CREATE_NEW_CONSOLE);
+  Ok(cmd)
+}
+
+pub fn launch_game(game: &Game) -> Result<(), GameError> {
+  let mut cmd = build_launch_command(game)?;
   cmd.spawn().map_err(|e| GameError::Launch(e.to_string()))?;
   Ok(())
+}
+
+pub fn launch_game_child(game: &Game) -> Result<Child, GameError> {
+  let mut cmd = build_launch_command(game)?;
+  cmd.spawn().map_err(|e| GameError::Launch(e.to_string()))
 }

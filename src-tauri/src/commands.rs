@@ -9,12 +9,13 @@ use crate::config::{
     json_configs::{JsonConfigFile, list_json_configs_for_active, load_json_config_for_active, save_json_config_for_active},
     {default_segatoools_config, load_segatoools_config, load_segatoools_config_from_string, save_segatoools_config as persist_segatoools_config, render_segatoools_config},
 };
-use crate::games::{launcher::launch_game, model::Game, store};
+use crate::games::{launcher::{launch_game, launch_game_child}, model::{Game, LaunchMode}, store};
 use crate::icf::{decode_icf, encrypt_icf, serialize_icf, IcfData};
 use crate::trusted::{
     deploy_segatoools_for_active, rollback_segatoools_for_active, verify_segatoools_for_active,
     DeployResult, RollbackResult, SegatoolsTrustStatus,
 };
+use crate::vhd::{load_vhd_config, mount_vhd, resolve_vhd_config, save_vhd_config, unmount_vhd, VhdConfig};
 use crate::fsdecrypt;
 use serde::{Serialize, Deserialize};
 use std::collections::HashSet;
@@ -23,7 +24,7 @@ use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use std::os::windows::process::CommandExt;
 
 fn redact_keychip_id(content: &str) -> String {
@@ -114,58 +115,264 @@ fn allowed_sections_for_game(name: &str) -> HashSet<&'static str> {
     allowed
 }
 
+struct DetectedGameInfo {
+    name: String,
+    executable_path: String,
+    working_dir: String,
+    launch_args: Vec<String>,
+}
+
+fn default_launch_args(game_name: &str) -> Vec<String> {
+    match game_name {
+        "Sinmai" => vec![
+            "-screen-fullscreen".into(), "0".into(),
+            "-popupwindow".into(),
+            "-screen-width".into(), "2160".into(),
+            "-screen-height".into(), "1920".into(),
+            "-silent-crashes".into()
+        ],
+        "Chunithm" => vec![
+            "-screen-fullscreen".into(), "0".into(),
+            "-popupwindow".into(),
+            "-screen-width".into(), "1080".into(),
+            "-screen-height".into(), "1920".into()
+        ],
+        "Ongeki" => vec![
+            "-screen-fullscreen".into(), "0".into(),
+            "-popupwindow".into(),
+            "-screen-width".into(), "1080".into(),
+            "-screen-height".into(), "1920".into()
+        ],
+        _ => vec![],
+    }
+}
+
+fn detect_game_in_dir(dir: &Path) -> Option<DetectedGameInfo> {
+    let join_path = |p: &str| dir.join(p).to_str().unwrap_or("").to_string();
+
+    if dir.join("Sinmai.exe").exists() {
+        let name = "Sinmai".to_string();
+        return Some(DetectedGameInfo {
+            name: name.clone(),
+            executable_path: join_path("Sinmai.exe"),
+            working_dir: dir.to_string_lossy().to_string(),
+            launch_args: default_launch_args(&name),
+        });
+    }
+    if dir.join("chusanApp.exe").exists() {
+        let name = "Chunithm".to_string();
+        return Some(DetectedGameInfo {
+            name: name.clone(),
+            executable_path: join_path("chusanApp.exe"),
+            working_dir: dir.to_string_lossy().to_string(),
+            launch_args: default_launch_args(&name),
+        });
+    }
+    if dir.join("mu3.exe").exists() {
+        let name = "Ongeki".to_string();
+        return Some(DetectedGameInfo {
+            name: name.clone(),
+            executable_path: join_path("mu3.exe"),
+            working_dir: dir.to_string_lossy().to_string(),
+            launch_args: default_launch_args(&name),
+        });
+    }
+    None
+}
+
 fn scan_game_folder_logic(path: &str) -> Result<Game, String> {
     let dir = Path::new(path);
     if !dir.exists() || !dir.is_dir() {
         return Err("Invalid directory".to_string());
     }
 
-    let mut game = Game {
+    let detected = detect_game_in_dir(dir)
+        .ok_or_else(|| "No supported game executable found (Sinmai.exe, chusanApp.exe, mu3.exe)".to_string())?;
+
+    Ok(Game {
         id: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis().to_string(),
-        name: "".to_string(),
-        executable_path: "".to_string(),
+        name: detected.name,
+        executable_path: detected.executable_path,
         working_dir: Some(path.to_string()),
-        launch_args: vec![],
+        launch_args: detected.launch_args,
         enabled: true,
         tags: vec![],
-    };
+        launch_mode: LaunchMode::Folder,
+    })
+}
 
-    let join_path = |p: &str| dir.join(p).to_str().unwrap_or("").to_string();
-    let _inject_path = join_path("inject.exe");
+fn detect_game_on_mount() -> Result<DetectedGameInfo, String> {
+    let candidates = [
+        Path::new("X:\\"),
+        Path::new("X:\\app"),
+        Path::new("X:\\app\\bin"),
+    ];
+    for dir in candidates.iter() {
+        if dir.exists() {
+            if let Some(detected) = detect_game_in_dir(dir) {
+                return Ok(detected);
+            }
+        }
+    }
+    Err("No supported game executable found on mounted VHD".to_string())
+}
 
-    if dir.join("Sinmai.exe").exists() {
-        game.name = "Sinmai".to_string();
-        game.executable_path = join_path("Sinmai.exe");
-        game.launch_args = vec![
-            "-screen-fullscreen".into(), "0".into(),
-            "-popupwindow".into(),
-            "-screen-width".into(), "2160".into(),
-            "-screen-height".into(), "1920".into(),
-            "-silent-crashes".into()
-        ];
-    } else if dir.join("chusanApp.exe").exists() {
-        game.name = "Chunithm".to_string();
-        game.executable_path = join_path("chusanApp.exe");
-        game.launch_args = vec![
-            "-screen-fullscreen".into(), "0".into(),
-            "-popupwindow".into(),
-            "-screen-width".into(), "1080".into(),
-            "-screen-height".into(), "1920".into()
-        ];
-    } else if dir.join("mu3.exe").exists() {
-        game.name = "Ongeki".to_string();
-        game.executable_path = join_path("mu3.exe");
-        game.launch_args = vec![
-            "-screen-fullscreen".into(), "0".into(),
-            "-popupwindow".into(),
-            "-screen-width".into(), "1080".into(),
-            "-screen-height".into(), "1920".into()
-        ];
-    } else {
-        return Err("No supported game executable found (Sinmai.exe, chusanApp.exe, mu3.exe)".to_string());
+#[derive(Debug)]
+struct VfsResolved {
+    amfs: String,
+    appdata: String,
+    option: String,
+}
+
+fn find_vfs_dir<F>(base: &Path, predicate: F) -> Option<PathBuf>
+where
+    F: Fn(&Path) -> bool,
+{
+    let entries = fs::read_dir(base).ok()?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        if predicate(&path) {
+            return Some(path);
+        }
+    }
+    None
+}
+
+fn dir_has_icf(dir: &Path) -> bool {
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            if let Some(name) = entry.file_name().to_str() {
+                if name.starts_with("ICF") {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+fn dir_has_appdata(dir: &Path) -> bool {
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+            if let Some(name) = entry.file_name().to_str() {
+                if name.len() == 4 && name.starts_with('S') && name.chars().skip(1).all(|c| c.is_ascii_uppercase()) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+fn dir_has_option(dir: &Path) -> bool {
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+            if let Some(name) = entry.file_name().to_str() {
+                if name.len() == 4 && (name.starts_with('X') || name.starts_with('A')) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+fn detect_vfs_paths_on_drive() -> Result<VfsResolved, String> {
+    let candidates = [
+        PathBuf::from("X:\\"),
+        PathBuf::from("X:\\app"),
+        PathBuf::from("X:\\app\\bin"),
+    ];
+
+    let mut amfs = None;
+    let mut appdata = None;
+    let mut option = None;
+
+    for base in candidates.iter() {
+        if !base.exists() {
+            continue;
+        }
+        if amfs.is_none() {
+            amfs = find_vfs_dir(base, dir_has_icf);
+        }
+        if appdata.is_none() {
+            appdata = find_vfs_dir(base, dir_has_appdata);
+        }
+        if option.is_none() {
+            option = find_vfs_dir(base, dir_has_option);
+        }
     }
 
-    Ok(game)
+    let amfs = amfs.ok_or_else(|| "AMFS path not found on mounted VHD".to_string())?;
+    let appdata = appdata.ok_or_else(|| "APPDATA path not found on mounted VHD".to_string())?;
+    let option = option.ok_or_else(|| "OPTION path not found on mounted VHD".to_string())?;
+
+    Ok(VfsResolved {
+        amfs: amfs.to_string_lossy().to_string(),
+        appdata: appdata.to_string_lossy().to_string(),
+        option: option.to_string_lossy().to_string(),
+    })
+}
+
+fn ensure_vfs_keys_present(cfg: &mut SegatoolsConfig) {
+    if !cfg.present_sections.is_empty()
+        && !cfg.present_sections.iter().any(|s| s.eq_ignore_ascii_case("vfs"))
+    {
+        cfg.present_sections.push("vfs".to_string());
+    }
+    if !cfg.present_keys.is_empty() {
+        for key in ["vfs.enable", "vfs.amfs", "vfs.appdata", "vfs.option"] {
+            if !cfg.present_keys.iter().any(|k| k.eq_ignore_ascii_case(key)) {
+                cfg.present_keys.push(key.to_string());
+            }
+        }
+    }
+}
+
+fn is_process_running(name: &str) -> Result<bool, String> {
+    let escaped = name.replace('\'', "''");
+    let cmd = format!(
+        "Get-Process -Name '{}' -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Id",
+        escaped
+    );
+    let output = Command::new("powershell")
+        .args(&["-NoProfile", "-Command", &cmd])
+        .creation_flags(0x08000000)
+        .output()
+        .map_err(|e| e.to_string())?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    Ok(!stdout.trim().is_empty())
+}
+
+fn wait_for_process_start(name: &str, timeout: Duration) -> Result<bool, String> {
+    let start = Instant::now();
+    while start.elapsed() < timeout {
+        if is_process_running(name)? {
+            return Ok(true);
+        }
+        std::thread::sleep(Duration::from_millis(500));
+    }
+    Ok(false)
+}
+
+fn wait_for_process_exit(name: &str) -> Result<(), String> {
+    loop {
+        if !is_process_running(name)? {
+            return Ok(());
+        }
+        std::thread::sleep(Duration::from_secs(1));
+    }
 }
 
 fn active_game() -> Result<Game, String> {
@@ -328,6 +535,100 @@ pub async fn pick_game_folder_cmd() -> Result<Game, String> {
         }
 
         scan_game_folder_logic(&path)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[derive(Serialize)]
+pub struct VhdDetectResult {
+    pub game: Game,
+    pub vhd: VhdConfig,
+}
+
+fn detect_vhd_files_in_dir(dir: &Path) -> Result<VhdConfig, String> {
+    let mut vhds: Vec<PathBuf> = fs::read_dir(dir)
+        .map_err(|e| e.to_string())?
+        .filter_map(|entry| entry.ok().map(|e| e.path()))
+        .filter(|path| {
+            path.is_file()
+                && path.extension().and_then(|e| e.to_str()).map(|e| e.eq_ignore_ascii_case("vhd")).unwrap_or(false)
+                && !path.file_stem().and_then(|s| s.to_str()).map(|s| s.contains("-runtime")).unwrap_or(false)
+        })
+        .collect();
+
+    if vhds.is_empty() {
+        return Err("No VHD files found in the selected folder.".to_string());
+    }
+
+    vhds.sort_by_key(|p| fs::metadata(p).map(|m| m.len()).unwrap_or(0));
+
+    let patch = vhds.iter().find(|p| {
+        p.file_name()
+            .and_then(|n| n.to_str())
+            .map(|n| n.to_lowercase().contains("unpack") || n.to_lowercase().contains("patch"))
+            .unwrap_or(false)
+    })
+    .cloned()
+    .or_else(|| {
+        if vhds.len() > 1 { vhds.first().cloned() } else { None }
+    })
+    .ok_or_else(|| "Patch VHD not found. Please select manually.".to_string())?;
+
+    let base = vhds.iter()
+        .filter(|p| **p != patch)
+        .max_by_key(|p| fs::metadata(p).map(|m| m.len()).unwrap_or(0))
+        .cloned()
+        .ok_or_else(|| "Base VHD not found. Please select manually.".to_string())?;
+
+    Ok(VhdConfig {
+        base_path: base.to_string_lossy().to_string(),
+        patch_path: patch.to_string_lossy().to_string(),
+        delta_enabled: true,
+    })
+}
+
+#[command]
+pub async fn pick_vhd_game_cmd() -> Result<VhdDetectResult, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let ps_script = "Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.FolderBrowserDialog; if ($f.ShowDialog() -eq 'OK') { Write-Output $f.SelectedPath }";
+
+        let output = Command::new("powershell")
+            .args(&["-NoProfile", "-Command", ps_script])
+            .creation_flags(0x08000000)
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+
+        if path.is_empty() {
+            return Err("No folder selected".to_string());
+        }
+
+        let dir = Path::new(&path);
+        if !dir.exists() || !dir.is_dir() {
+            return Err("Invalid directory".to_string());
+        }
+
+        let vhd = detect_vhd_files_in_dir(dir)?;
+        let name = Path::new(&vhd.base_path)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("VHD Game")
+            .to_string();
+
+        let game = Game {
+            id: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis().to_string(),
+            name,
+            executable_path: vhd.base_path.clone(),
+            working_dir: Some(path.to_string()),
+            launch_args: vec![],
+            enabled: true,
+            tags: vec![],
+            launch_mode: LaunchMode::Vhd,
+        };
+
+        Ok(VhdDetectResult { game, vhd })
     })
     .await
     .map_err(|e| e.to_string())?
@@ -519,6 +820,16 @@ pub fn save_game_cmd(game: Game) -> Result<(), String> {
 }
 
 #[command]
+pub fn load_vhd_config_cmd(game_id: String) -> Result<VhdConfig, String> {
+    load_vhd_config(&game_id).map_err(|e| e.to_string())
+}
+
+#[command]
+pub fn save_vhd_config_cmd(game_id: String, config: VhdConfig) -> Result<(), String> {
+    save_vhd_config(&game_id, &config).map_err(|e| e.to_string())
+}
+
+#[command]
 pub fn delete_game_cmd(id: String) -> Result<(), String> {
     store::delete_game(&id).map_err(|e| e.to_string())
 }
@@ -530,6 +841,9 @@ pub fn launch_game_cmd(id: String, profile_id: Option<String>) -> Result<(), Str
         .into_iter()
         .find(|g| g.id == id)
         .ok_or_else(|| "Game not found".to_string())?;
+    if matches!(game.launch_mode, LaunchMode::Vhd) {
+        return launch_vhd_game(&game, profile_id);
+    }
     let game_name = game.name.clone();
     let _ = store::game_root_dir(&game).ok_or_else(|| "Game path missing".to_string())?;
 
@@ -560,6 +874,87 @@ pub fn launch_game_cmd(id: String, profile_id: Option<String>) -> Result<(), Str
     }
 
     launch_game(&game).map_err(|e| e.to_string())
+}
+
+fn load_launch_config(game: &Game, profile_id: Option<String>, game_name: &str) -> Result<(SegatoolsConfig, PathBuf), String> {
+    let seg_path = segatoools_path_for_game_id(&game.id).map_err(|e| e.to_string())?;
+    let cfg = if let Some(pid) = profile_id.filter(|s| !s.is_empty()) {
+        let profile = load_profile(&pid, Some(&game.id)).map_err(|e| e.to_string())?;
+        let sanitized = sanitize_segatoools_for_game(profile.segatools, Some(game_name));
+        persist_segatoools_config(&seg_path, &sanitized).map_err(|e| e.to_string())?;
+        sanitized
+    } else {
+        if !seg_path.exists() {
+            return Err("segatools.ini not found. Please configure the game.".to_string());
+        }
+        let cfg = load_segatoools_config(&seg_path).map_err(|e| e.to_string())?;
+        sanitize_segatoools_for_game(cfg, Some(game_name))
+    };
+    Ok((cfg, seg_path))
+}
+
+fn launch_vhd_game(game: &Game, profile_id: Option<String>) -> Result<(), String> {
+    if !game.enabled {
+        return Err("Game is disabled".to_string());
+    }
+    let vhd_cfg = load_vhd_config(&game.id).map_err(|e| e.to_string())?;
+    let resolved = resolve_vhd_config(&game.id, &vhd_cfg)?;
+    let mounted = mount_vhd(&resolved)?;
+
+    let result = (|| -> Result<(), String> {
+        let detected = detect_game_on_mount()?;
+        let (mut cfg, seg_path) = load_launch_config(game, profile_id, &detected.name)?;
+
+        let vfs = detect_vfs_paths_on_drive()?;
+        cfg.vfs.enable = true;
+        cfg.vfs.amfs = vfs.amfs;
+        cfg.vfs.appdata = vfs.appdata;
+        cfg.vfs.option = vfs.option;
+        ensure_vfs_keys_present(&mut cfg);
+        persist_segatoools_config(&seg_path, &cfg).map_err(|e| e.to_string())?;
+
+        if cfg.keychip.id.is_empty() {
+            return Err("Missing required fields: Keychip ID. Please configure it in settings.".to_string());
+        }
+
+        let launch_game = Game {
+            id: game.id.clone(),
+            name: detected.name,
+            executable_path: detected.executable_path,
+            working_dir: Some(detected.working_dir),
+            launch_args: detected.launch_args,
+            enabled: game.enabled,
+            tags: game.tags.clone(),
+            launch_mode: LaunchMode::Folder,
+        };
+
+        let process_name = Path::new(&launch_game.executable_path)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("")
+            .to_string();
+        let mut child = launch_game_child(&launch_game).map_err(|e| e.to_string())?;
+        let mounted_for_thread = mounted.clone();
+        std::thread::spawn(move || {
+            let started = if process_name.is_empty() {
+                false
+            } else {
+                wait_for_process_start(&process_name, Duration::from_secs(15)).unwrap_or(false)
+            };
+            if started {
+                let _ = wait_for_process_exit(&process_name);
+            } else {
+                let _ = child.wait();
+            }
+            let _ = unmount_vhd(&mounted_for_thread);
+        });
+        Ok(())
+    })();
+
+    if result.is_err() {
+        let _ = unmount_vhd(&mounted);
+    }
+    result
 }
 
 #[command]

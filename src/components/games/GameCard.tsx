@@ -20,6 +20,7 @@ function GameCard({ game, isActive, onEdit, onDelete, onLaunch, onActivate, onAp
   const { t } = useTranslation();
   const storageKey = `lastProfile:${game.id}`;
   const [profileId, setProfileId] = useState<string>(() => localStorage.getItem(storageKey) ?? '');
+  const isVhd = (game.launch_mode ?? 'folder') === 'vhd';
   
   const [profiles, setProfiles] = useState<ConfigProfile[]>([]);
   const [loading, setLoading] = useState(false);
@@ -63,9 +64,20 @@ function GameCard({ game, isActive, onEdit, onDelete, onLaunch, onActivate, onAp
         </div>
       </div>
       <div className="game-details">
-        <div>{t('games.exec')}: {game.executable_path}</div>
-        {game.working_dir && <div>{t('games.workdir')}: {game.working_dir}</div>}
-        {game.launch_args.length > 0 && <div>{t('games.args')}: {game.launch_args.join(' ')}</div>}
+        {isVhd ? (
+          <>
+            <div>{t('games.mode')}: {t('games.modeVhd')}</div>
+            <div>{t('games.vhdBase')}: {game.executable_path}</div>
+            {game.working_dir && <div>{t('games.workdir')}: {game.working_dir}</div>}
+          </>
+        ) : (
+          <>
+            <div>{t('games.mode')}: {t('games.modeFolder')}</div>
+            <div>{t('games.exec')}: {game.executable_path}</div>
+            {game.working_dir && <div>{t('games.workdir')}: {game.working_dir}</div>}
+            {game.launch_args.length > 0 && <div>{t('games.args')}: {game.launch_args.join(' ')}</div>}
+          </>
+        )}
       </div>
       <div className="game-launch-area">
         <select 
