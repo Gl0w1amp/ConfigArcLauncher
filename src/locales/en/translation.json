@@ -45,6 +45,15 @@
     "vhdBase": "Base VHD",
     "currentFile": "Current File (segatools.ini)",
     "launchFailed": "Failed to launch game: {{error}}",
+    "launchProgress": {
+      "title": "Launching {{name}}",
+      "mounting": "Mounting VHD...",
+      "detecting": "Detecting game files...",
+      "configuring": "Updating segatools settings...",
+      "launching": "Starting game...",
+      "started": "Game started",
+      "error": "Launch failed"
+    },
     "deleteConfirmTitle": "Delete Game",
     "deleteConfirmMessage": "Are you sure you want to delete this game? This action cannot be undone.",
     "editor": {

@@ -38,7 +38,7 @@ pub struct MountedVhd {
 
 #[derive(Debug, Clone)]
 pub struct ElevatedVhdMount {
-    pub mount: MountedVhd,
+    pub script_path: PathBuf,
     pub result_path: PathBuf,
     pub signal_path: PathBuf,
     pub done_path: PathBuf,
@@ -57,6 +57,8 @@ struct HelperResult {
     runtime_path: Option<String>,
     error: Option<String>,
 }
+
+const VHD_HELPER_SCRIPT: &str = include_str!("../scripts/vhd-helper.ps1");
 
 pub fn vhd_config_path_for_game_id(game_id: &str) -> PathBuf {
     segatools_root_for_game_id(game_id).join("vhd.json")
@@ -202,34 +204,51 @@ fn ensure_x_drive_free() -> Result<(), String> {
 
 fn wait_for_helper_result(path: &Path, timeout: Duration) -> Result<HelperResult, String> {
     let start = Instant::now();
+    let mut last_err: Option<String> = None;
     while start.elapsed() < timeout {
         if path.exists() {
             let data = fs::read_to_string(path).map_err(|e| e.to_string())?;
-            let result: HelperResult = serde_json::from_str(&data).map_err(|e| e.to_string())?;
-            return Ok(result);
+            let trimmed = data.trim();
+            if trimmed.is_empty() {
+                sleep(Duration::from_millis(200));
+                continue;
+            }
+            let trimmed = trimmed.strip_prefix('\u{feff}').unwrap_or(trimmed);
+            match serde_json::from_str::<HelperResult>(trimmed) {
+                Ok(result) => return Ok(result),
+                Err(err) => {
+                    last_err = Some(err.to_string());
+                }
+            }
         }
         sleep(Duration::from_millis(200));
     }
-    Err("Timed out waiting for elevated mount helper".to_string())
+    if let Some(err) = last_err {
+        Err(format!("Failed to parse elevated helper result: {err}"))
+    } else {
+        Err("Timed out waiting for elevated mount helper".to_string())
+    }
 }
 
 fn mount_vhd_via_helper(cfg: &ResolvedVhdConfig) -> Result<ElevatedVhdMount, String> {
     let tag = temp_tag();
     let temp = std::env::temp_dir();
+    let script_path = temp.join(format!("configarc_vhd_helper_{tag}.ps1"));
     let result_path = temp.join(format!("configarc_vhd_result_{tag}.json"));
     let signal_path = temp.join(format!("configarc_vhd_signal_{tag}.flag"));
     let done_path = temp.join(format!("configarc_vhd_done_{tag}.flag"));
 
+    fs::write(&script_path, VHD_HELPER_SCRIPT.as_bytes()).map_err(|e| e.to_string())?;
     let _ = fs::remove_file(&result_path);
     let _ = fs::remove_file(&signal_path);
     let _ = fs::remove_file(&done_path);
 
-    let exe = std::env::current_exe()
-        .map_err(|e| format!("Failed to resolve executable path: {e}"))?;
-    let exe_str = exe.to_string_lossy().to_string();
-
     let args = vec![
-        "--vhd-helper".to_string(),
+        "-NoProfile".to_string(),
+        "-ExecutionPolicy".to_string(),
+        "Bypass".to_string(),
+        "-File".to_string(),
+        script_path.to_string_lossy().to_string(),
         "--base".to_string(),
         cfg.base_path.to_string_lossy().to_string(),
         "--patch".to_string(),
@@ -251,8 +270,7 @@ fn mount_vhd_via_helper(cfg: &ResolvedVhdConfig) -> Result<ElevatedVhdMount, Str
         .join(", ");
 
     let cmd = format!(
-        "Start-Process -Verb RunAs -WindowStyle Hidden -FilePath {} -ArgumentList @({}) | Out-Null",
-        ps_quote(&exe_str),
+        "Start-Process -Verb RunAs -WindowStyle Hidden -FilePath powershell.exe -ArgumentList @({}) | Out-Null",
         arg_list
     );
     run_powershell(&cmd)?;
@@ -263,17 +281,11 @@ fn mount_vhd_via_helper(cfg: &ResolvedVhdConfig) -> Result<ElevatedVhdMount, Str
         return Err(message);
     }
 
-    let mount_path = result
-        .mount_path
-        .map(PathBuf::from)
-        .unwrap_or_else(|| cfg.patch_path.clone());
-    let runtime_path = result.runtime_path.map(PathBuf::from);
+    let _ = result.mount_path;
+    let _ = result.runtime_path;
 
     Ok(ElevatedVhdMount {
-        mount: MountedVhd {
-            mount_path,
-            runtime_path,
-        },
+        script_path,
         result_path,
         signal_path,
         done_path,
@@ -378,83 +390,11 @@ pub fn unmount_vhd_handle(handle: &VhdMountHandle) -> Result<(), String> {
                 let _ = fs::remove_file(&mounted.signal_path);
                 let _ = fs::remove_file(&mounted.result_path);
                 let _ = fs::remove_file(&mounted.done_path);
+                let _ = fs::remove_file(&mounted.script_path);
                 Ok(())
             } else {
                 Err("Timed out waiting for elevated unmount".to_string())
             }
         }
     }
-}
-
-fn parse_arg_value(args: &[String], key: &str) -> Option<String> {
-    args.iter()
-        .position(|v| v == key)
-        .and_then(|idx| args.get(idx + 1))
-        .map(|v| v.to_string())
-}
-
-pub fn maybe_run_vhd_helper() -> bool {
-    let args: Vec<String> = std::env::args().collect();
-    if !args.iter().any(|a| a == "--vhd-helper") {
-        return false;
-    }
-
-    if let Err(err) = run_vhd_helper_from_args(&args) {
-        eprintln!("VHD helper failed: {}", err);
-    }
-    true
-}
-
-fn run_vhd_helper_from_args(args: &[String]) -> Result<(), String> {
-    let base = parse_arg_value(args, "--base").ok_or_else(|| "Missing --base".to_string())?;
-    let patch = parse_arg_value(args, "--patch").ok_or_else(|| "Missing --patch".to_string())?;
-    let delta_raw = parse_arg_value(args, "--delta").unwrap_or_else(|| "1".to_string());
-    let result_path = parse_arg_value(args, "--result").ok_or_else(|| "Missing --result".to_string())?;
-    let signal_path = parse_arg_value(args, "--signal").ok_or_else(|| "Missing --signal".to_string())?;
-    let done_path = parse_arg_value(args, "--done").ok_or_else(|| "Missing --done".to_string())?;
-
-    let delta_enabled = delta_raw == "1" || delta_raw.eq_ignore_ascii_case("true");
-    let cfg = ResolvedVhdConfig {
-        base_path: PathBuf::from(base),
-        patch_path: PathBuf::from(patch),
-        delta_enabled,
-    };
-
-    let write_result = |result: HelperResult| -> Result<(), String> {
-        let json = serde_json::to_string(&result).map_err(|e| e.to_string())?;
-        fs::write(&result_path, json).map_err(|e| e.to_string())
-    };
-
-    let mounted = match mount_vhd(&cfg) {
-        Ok(mounted) => {
-            write_result(HelperResult {
-                ok: true,
-                mount_path: Some(mounted.mount_path.to_string_lossy().to_string()),
-                runtime_path: mounted.runtime_path.as_ref().map(|p| p.to_string_lossy().to_string()),
-                error: None,
-            })?;
-            mounted
-        }
-        Err(err) => {
-            let _ = write_result(HelperResult {
-                ok: false,
-                mount_path: None,
-                runtime_path: None,
-                error: Some(err.clone()),
-            });
-            return Err(err);
-        }
-    };
-
-    let signal = PathBuf::from(signal_path);
-    loop {
-        if signal.exists() {
-            break;
-        }
-        sleep(Duration::from_millis(500));
-    }
-
-    let _ = unmount_vhd(&mounted);
-    let _ = fs::write(&done_path, b"1");
-    Ok(())
 }

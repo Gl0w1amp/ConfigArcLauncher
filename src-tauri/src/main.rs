@@ -11,9 +11,6 @@ mod vhd;
 
 use commands::*;
 fn main() {
-    if vhd::maybe_run_vhd_helper() {
-        return;
-    }
     tauri::Builder::default()
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())

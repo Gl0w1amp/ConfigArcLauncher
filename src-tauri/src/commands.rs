@@ -19,7 +19,7 @@ use crate::vhd::{load_vhd_config, mount_vhd_with_elevation, resolve_vhd_config, 
 use crate::fsdecrypt;
 use serde::{Serialize, Deserialize};
 use std::collections::HashSet;
-use tauri::command;
+use tauri::{command, Emitter, Window};
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -556,6 +556,22 @@ pub async fn pick_game_folder_cmd() -> Result<Game, String> {
     .map_err(|e| e.to_string())?
 }
 
+#[derive(Serialize, Clone)]
+struct LaunchProgress {
+    game_id: String,
+    stage: String,
+}
+
+fn emit_launch_progress(window: &Window, game_id: &str, stage: &str) {
+    let _ = window.emit(
+        "launch-progress",
+        LaunchProgress {
+            game_id: game_id.to_string(),
+            stage: stage.to_string(),
+        },
+    );
+}
+
 #[derive(Serialize)]
 pub struct VhdDetectResult {
     pub game: Game,
@@ -851,14 +867,14 @@ pub fn delete_game_cmd(id: String) -> Result<(), String> {
 }
 
 #[command]
-pub fn launch_game_cmd(id: String, profile_id: Option<String>) -> Result<(), String> {
+pub fn launch_game_cmd(window: Window, id: String, profile_id: Option<String>) -> Result<(), String> {
     let games = store::list_games().map_err(|e| e.to_string())?;
     let game = games
         .into_iter()
         .find(|g| g.id == id)
         .ok_or_else(|| "Game not found".to_string())?;
     if matches!(game.launch_mode, LaunchMode::Vhd) {
-        return launch_vhd_game(&game, profile_id);
+        return launch_vhd_game(&game, profile_id, &window);
     }
     let game_name = game.name.clone();
     let _ = store::game_root_dir(&game).ok_or_else(|| "Game path missing".to_string())?;
@@ -909,18 +925,28 @@ fn load_launch_config(game: &Game, profile_id: Option<String>, game_name: &str) 
     Ok((cfg, seg_path))
 }
 
-fn launch_vhd_game(game: &Game, profile_id: Option<String>) -> Result<(), String> {
+fn launch_vhd_game(game: &Game, profile_id: Option<String>, window: &Window) -> Result<(), String> {
     if !game.enabled {
+        emit_launch_progress(window, &game.id, "error");
         return Err("Game is disabled".to_string());
     }
     let vhd_cfg = load_vhd_config(&game.id).map_err(|e| e.to_string())?;
     let resolved = resolve_vhd_config(&game.id, &vhd_cfg)?;
-    let mounted = mount_vhd_with_elevation(&resolved)?;
+    emit_launch_progress(window, &game.id, "mounting");
+    let mounted = match mount_vhd_with_elevation(&resolved) {
+        Ok(mounted) => mounted,
+        Err(err) => {
+            emit_launch_progress(window, &game.id, "error");
+            return Err(err);
+        }
+    };
 
     let result = (|| -> Result<(), String> {
+        emit_launch_progress(window, &game.id, "detecting");
         let detected = detect_game_on_mount()?;
         let (mut cfg, seg_path) = load_launch_config(game, profile_id, &detected.name)?;
 
+        emit_launch_progress(window, &game.id, "configuring");
         let vfs = detect_vfs_paths_on_drive()?;
         cfg.vfs.enable = true;
         cfg.vfs.amfs = vfs.amfs;
@@ -933,6 +959,7 @@ fn launch_vhd_game(game: &Game, profile_id: Option<String>) -> Result<(), String
             return Err("Missing required fields: Keychip ID. Please configure it in settings.".to_string());
         }
 
+        emit_launch_progress(window, &game.id, "launching");
         let launch_game = Game {
             id: game.id.clone(),
             name: detected.name,
@@ -969,6 +996,9 @@ fn launch_vhd_game(game: &Game, profile_id: Option<String>) -> Result<(), String
 
     if result.is_err() {
         let _ = unmount_vhd_handle(&mounted);
+        emit_launch_progress(window, &game.id, "error");
+    } else {
+        emit_launch_progress(window, &game.id, "started");
     }
     result
 }
