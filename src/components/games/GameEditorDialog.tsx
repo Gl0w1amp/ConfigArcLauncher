@@ -18,6 +18,7 @@ function GameEditorDialog({ game, onSave, onCancel }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const mode = draft.launch_mode ?? 'folder';
+  const isVhd = mode === 'vhd';
 
   useEffect(() => setDraft(game), [game]);
 
@@ -131,13 +132,28 @@ function GameEditorDialog({ game, onSave, onCancel }: Props) {
           <div
             role="radiogroup"
             aria-label={t('games.editor.mode')}
-            style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: 8, padding: 4 }}
+            style={{ position: 'relative', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0, background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: 10, padding: 4, overflow: 'hidden' }}
           >
+            <div
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                top: 4,
+                bottom: 4,
+                left: 4,
+                width: 'calc(50% - 4px)',
+                borderRadius: 8,
+                background: 'var(--accent-primary)',
+                transform: isVhd ? 'translateX(100%)' : 'translateX(0%)',
+                transition: 'transform 0.25s ease',
+                pointerEvents: 'none',
+              }}
+            />
             <button
               type="button"
               aria-pressed={mode === 'folder'}
               onClick={() => update('launch_mode', 'folder')}
-              style={{ padding: '8px 12px', border: 'none', borderRadius: 6, background: mode === 'folder' ? 'var(--accent-primary)' : 'transparent', color: mode === 'folder' ? 'white' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}
+              style={{ position: 'relative', zIndex: 1, padding: '8px 12px', border: 'none', borderRadius: 8, background: 'transparent', color: mode === 'folder' ? 'white' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600, transition: 'color 0.2s ease' }}
             >
               {t('games.editor.modeFolder')}
             </button>
@@ -145,18 +161,29 @@ function GameEditorDialog({ game, onSave, onCancel }: Props) {
               type="button"
               aria-pressed={mode === 'vhd'}
               onClick={() => update('launch_mode', 'vhd')}
-              style={{ padding: '8px 12px', border: 'none', borderRadius: 6, background: mode === 'vhd' ? 'var(--accent-primary)' : 'transparent', color: mode === 'vhd' ? 'white' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}
+              style={{ position: 'relative', zIndex: 1, padding: '8px 12px', border: 'none', borderRadius: 8, background: 'transparent', color: mode === 'vhd' ? 'white' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600, transition: 'color 0.2s ease' }}
             >
               {t('games.editor.modeVhd')}
             </button>
           </div>
         </div>
-        {(draft.launch_mode ?? 'folder') === 'vhd' ? (
-          <>
+        <div style={{ position: 'relative', minHeight: 300, marginBottom: 8 }}>
+          <div
+            aria-hidden={!isVhd}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              opacity: isVhd ? 1 : 0,
+              transform: isVhd ? 'translateY(0)' : 'translateY(8px)',
+              transition: 'opacity 0.2s ease, transform 0.25s ease',
+              pointerEvents: isVhd ? 'auto' : 'none',
+            }}
+          >
             <label style={{ display: 'block', marginBottom: 16 }}>
               <div style={{ marginBottom: 6, fontWeight: 500, fontSize: 14 }}>{t('games.editor.baseVhdPath')}</div>
               <input
                 value={vhdConfig?.base_path ?? ''}
+                disabled={!isVhd}
                 onChange={(e) => {
                   const base_path = e.target.value;
                   setVhdConfig(prev => ({
@@ -174,6 +201,7 @@ function GameEditorDialog({ game, onSave, onCancel }: Props) {
               <div style={{ marginBottom: 6, fontWeight: 500, fontSize: 14 }}>{t('games.editor.patchVhdPath')}</div>
               <input
                 value={vhdConfig?.patch_path ?? ''}
+                disabled={!isVhd}
                 onChange={(e) => {
                   const patch_path = e.target.value;
                   setVhdConfig(prev => ({
@@ -190,6 +218,7 @@ function GameEditorDialog({ game, onSave, onCancel }: Props) {
               <input
                 type="checkbox"
                 checked={vhdConfig?.delta_enabled ?? true}
+                disabled={!isVhd}
                 onChange={(e) => setVhdConfig(prev => ({
                   base_path: prev?.base_path ?? '',
                   patch_path: prev?.patch_path ?? '',
@@ -199,36 +228,48 @@ function GameEditorDialog({ game, onSave, onCancel }: Props) {
               />
               <span>{t('games.editor.deltaEnabled')}</span>
             </label>
-          </>
-        ) : (
-          <>
-        <label style={{ display: 'block', marginBottom: 16 }}>
-          <div style={{ marginBottom: 6, fontWeight: 500, fontSize: 14 }}>{t('games.editor.execPath')}</div>
-          <input 
-            value={draft.executable_path} 
-            onChange={(e) => update('executable_path', e.target.value)} 
-            style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: 6, color: 'var(--text-primary)', boxSizing: 'border-box' }} 
-            required 
-          />
-        </label>
-        <label style={{ display: 'block', marginBottom: 16 }}>
-          <div style={{ marginBottom: 6, fontWeight: 500, fontSize: 14 }}>{t('games.editor.workdirOptional')}</div>
-          <input 
-            value={draft.working_dir ?? ''} 
-            onChange={(e) => update('working_dir', e.target.value)} 
-            style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: 6, color: 'var(--text-primary)', boxSizing: 'border-box' }} 
-          />
-        </label>
-        <label style={{ display: 'block', marginBottom: 16 }}>
-          <div style={{ marginBottom: 6, fontWeight: 500, fontSize: 14 }}>{t('games.editor.launchArgs')}</div>
-          <textarea 
-            value={draft.launch_args.join(' ')} 
-            onChange={(e) => update('launch_args', e.target.value.trim().length ? e.target.value.split(/\s+/) : [])} 
-            style={{ width: '100%', height: 80, padding: '8px 12px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: 6, color: 'var(--text-primary)', fontFamily: 'monospace', resize: 'vertical', boxSizing: 'border-box' }} 
-          />
-        </label>
-          </>
-        )}
+          </div>
+          <div
+            aria-hidden={isVhd}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              opacity: isVhd ? 0 : 1,
+              transform: isVhd ? 'translateY(8px)' : 'translateY(0)',
+              transition: 'opacity 0.2s ease, transform 0.25s ease',
+              pointerEvents: isVhd ? 'none' : 'auto',
+            }}
+          >
+            <label style={{ display: 'block', marginBottom: 16 }}>
+              <div style={{ marginBottom: 6, fontWeight: 500, fontSize: 14 }}>{t('games.editor.execPath')}</div>
+              <input 
+                value={draft.executable_path} 
+                disabled={isVhd}
+                onChange={(e) => update('executable_path', e.target.value)} 
+                style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: 6, color: 'var(--text-primary)', boxSizing: 'border-box' }} 
+                required 
+              />
+            </label>
+            <label style={{ display: 'block', marginBottom: 16 }}>
+              <div style={{ marginBottom: 6, fontWeight: 500, fontSize: 14 }}>{t('games.editor.workdirOptional')}</div>
+              <input 
+                value={draft.working_dir ?? ''} 
+                disabled={isVhd}
+                onChange={(e) => update('working_dir', e.target.value)} 
+                style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: 6, color: 'var(--text-primary)', boxSizing: 'border-box' }} 
+              />
+            </label>
+            <label style={{ display: 'block', marginBottom: 16 }}>
+              <div style={{ marginBottom: 6, fontWeight: 500, fontSize: 14 }}>{t('games.editor.launchArgs')}</div>
+              <textarea 
+                value={draft.launch_args.join(' ')} 
+                disabled={isVhd}
+                onChange={(e) => update('launch_args', e.target.value.trim().length ? e.target.value.split(/\s+/) : [])} 
+                style={{ width: '100%', height: 80, padding: '8px 12px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: 6, color: 'var(--text-primary)', fontFamily: 'monospace', resize: 'vertical', boxSizing: 'border-box' }} 
+              />
+            </label>
+          </div>
+        </div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24 }}>
           <input type="checkbox" checked={draft.enabled} onChange={(e) => update('enabled', e.target.checked)} style={{ width: 16, height: 16 }} />
           <span>{t('common.enabled')}</span>
