@@ -15,7 +15,7 @@ use crate::trusted::{
     deploy_segatoools_for_active, rollback_segatoools_for_active, verify_segatoools_for_active,
     DeployResult, RollbackResult, SegatoolsTrustStatus,
 };
-use crate::vhd::{load_vhd_config, mount_vhd, resolve_vhd_config, save_vhd_config, unmount_vhd, VhdConfig};
+use crate::vhd::{load_vhd_config, mount_vhd_with_elevation, resolve_vhd_config, save_vhd_config, unmount_vhd_handle, VhdConfig};
 use crate::fsdecrypt;
 use serde::{Serialize, Deserialize};
 use std::collections::HashSet;
@@ -215,6 +215,7 @@ fn detect_game_on_mount() -> Result<DetectedGameInfo, String> {
         Path::new("X:\\"),
         Path::new("X:\\app"),
         Path::new("X:\\app\\bin"),
+        Path::new("X:\\app\\Package"),
     ];
     for dir in candidates.iter() {
         if dir.exists() {
@@ -302,11 +303,16 @@ fn detect_vfs_paths_on_drive() -> Result<VfsResolved, String> {
         PathBuf::from("X:\\"),
         PathBuf::from("X:\\app"),
         PathBuf::from("X:\\app\\bin"),
+        PathBuf::from("X:\\app\\Package"),
     ];
 
-    let mut amfs = None;
-    let mut appdata = None;
-    let mut option = None;
+    let direct_amfs = PathBuf::from("X:\\amfs");
+    let direct_appdata = PathBuf::from("X:\\appdata");
+    let direct_option = PathBuf::from("X:\\option");
+
+    let mut amfs = if direct_amfs.is_dir() { Some(direct_amfs) } else { None };
+    let mut appdata = if direct_appdata.is_dir() { Some(direct_appdata) } else { None };
+    let mut option = if direct_option.is_dir() { Some(direct_option) } else { None };
 
     for base in candidates.iter() {
         if !base.exists() {
@@ -909,7 +915,7 @@ fn launch_vhd_game(game: &Game, profile_id: Option<String>) -> Result<(), String
     }
     let vhd_cfg = load_vhd_config(&game.id).map_err(|e| e.to_string())?;
     let resolved = resolve_vhd_config(&game.id, &vhd_cfg)?;
-    let mounted = mount_vhd(&resolved)?;
+    let mounted = mount_vhd_with_elevation(&resolved)?;
 
     let result = (|| -> Result<(), String> {
         let detected = detect_game_on_mount()?;
@@ -956,13 +962,13 @@ fn launch_vhd_game(game: &Game, profile_id: Option<String>) -> Result<(), String
             } else {
                 let _ = child.wait();
             }
-            let _ = unmount_vhd(&mounted_for_thread);
+            let _ = unmount_vhd_handle(&mounted_for_thread);
         });
         Ok(())
     })();
 
     if result.is_err() {
-        let _ = unmount_vhd(&mounted);
+        let _ = unmount_vhd_handle(&mounted);
     }
     result
 }
