@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Game } from '../../types/games';
 import { invokeTauri } from '../../api/tauriClient';
@@ -19,6 +19,11 @@ function GameEditorDialog({ game, onSave, onCancel }: Props) {
   const [error, setError] = useState<string | null>(null);
   const mode = draft.launch_mode ?? 'folder';
   const isVhd = mode === 'vhd';
+  const vhdPanelRef = useRef<HTMLDivElement>(null);
+  const folderPanelRef = useRef<HTMLDivElement>(null);
+  const [vhdHeight, setVhdHeight] = useState<number | null>(null);
+  const [folderHeight, setFolderHeight] = useState<number | null>(null);
+  const [panelHeight, setPanelHeight] = useState<number | null>(null);
 
   useEffect(() => setDraft(game), [game]);
 
@@ -42,6 +47,45 @@ function GameEditorDialog({ game, onSave, onCancel }: Props) {
         }
       });
   }, [game]);
+
+  useLayoutEffect(() => {
+    const vhdPanel = vhdPanelRef.current;
+    const folderPanel = folderPanelRef.current;
+    if (vhdPanel) {
+      setVhdHeight(vhdPanel.scrollHeight);
+    }
+    if (folderPanel) {
+      setFolderHeight(folderPanel.scrollHeight);
+    }
+  }, [
+    isVhd,
+    vhdConfig?.base_path,
+    vhdConfig?.patch_path,
+    vhdConfig?.delta_enabled,
+    draft.executable_path,
+    draft.working_dir,
+    draft.launch_args.length,
+  ]);
+
+  useLayoutEffect(() => {
+    const activeHeight = isVhd ? vhdHeight : folderHeight;
+    if (activeHeight !== null) {
+      setPanelHeight(activeHeight);
+    }
+  }, [isVhd, vhdHeight, folderHeight]);
+
+  const panelStyle = (active: boolean): React.CSSProperties => {
+    return {
+      opacity: active ? 1 : 0,
+      transform: active ? 'translateY(0)' : 'translateY(8px)',
+      transition: 'opacity 0.2s ease, transform 0.25s ease',
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      pointerEvents: active ? 'auto' : 'none',
+    };
+  };
 
   const update = <K extends keyof Game>(key: K, value: Game[K]) => {
     setDraft((prev) => ({ ...prev, [key]: value }));
@@ -167,18 +211,16 @@ function GameEditorDialog({ game, onSave, onCancel }: Props) {
             </button>
           </div>
         </div>
-        <div style={{ position: 'relative', minHeight: 300, marginBottom: 8 }}>
-          <div
-            aria-hidden={!isVhd}
-            style={{
-              position: 'absolute',
-              inset: 0,
-              opacity: isVhd ? 1 : 0,
-              transform: isVhd ? 'translateY(0)' : 'translateY(8px)',
-              transition: 'opacity 0.2s ease, transform 0.25s ease',
-              pointerEvents: isVhd ? 'auto' : 'none',
-            }}
-          >
+        <div
+          style={{
+            marginBottom: 8,
+            position: 'relative',
+            height: panelHeight !== null ? `${panelHeight}px` : undefined,
+            transition: panelHeight !== null ? 'height 0.25s ease' : 'none',
+            overflow: 'hidden',
+          }}
+        >
+          <div ref={vhdPanelRef} aria-hidden={!isVhd} style={panelStyle(isVhd)}>
             <label style={{ display: 'block', marginBottom: 16 }}>
               <div style={{ marginBottom: 6, fontWeight: 500, fontSize: 14 }}>{t('games.editor.baseVhdPath')}</div>
               <input
@@ -229,17 +271,7 @@ function GameEditorDialog({ game, onSave, onCancel }: Props) {
               <span>{t('games.editor.deltaEnabled')}</span>
             </label>
           </div>
-          <div
-            aria-hidden={isVhd}
-            style={{
-              position: 'absolute',
-              inset: 0,
-              opacity: isVhd ? 0 : 1,
-              transform: isVhd ? 'translateY(8px)' : 'translateY(0)',
-              transition: 'opacity 0.2s ease, transform 0.25s ease',
-              pointerEvents: isVhd ? 'none' : 'auto',
-            }}
-          >
+          <div ref={folderPanelRef} aria-hidden={isVhd} style={panelStyle(!isVhd)}>
             <label style={{ display: 'block', marginBottom: 16 }}>
               <div style={{ marginBottom: 6, fontWeight: 500, fontSize: 14 }}>{t('games.editor.execPath')}</div>
               <input 
