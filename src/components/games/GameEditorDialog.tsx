@@ -17,6 +17,7 @@ function GameEditorDialog({ game, onSave, onCancel }: Props) {
   const [vhdConfig, setVhdConfig] = useState<VhdConfig | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const mode = draft.launch_mode ?? 'folder';
 
   useEffect(() => setDraft(game), [game]);
 
@@ -125,17 +126,31 @@ function GameEditorDialog({ game, onSave, onCancel }: Props) {
             required 
           />
         </label>
-        <label style={{ display: 'block', marginBottom: 16 }}>
+        <div style={{ marginBottom: 16 }}>
           <div style={{ marginBottom: 6, fontWeight: 500, fontSize: 14 }}>{t('games.editor.mode')}</div>
-          <select
-            value={draft.launch_mode ?? 'folder'}
-            onChange={(e) => update('launch_mode', e.target.value as Game['launch_mode'])}
-            style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: 6, color: 'var(--text-primary)', boxSizing: 'border-box' }}
+          <div
+            role="radiogroup"
+            aria-label={t('games.editor.mode')}
+            style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: 8, padding: 4 }}
           >
-            <option value="folder">{t('games.editor.modeFolder')}</option>
-            <option value="vhd">{t('games.editor.modeVhd')}</option>
-          </select>
-        </label>
+            <button
+              type="button"
+              aria-pressed={mode === 'folder'}
+              onClick={() => update('launch_mode', 'folder')}
+              style={{ padding: '8px 12px', border: 'none', borderRadius: 6, background: mode === 'folder' ? 'var(--accent-primary)' : 'transparent', color: mode === 'folder' ? 'white' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}
+            >
+              {t('games.editor.modeFolder')}
+            </button>
+            <button
+              type="button"
+              aria-pressed={mode === 'vhd'}
+              onClick={() => update('launch_mode', 'vhd')}
+              style={{ padding: '8px 12px', border: 'none', borderRadius: 6, background: mode === 'vhd' ? 'var(--accent-primary)' : 'transparent', color: mode === 'vhd' ? 'white' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}
+            >
+              {t('games.editor.modeVhd')}
+            </button>
+          </div>
+        </div>
         {(draft.launch_mode ?? 'folder') === 'vhd' ? (
           <>
             <label style={{ display: 'block', marginBottom: 16 }}>

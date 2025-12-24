@@ -87,6 +87,14 @@ try {
         Add-PartitionAccessPath -AccessPath 'X:\' -ErrorAction Stop |
         Out-Null
 
+    try {
+        $shell = New-Object -ComObject Shell.Application
+        $shell.Windows() | Where-Object {
+            $_.LocationURL -like 'file:///X:*' -or $_.LocationURL -like 'file:///X:/*'
+        } | ForEach-Object { $_.Quit() }
+    } catch {
+    }
+
     Write-Result $true $mountPath $runtimePath $null $result
 } catch {
     Write-Result $false $null $null $_.Exception.Message $result
