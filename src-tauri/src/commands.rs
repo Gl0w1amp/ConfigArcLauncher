@@ -189,6 +189,19 @@ fn detect_game_in_dir(dir: &Path) -> Option<DetectedGameInfo> {
     None
 }
 
+fn build_folder_game(detected: DetectedGameInfo) -> Game {
+    Game {
+        id: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis().to_string(),
+        name: detected.name,
+        executable_path: detected.executable_path,
+        working_dir: Some(detected.working_dir),
+        launch_args: detected.launch_args,
+        enabled: true,
+        tags: vec![],
+        launch_mode: LaunchMode::Folder,
+    }
+}
+
 fn scan_game_folder_logic(path: &str) -> Result<Game, String> {
     let dir = Path::new(path);
     if !dir.exists() || !dir.is_dir() {
@@ -198,16 +211,7 @@ fn scan_game_folder_logic(path: &str) -> Result<Game, String> {
     let detected = detect_game_in_dir(dir)
         .ok_or_else(|| "No supported game executable found (Sinmai.exe, chusanApp.exe, mu3.exe)".to_string())?;
 
-    Ok(Game {
-        id: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis().to_string(),
-        name: detected.name,
-        executable_path: detected.executable_path,
-        working_dir: Some(path.to_string()),
-        launch_args: detected.launch_args,
-        enabled: true,
-        tags: vec![],
-        launch_mode: LaunchMode::Folder,
-    })
+    Ok(build_folder_game(detected))
 }
 
 fn detect_game_on_mount() -> Result<DetectedGameInfo, String> {
@@ -556,6 +560,34 @@ pub async fn pick_game_folder_cmd() -> Result<Game, String> {
     .map_err(|e| e.to_string())?
 }
 
+#[command]
+pub async fn pick_game_auto_cmd() -> Result<AutoDetectResult, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let ps_script = "Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.FolderBrowserDialog; if ($f.ShowDialog() -eq 'OK') { Write-Output $f.SelectedPath }";
+
+        let output = Command::new("powershell")
+            .args(&["-NoProfile", "-Command", ps_script])
+            .creation_flags(0x08000000)
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+
+        if path.is_empty() {
+            return Err("No folder selected".to_string());
+        }
+
+        let dir = Path::new(&path);
+        if !dir.exists() || !dir.is_dir() {
+            return Err("Invalid directory".to_string());
+        }
+
+        auto_detect_game_in_dir(dir)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[derive(Serialize, Clone)]
 struct LaunchProgress {
     game_id: String,
@@ -576,6 +608,12 @@ fn emit_launch_progress(window: &Window, game_id: &str, stage: &str) {
 pub struct VhdDetectResult {
     pub game: Game,
     pub vhd: VhdConfig,
+}
+
+#[derive(Serialize)]
+pub struct AutoDetectResult {
+    pub game: Game,
+    pub vhd: Option<VhdConfig>,
 }
 
 fn detect_vhd_files_in_dir(dir: &Path) -> Result<VhdConfig, String> {
@@ -620,6 +658,42 @@ fn detect_vhd_files_in_dir(dir: &Path) -> Result<VhdConfig, String> {
     })
 }
 
+fn build_vhd_game(dir: &Path, vhd: &VhdConfig) -> Game {
+    let name = Path::new(&vhd.base_path)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("VHD Game")
+        .to_string();
+
+    Game {
+        id: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis().to_string(),
+        name,
+        executable_path: vhd.base_path.clone(),
+        working_dir: Some(dir.to_string_lossy().to_string()),
+        launch_args: vec![],
+        enabled: true,
+        tags: vec![],
+        launch_mode: LaunchMode::Vhd,
+    }
+}
+
+fn auto_detect_game_in_dir(dir: &Path) -> Result<AutoDetectResult, String> {
+    if let Some(detected) = detect_game_in_dir(dir) {
+        return Ok(AutoDetectResult {
+            game: build_folder_game(detected),
+            vhd: None,
+        });
+    }
+
+    let vhd = detect_vhd_files_in_dir(dir)?;
+    let game = build_vhd_game(dir, &vhd);
+
+    Ok(AutoDetectResult {
+        game,
+        vhd: Some(vhd),
+    })
+}
+
 #[command]
 pub async fn pick_vhd_game_cmd() -> Result<VhdDetectResult, String> {
     tauri::async_runtime::spawn_blocking(|| {
@@ -643,22 +717,7 @@ pub async fn pick_vhd_game_cmd() -> Result<VhdDetectResult, String> {
         }
 
         let vhd = detect_vhd_files_in_dir(dir)?;
-        let name = Path::new(&vhd.base_path)
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("VHD Game")
-            .to_string();
-
-        let game = Game {
-            id: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis().to_string(),
-            name,
-            executable_path: vhd.base_path.clone(),
-            working_dir: Some(path.to_string()),
-            launch_args: vec![],
-            enabled: true,
-            tags: vec![],
-            launch_mode: LaunchMode::Vhd,
-        };
+        let game = build_vhd_game(dir, &vhd);
 
         Ok(VhdDetectResult { game, vhd })
     })

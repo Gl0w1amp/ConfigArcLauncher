@@ -10,3 +10,8 @@ export interface VhdDetectResult {
   game: Game;
   vhd: VhdConfig;
 }
+
+export interface AutoDetectResult {
+  game: Game;
+  vhd: VhdConfig | null;
+}

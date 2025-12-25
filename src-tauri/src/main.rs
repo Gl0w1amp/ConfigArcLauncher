@@ -33,6 +33,7 @@ fn main() {
             launch_game_cmd,
             apply_profile_to_game_cmd,
             pick_game_folder_cmd,
+            pick_game_auto_cmd,
             pick_vhd_game_cmd,
             pick_decrypt_files_cmd,
             default_segatoools_config_cmd,

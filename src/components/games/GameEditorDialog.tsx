@@ -1,9 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Game } from '../../types/games';
-import { invokeTauri } from '../../api/tauriClient';
 import { VhdConfig } from '../../types/vhd';
-import { loadVhdConfig, pickVhdGame, saveVhdConfig } from '../../api/vhdApi';
+import { pickAutoGame } from '../../api/gamesApi';
+import { loadVhdConfig, saveVhdConfig } from '../../api/vhdApi';
 
 type Props = {
   game: Game;
@@ -95,29 +95,16 @@ function GameEditorDialog({ game, onSave, onCancel }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const mode = draft.launch_mode ?? 'folder';
-      if (mode === 'vhd') {
-        const detected = await pickVhdGame();
-        setDraft(prev => ({
-          ...prev,
-          name: detected.game.name,
-          executable_path: detected.game.executable_path,
-          working_dir: detected.game.working_dir,
-          launch_args: detected.game.launch_args,
-          launch_mode: 'vhd',
-        }));
-        setVhdConfig(detected.vhd);
-      } else {
-        const detectedGame = await invokeTauri<Game>('pick_game_folder_cmd');
-        setDraft(prev => ({
-          ...prev,
-          name: detectedGame.name,
-          executable_path: detectedGame.executable_path,
-          working_dir: detectedGame.working_dir,
-          launch_args: detectedGame.launch_args,
-          launch_mode: 'folder',
-        }));
-      }
+      const detected = await pickAutoGame();
+      setDraft(prev => ({
+        ...prev,
+        name: detected.game.name,
+        executable_path: detected.game.executable_path,
+        working_dir: detected.game.working_dir,
+        launch_args: detected.game.launch_args,
+        launch_mode: detected.game.launch_mode,
+      }));
+      setVhdConfig(detected.vhd ?? null);
     } catch (err: any) {
       setError(String(err));
     } finally {
@@ -152,7 +139,7 @@ function GameEditorDialog({ game, onSave, onCancel }: Props) {
             disabled={loading}
             style={{ fontSize: 13, padding: '6px 12px', background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer' }}
           >
-            {loading ? t('games.editor.scanning') : t((draft.launch_mode ?? 'folder') === 'vhd' ? 'games.editor.autoDetectVhd' : 'games.editor.autoDetect')}
+            {loading ? t('games.editor.scanning') : t('games.editor.autoDetect')}
           </button>
         </div>
 
