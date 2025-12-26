@@ -15,12 +15,37 @@ type Props = {
   options?: { label: string; value: string }[];
   commented?: boolean;
   onUncomment?: () => void;
+  allowDrop?: boolean;
 };
 
-function OptionField({ label, type, value, onChange, helper, description, required, options, commented, onUncomment }: Props) {
+function OptionField({ label, type, value, onChange, helper, description, required, options, commented, onUncomment, allowDrop }: Props) {
   const { t } = useTranslation();
   const [isRecording, setIsRecording] = useState(false);
   const [showUncommentConfirm, setShowUncommentConfirm] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const canDrop = Boolean(allowDrop && type === 'text' && !commented);
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!canDrop) return;
+    e.preventDefault();
+    setIsDragOver(false);
+    const files = Array.from(e.dataTransfer.files || []);
+    const paths = files
+      .map((f: any) => (f.path as string) || '')
+      .filter((p) => p.length > 0);
+    if (paths.length === 0) return;
+    onChange(paths[0]);
+  };
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!canDrop) return;
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+  const handleDragLeave = () => {
+    if (!canDrop) return;
+    setIsDragOver(false);
+  };
 
   const handleCommentedClick = (e: React.MouseEvent) => {
     if (commented) {
@@ -47,7 +72,7 @@ function OptionField({ label, type, value, onChange, helper, description, requir
 
   const renderInput = () => {
     const isMissing = required && (value === '' || value === null || value === undefined);
-    const inputClass = `option-input ${isMissing ? 'missing-required' : ''} ${commented ? 'commented' : ''}`;
+    const inputClass = `option-input ${isMissing ? 'missing-required' : ''} ${commented ? 'commented' : ''} ${isDragOver ? 'drop-target' : ''}`;
     const commonProps = {
         className: inputClass,
         readOnly: commented,
@@ -155,7 +180,12 @@ function OptionField({ label, type, value, onChange, helper, description, requir
         </span>
         {helper && <small className="option-helper">{helper}</small>}
       </div>
-      <div className="option-input-wrapper">
+      <div
+        className="option-input-wrapper"
+        onDragOver={canDrop ? handleDragOver : undefined}
+        onDragLeave={canDrop ? handleDragLeave : undefined}
+        onDrop={canDrop ? handleDrop : undefined}
+      >
         {renderInput()}
         {description && (
           <div className="option-tooltip">

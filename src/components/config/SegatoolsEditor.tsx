@@ -10,6 +10,7 @@ type FieldSpec = {
   helper?: string;
   required?: boolean;
   options?: { label: string; value: string }[];
+  allowDrop?: boolean;
 };
 
 type SectionSpec = {
@@ -28,13 +29,13 @@ const ALL_SECTIONS: SectionSpec[] = [
   { 
     key: 'aimeio', 
     fields: [
-      { name: 'path', type: 'text' }
+      { name: 'path', type: 'text', allowDrop: true }
     ] 
   },
   { 
     key: 'mai2io', 
     fields: [
-      { name: 'path', type: 'text' }
+      { name: 'path', type: 'text', allowDrop: true }
     ] 
   },
   {
@@ -294,15 +295,15 @@ const ALL_SECTIONS: SectionSpec[] = [
   {
     key: 'chuniio',
     fields: [
-      { name: 'path', type: 'text' },
-      { name: 'path32', type: 'text' },
-      { name: 'path64', type: 'text' }
+      { name: 'path', type: 'text', allowDrop: true },
+      { name: 'path32', type: 'text', allowDrop: true },
+      { name: 'path64', type: 'text', allowDrop: true }
     ]
   },
   {
     key: 'mu3io',
     fields: [
-      { name: 'path', type: 'text' }
+      { name: 'path', type: 'text', allowDrop: true }
     ]
   },
   {
@@ -446,6 +447,7 @@ function SegatoolsEditor({ config, onChange, activeGame, advanced = false }: Pro
                   required={field.required}
                   options={field.options}
                   commented={isCommented}
+                  allowDrop={field.allowDrop}
                   onUncomment={() => {
                     const newCommentedKeys = config.commentedKeys?.filter(k => k !== fullKey) || [];
                     onChange({
