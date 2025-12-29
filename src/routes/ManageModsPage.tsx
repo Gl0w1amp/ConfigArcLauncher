@@ -1,5 +1,7 @@
-import { DragEvent, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { getCurrentWebview } from '@tauri-apps/api/webview';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useGamesState } from '../state/gamesStore';
 import { ModsStatus } from '../types/manage';
 import { addMods, deleteMod, getModsStatus } from '../api/manageApi';
@@ -22,6 +24,8 @@ function ManageModsPage() {
   const [loading, setLoading] = useState<boolean>(false);
   const [dragging, setDragging] = useState<boolean>(false);
   const [manualPath, setManualPath] = useState<string>('');
+  const dropZoneRef = useRef<HTMLDivElement>(null);
+  const scaleFactorRef = useRef<number>(window.devicePixelRatio || 1);
   const { toasts, showToast } = useToast();
 
   const loadStatus = async () => {
@@ -41,10 +45,21 @@ function ManageModsPage() {
   };
 
   useEffect(() => {
+    getCurrentWindow()
+      .scaleFactor()
+      .then((factor) => {
+        scaleFactorRef.current = factor || 1;
+      })
+      .catch(() => {
+        // Fall back to devicePixelRatio if scaleFactor lookup fails.
+      });
+  }, []);
+
+  useEffect(() => {
     loadStatus();
   }, [activeGameId]);
 
-  const handleAdd = async (paths: string[]) => {
+  const handleAdd = useCallback(async (paths: string[]) => {
     if (!paths || paths.length === 0) return;
     try {
       const mods = await addMods(paths);
@@ -53,7 +68,7 @@ function ManageModsPage() {
     } catch (err) {
       showToast(t('manage.mods.addError', { error: String(err) }), 'error');
     }
-  };
+  }, [showToast, t]);
 
   const handleManualAdd = async () => {
     const parts = manualPath
@@ -75,16 +90,41 @@ function ManageModsPage() {
     }
   };
 
-  const handleDrop = async (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const files = Array.from(e.dataTransfer.files || []);
-    const paths = files
-      .map((f: any) => (f.path as string) || '')
-      .filter((p) => p.length > 0);
-    setDragging(false);
-    if (paths.length === 0) return;
-    await handleAdd(paths);
-  };
+  useEffect(() => {
+    let unlisten: (() => void) | null = null;
+    getCurrentWebview()
+      .onDragDropEvent((event) => {
+        const zone = dropZoneRef.current;
+        if (!zone) return;
+        if (event.payload.type === 'leave') {
+          setDragging(false);
+          return;
+        }
+        const rect = zone.getBoundingClientRect();
+        const scale = scaleFactorRef.current || 1;
+        const x = event.payload.position.x / scale;
+        const y = event.payload.position.y / scale;
+        const inside = x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+
+        if (event.payload.type === 'enter' || event.payload.type === 'over') {
+          setDragging(inside);
+          return;
+        }
+        if (event.payload.type === 'drop') {
+          setDragging(false);
+          if (inside && event.payload.paths.length > 0) {
+            handleAdd(event.payload.paths);
+          }
+        }
+      })
+      .then((stop) => {
+        unlisten = stop;
+      });
+
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, [handleAdd]);
 
   if (loading) {
     return (
@@ -140,9 +180,7 @@ function ManageModsPage() {
           </div>
 
           <div
-            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={handleDrop}
+            ref={dropZoneRef}
             style={{
               border: `2px dashed ${dragging ? 'var(--accent-primary)' : 'var(--border-color)'}`,
               padding: 18,

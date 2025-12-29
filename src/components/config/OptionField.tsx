@@ -1,7 +1,9 @@
 import './config.css';
 import { VK_MAP, mapKeyToVK } from '../../utils/vkCodes';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { getCurrentWebview } from '@tauri-apps/api/webview';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 
 type Props = {
@@ -23,29 +25,61 @@ function OptionField({ label, type, value, onChange, helper, description, requir
   const [isRecording, setIsRecording] = useState(false);
   const [showUncommentConfirm, setShowUncommentConfirm] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const scaleFactorRef = useRef<number>(window.devicePixelRatio || 1);
 
   const canDrop = Boolean(allowDrop && type === 'text' && !commented);
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    if (!canDrop) return;
-    e.preventDefault();
-    setIsDragOver(false);
-    const files = Array.from(e.dataTransfer.files || []);
-    const paths = files
-      .map((f: any) => (f.path as string) || '')
-      .filter((p) => p.length > 0);
-    if (paths.length === 0) return;
-    onChange(paths[0]);
-  };
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    if (!canDrop) return;
-    e.preventDefault();
-    setIsDragOver(true);
-  };
-  const handleDragLeave = () => {
-    if (!canDrop) return;
-    setIsDragOver(false);
-  };
+  useEffect(() => {
+    getCurrentWindow()
+      .scaleFactor()
+      .then((factor) => {
+        scaleFactorRef.current = factor || 1;
+      })
+      .catch(() => {
+        // Fall back to devicePixelRatio if scaleFactor lookup fails.
+      });
+  }, []);
+
+  useEffect(() => {
+    if (!canDrop) {
+      setIsDragOver(false);
+      return;
+    }
+    let unlisten: (() => void) | null = null;
+    getCurrentWebview()
+      .onDragDropEvent((event) => {
+        const wrapper = wrapperRef.current;
+        if (!wrapper) return;
+        if (event.payload.type === 'leave') {
+          setIsDragOver(false);
+          return;
+        }
+        const rect = wrapper.getBoundingClientRect();
+        const scale = scaleFactorRef.current || 1;
+        const x = event.payload.position.x / scale;
+        const y = event.payload.position.y / scale;
+        const inside = x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+
+        if (event.payload.type === 'enter' || event.payload.type === 'over') {
+          setIsDragOver(inside);
+          return;
+        }
+        if (event.payload.type === 'drop') {
+          setIsDragOver(false);
+          if (inside && event.payload.paths.length > 0) {
+            onChange(event.payload.paths[0]);
+          }
+        }
+      })
+      .then((stop) => {
+        unlisten = stop;
+      });
+
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, [canDrop, onChange]);
 
   const handleCommentedClick = (e: React.MouseEvent) => {
     if (commented) {
@@ -182,9 +216,7 @@ function OptionField({ label, type, value, onChange, helper, description, requir
       </div>
       <div
         className="option-input-wrapper"
-        onDragOver={canDrop ? handleDragOver : undefined}
-        onDragLeave={canDrop ? handleDragLeave : undefined}
-        onDrop={canDrop ? handleDrop : undefined}
+        ref={wrapperRef}
       >
         {renderInput()}
         {description && (
