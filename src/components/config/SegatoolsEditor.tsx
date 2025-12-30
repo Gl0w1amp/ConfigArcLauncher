@@ -23,6 +23,7 @@ type Props = {
   onChange: (next: SegatoolsConfig) => void;
   activeGame?: Game;
   advanced?: boolean;
+  onDropError?: (message: string) => void;
 };
 
 const ALL_SECTIONS: SectionSpec[] = [
@@ -385,7 +386,7 @@ function getSections(gameName?: string): SectionSpec[] {
     });
 }
 
-function SegatoolsEditor({ config, onChange, activeGame, advanced = false }: Props) {
+function SegatoolsEditor({ config, onChange, activeGame, advanced = false, onDropError }: Props) {
   const { t } = useTranslation();
   const allowed = allowedSections(activeGame?.name);
   const sections = getSections(activeGame?.name);
@@ -448,6 +449,7 @@ function SegatoolsEditor({ config, onChange, activeGame, advanced = false }: Pro
                   options={field.options}
                   commented={isCommented}
                   allowDrop={field.allowDrop}
+                  onDropError={onDropError}
                   onUncomment={() => {
                     const newCommentedKeys = config.commentedKeys?.filter(k => k !== fullKey) || [];
                     onChange({

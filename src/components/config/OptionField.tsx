@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ConfirmDialog } from '../common/ConfirmDialog';
+import { storeIoDll } from '../../api/configApi';
 
 type Props = {
   label: string;
@@ -18,9 +19,10 @@ type Props = {
   commented?: boolean;
   onUncomment?: () => void;
   allowDrop?: boolean;
+  onDropError?: (message: string) => void;
 };
 
-function OptionField({ label, type, value, onChange, helper, description, required, options, commented, onUncomment, allowDrop }: Props) {
+function OptionField({ label, type, value, onChange, helper, description, required, options, commented, onUncomment, allowDrop, onDropError }: Props) {
   const { t } = useTranslation();
   const [isRecording, setIsRecording] = useState(false);
   const [showUncommentConfirm, setShowUncommentConfirm] = useState(false);
@@ -47,6 +49,20 @@ function OptionField({ label, type, value, onChange, helper, description, requir
       return;
     }
     let unlisten: (() => void) | null = null;
+    const handleDrop = async (path: string) => {
+      try {
+        const storedPath = await storeIoDll(path);
+        onChange(storedPath);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (onDropError) {
+          onDropError(message);
+        } else {
+          console.error('Failed to store IO file:', err);
+        }
+      }
+    };
+
     getCurrentWebview()
       .onDragDropEvent((event) => {
         const wrapper = wrapperRef.current;
@@ -68,7 +84,7 @@ function OptionField({ label, type, value, onChange, helper, description, requir
         if (event.payload.type === 'drop') {
           setIsDragOver(false);
           if (inside && event.payload.paths.length > 0) {
-            onChange(event.payload.paths[0]);
+            void handleDrop(event.payload.paths[0]);
           }
         }
       })
@@ -79,7 +95,7 @@ function OptionField({ label, type, value, onChange, helper, description, requir
     return () => {
       if (unlisten) unlisten();
     };
-  }, [canDrop, onChange]);
+  }, [canDrop, onChange, onDropError]);
 
   const handleCommentedClick = (e: React.MouseEvent) => {
     if (commented) {

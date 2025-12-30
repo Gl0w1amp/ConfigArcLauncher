@@ -299,6 +299,15 @@ function ConfigEditorPage() {
         onChange={(next: SegatoolsConfig) => setConfig(next)}
         activeGame={activeGame}
         advanced={advancedMode}
+        onDropError={(message) =>
+          showToast(
+            t('config.ioDropFailed', {
+              error: message,
+              defaultValue: `Failed to store IO file: ${message}`
+            }),
+            'error'
+          )
+        }
       />
       <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
         <button onClick={() => { save(config); showToast(t('config.saved'), 'success'); }} disabled={saving}>{t('config.saveConfig')}</button>

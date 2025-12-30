@@ -14,6 +14,7 @@ export const exportSegatoolsConfig = () => invokeTauri<string>('export_segatoool
 export const importSegatoolsConfig = (content: string) => invokeTauri<SegatoolsConfig>('import_segatoools_config_cmd', { content });
 export const exportProfile = (profileId?: string) => invokeTauri<string>('export_profile_cmd', { profileId });
 export const importProfile = (content: string) => invokeTauri<ConfigProfile>('import_profile_cmd', { content });
+export const storeIoDll = (path: string) => invokeTauri<string>('store_io_dll_cmd', { path });
 
 export interface VfsScanResult {
   amfs?: string;

@@ -1285,6 +1285,36 @@ fn normalize_aime_number(raw: &str) -> Result<String, String> {
     Ok(cleaned)
 }
 
+fn unique_copy_destination(dir: &Path, src: &Path) -> Result<PathBuf, String> {
+    let name = src.file_name().ok_or_else(|| "Invalid file name".to_string())?;
+    let mut dest = dir.join(name);
+    if !dest.exists() {
+        return Ok(dest);
+    }
+
+    let stem = src
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| "Invalid file name".to_string())?;
+    let ext = src.extension().and_then(|s| s.to_str()).unwrap_or("");
+    let mut index = 1;
+    loop {
+        let candidate = if ext.is_empty() {
+            format!("{}_{}", stem, index)
+        } else {
+            format!("{}_{}.{}", stem, index, ext)
+        };
+        let candidate_path = dir.join(candidate);
+        if !candidate_path.exists() {
+            dest = candidate_path;
+            break;
+        }
+        index += 1;
+    }
+
+    Ok(dest)
+}
+
 #[derive(Serialize)]
 pub struct VfsScanResult {
     pub amfs: Option<String>,
@@ -1639,6 +1669,28 @@ pub fn get_active_aime_cmd() -> Result<Option<String>, String> {
         return Ok(None);
     }
     Ok(Some(trimmed.to_string()))
+}
+
+#[command]
+pub fn store_io_dll_cmd(path: String) -> Result<String, String> {
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        return Err("Path is empty".to_string());
+    }
+    let src = PathBuf::from(trimmed);
+    if !src.exists() || !src.is_file() {
+        return Err(format!("File not found: {}", trimmed));
+    }
+    let seg_path = segatoools_path_for_active().map_err(|e| e.to_string())?;
+    if !seg_path.exists() {
+        return Err("segatools.ini not found. Please deploy first.".to_string());
+    }
+    let base = seg_path.parent().ok_or_else(|| "Invalid segatools.ini path".to_string())?;
+    let io_dir = base.join("IO");
+    fs::create_dir_all(&io_dir).map_err(|e| e.to_string())?;
+    let dest = unique_copy_destination(&io_dir, &src)?;
+    fs::copy(&src, &dest).map_err(|e| e.to_string())?;
+    Ok(dest.to_string_lossy().into_owned())
 }
 
 #[command]

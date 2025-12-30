@@ -55,6 +55,7 @@ fn main() {
             delete_aime_cmd,
             apply_aime_to_active_cmd,
             get_active_aime_cmd,
+            store_io_dll_cmd,
             add_mods_cmd,
             delete_mod_cmd,
             load_fsdecrypt_keys_cmd,
