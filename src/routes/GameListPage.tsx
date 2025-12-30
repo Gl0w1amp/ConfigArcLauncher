@@ -33,6 +33,7 @@ function GameListPage() {
   const [gameToDelete, setGameToDelete] = useState<string | null>(null);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [launchProgress, setLaunchProgress] = useState<LaunchProgress | null>(null);
+  const [newsOpen, setNewsOpen] = useState(false);
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
   const [profiles, setProfiles] = useState<ConfigProfile[]>([]);
   const [profilesLoading, setProfilesLoading] = useState(false);
@@ -195,7 +196,9 @@ function GameListPage() {
     },
   ] : [];
 
-  const newsItems: Array<{ title: string; meta: string }> = [];
+  const newsItems: Array<{ title: string; meta: string; imageLabel: string }> = [
+    { title: 'Planned update: profile sync', meta: 'Jan 28, 2025', imageLabel: 'PLANNED UPDATE' },
+  ];
   const hasNews = newsItems.length > 0;
 
   return (
@@ -221,7 +224,7 @@ function GameListPage() {
         </div>
       )}
 
-      <div className="games-layout">
+      <div className={`games-layout ${hasNews ? 'has-news' : 'no-news'}`}>
         <aside className="games-library">
           <div className="games-library-header">
             <div className="games-library-title">Library</div>
@@ -296,23 +299,35 @@ function GameListPage() {
             <div className="games-panel-empty">{t('games.noGames')}</div>
           )}
         </section>
-      </div>
-
-      {hasNews && (
-        <div className="games-bottom">
+        {hasNews && (
           <section className="games-panel games-news">
-            <div className="games-panel-title">News</div>
+            <div className="games-news-header">
+              <div className="games-panel-title">News</div>
+              <button
+                type="button"
+                className="games-news-link"
+                aria-label="Open news"
+                onClick={() => setNewsOpen(true)}
+              >
+                <svg viewBox="0 0 20 20" aria-hidden="true">
+                  <path d="M7.5 5l5 5-5 5" />
+                </svg>
+              </button>
+            </div>
             <div className="games-news-list">
-              {newsItems.map((item) => (
+              {newsItems.slice(0, 1).map((item) => (
                 <div key={item.title} className="games-news-item">
+                  <div className="games-news-image" aria-hidden="true">
+                    {item.imageLabel}
+                  </div>
                   <div className="games-news-title">{item.title}</div>
                   <div className="games-news-meta">{item.meta}</div>
                 </div>
               ))}
             </div>
           </section>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="games-launch-cta">
         <button className="primary games-launch-main" onClick={handleLaunchSelected} disabled={!selectedGame}>
@@ -348,6 +363,13 @@ function GameListPage() {
           title={t('common.error')}
           message={alertMessage}
           onClose={() => setAlertMessage(null)}
+        />
+      )}
+      {newsOpen && (
+        <AlertDialog
+          title="News"
+          message="News reader is not available yet."
+          onClose={() => setNewsOpen(false)}
         />
       )}
     </div>
