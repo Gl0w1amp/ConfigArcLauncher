@@ -303,7 +303,12 @@
     "cancel": "後で",
     "installing": "インストール中...",
     "errorTitle": "アップデート失敗",
-    "errorMessage": "アップデートのインストールに失敗しました: {{error}}"
+    "errorMessage": "アップデートのインストールに失敗しました: {{error}}",
+    "checkUpdate": "アップデートを確認",
+    "checkUpdateDesc": "新しいバージョンがあるか確認します",
+    "checking": "確認中...",
+    "check": "今すぐ確認",
+    "noUpdate": "更新はありません"
   },
   "segatools": {
     "aimeio": {
