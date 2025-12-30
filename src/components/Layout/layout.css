@@ -271,7 +271,7 @@
 .app-page-full {
   height: 100%;
   overflow-y: auto;
-  padding: var(--spacing-xl);
+  padding: 0;
 }
 
 .app-content-surface::before {

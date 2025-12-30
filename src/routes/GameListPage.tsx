@@ -196,6 +196,7 @@ function GameListPage() {
   ] : [];
 
   const newsItems: Array<{ title: string; meta: string }> = [];
+  const hasNews = newsItems.length > 0;
 
   return (
     <div className="games-view">
@@ -222,7 +223,10 @@ function GameListPage() {
 
       <div className="games-layout">
         <aside className="games-library">
-          <div className="games-library-title">Library</div>
+          <div className="games-library-header">
+            <div className="games-library-title">Library</div>
+            <div className="games-library-count">{sortedGames.length}</div>
+          </div>
           {loading && <div className="games-state">{t('common.loading')}</div>}
           {error && <div className="games-state error">{error}</div>}
           <div className="games-library-list">
@@ -247,27 +251,45 @@ function GameListPage() {
           </div>
         </aside>
 
-        <section className="games-panel">
+        <section className="games-panel games-overview">
           {selectedGame ? (
             <>
               <div className="games-panel-header">
                 <div className="games-panel-title">Overview</div>
-                <div className="games-panel-actions">
+              </div>
+              <div className="games-overview-body">
+                <div className="games-detail-grid">
+                  {detailItems.map((detail) => (
+                    <div key={detail.label} className="games-detail-card" title={detail.value}>
+                      <div className="games-detail-label">{detail.label}</div>
+                      <div className="games-detail-value">{detail.value}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="games-profile-row">
+                  <div className="games-profile-label">Profile</div>
+                  <select
+                    className="games-launch-select"
+                    value={profileId}
+                    onChange={(e) => handleProfileChange(e.target.value)}
+                    disabled={profilesLoading || !selectedGame}
+                  >
+                    <option value="">{profilesLoading ? t('common.loading') : t('games.currentFile')}</option>
+                    {profiles.map((profile) => (
+                      <option key={profile.id} value={profile.id}>{profile.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="games-overview-footer">
+                <div className="games-status-row">
+                  {!selectedGame.enabled && <span className="games-status disabled">{t('common.disabled')}</span>}
+                  {activeGameId === selectedGame.id && <span className="games-status active">{t('common.active')}</span>}
+                </div>
+                <div className="games-overview-actions">
                   <button onClick={handleEditSelected}>{t('common.edit')}</button>
                   <button className="danger" onClick={handleDeleteSelected}>{t('common.delete')}</button>
                 </div>
-              </div>
-              <div className="games-detail-grid">
-                {detailItems.map((detail) => (
-                  <div key={detail.label} className="games-detail-card" title={detail.value}>
-                    <div className="games-detail-label">{detail.label}</div>
-                    <div className="games-detail-value">{detail.value}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="games-status-row">
-                {!selectedGame.enabled && <span className="games-status disabled">{t('common.disabled')}</span>}
-                {activeGameId === selectedGame.id && <span className="games-status active">{t('common.active')}</span>}
               </div>
             </>
           ) : (
@@ -276,8 +298,8 @@ function GameListPage() {
         </section>
       </div>
 
-      <div className="games-bottom">
-        {newsItems.length > 0 && (
+      {hasNews && (
+        <div className="games-bottom">
           <section className="games-panel games-news">
             <div className="games-panel-title">News</div>
             <div className="games-news-list">
@@ -289,28 +311,14 @@ function GameListPage() {
               ))}
             </div>
           </section>
-        )}
+        </div>
+      )}
 
-        <section className="games-panel games-launch">
-          <div className="games-panel-title">Launch</div>
-          <select
-            className="games-launch-select"
-            value={profileId}
-            onChange={(e) => handleProfileChange(e.target.value)}
-            disabled={profilesLoading || !selectedGame}
-          >
-            <option value="">{profilesLoading ? t('common.loading') : t('games.currentFile')}</option>
-            {profiles.map((profile) => (
-              <option key={profile.id} value={profile.id}>{profile.name}</option>
-            ))}
-          </select>
-          <div className="games-launch-actions">
-            <button className="primary games-launch-main" onClick={handleLaunchSelected} disabled={!selectedGame}>
-              {t('common.launch')}
-            </button>
-            <button className="ghost-button games-launch-extra" disabled>Extra</button>
-          </div>
-        </section>
+      <div className="games-launch-cta">
+        <button className="primary games-launch-main" onClick={handleLaunchSelected} disabled={!selectedGame}>
+          {t('common.launch')}
+        </button>
+        <button className="ghost-button games-launch-extra" disabled>Extra</button>
       </div>
 
       {editing && (
