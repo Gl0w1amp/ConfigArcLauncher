@@ -194,8 +194,12 @@
 
 .app-nav-link.active {
   background: linear-gradient(145deg, var(--frame-rail-active), rgba(236, 72, 153, 0.7));
-  box-shadow: 0 0 0 2px rgba(236, 72, 153, 0.25), 0 12px 28px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 12px 28px rgba(59, 130, 246, 0.4);
   color: white;
+}
+
+.app-nav-link {
+  border: none;
 }
 
 .app-nav-link.active::after {
