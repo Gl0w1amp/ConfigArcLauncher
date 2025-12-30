@@ -1,17 +1,14 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
-import { useUpdate } from '../../context/UpdateContext';
 import { AUTO_UPDATE_STORAGE_KEY } from '../../constants/storage';
 
 function SettingsForm() {
   const { t, i18n } = useTranslation();
   const { theme, setTheme } = useTheme();
-  const { checkForUpdates, isChecking } = useUpdate();
   const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(
     () => localStorage.getItem(AUTO_UPDATE_STORAGE_KEY) === '1'
   );
-  const [checkMessage, setCheckMessage] = useState<string | null>(null);
 
   const changeLanguage = (lang: string) => {
     if (lang === 'system') {
@@ -36,15 +33,6 @@ function SettingsForm() {
       localStorage.setItem(AUTO_UPDATE_STORAGE_KEY, '1');
     } else {
       localStorage.removeItem(AUTO_UPDATE_STORAGE_KEY);
-    }
-  };
-
-  const handleCheckUpdate = async () => {
-    setCheckMessage(null);
-    const hasUpdate = await checkForUpdates(true);
-    if (!hasUpdate) {
-      setCheckMessage(t('updater.noUpdate', 'No updates available'));
-      setTimeout(() => setCheckMessage(null), 3000);
     }
   };
 
@@ -191,87 +179,41 @@ function SettingsForm() {
             </div>
             <span style={{ fontWeight: 500 }}>{t('settings.autoUpdate.title')}</span>
           </div>
-          
-          <div style={{ position: 'relative', display: 'inline-block', width: 36, height: 20 }}>
-            <input
-              type="checkbox"
-              checked={autoUpdateEnabled}
-              onChange={(e) => setAutoUpdate(e.target.checked)}
-              style={{ opacity: 0, width: 0, height: 0 }}
-              id="auto-update-switch"
-            />
-            <label
-              htmlFor="auto-update-switch"
-              style={{
-                position: 'absolute',
-                cursor: 'pointer',
-                top: 0, left: 0, right: 0, bottom: 0,
-                backgroundColor: autoUpdateEnabled ? 'var(--accent-primary)' : 'var(--text-muted)',
-                transition: '.3s',
-                borderRadius: 34,
-                opacity: autoUpdateEnabled ? 1 : 0.3
-              }}
-            >
-              <span style={{
-                position: 'absolute',
-                content: '""',
-                height: 14,
-                width: 14,
-                left: 3,
-                bottom: 3,
-                backgroundColor: 'white',
-                transition: '.3s',
-                borderRadius: '50%',
-                transform: autoUpdateEnabled ? 'translateX(16px)' : 'translateX(0)'
-              }} />
-            </label>
-          </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-          {checkMessage && (
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', animation: 'fadeIn 0.2s' }}>
-              {checkMessage}
-            </span>
-          )}
-          <button
-            onClick={handleCheckUpdate}
-            disabled={isChecking}
+        <div style={{ position: 'relative', display: 'inline-block', width: 36, height: 20 }}>
+          <input
+            type="checkbox"
+            checked={autoUpdateEnabled}
+            onChange={(e) => setAutoUpdate(e.target.checked)}
+            style={{ opacity: 0, width: 0, height: 0 }}
+            id="auto-update-switch"
+          />
+          <label
+            htmlFor="auto-update-switch"
             style={{
-              padding: '6px 12px',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--border-color)',
-              background: 'var(--bg-primary)',
-              color: 'var(--text-primary)',
-              cursor: isChecking ? 'wait' : 'pointer',
-              fontWeight: 500,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              transition: 'all 0.2s',
-              fontSize: '0.9rem',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-            }}
-            onMouseEnter={(e) => {
-               if(!isChecking) {
-                 e.currentTarget.style.borderColor = 'var(--accent-primary)';
-                 e.currentTarget.style.color = 'var(--accent-primary)';
-                 e.currentTarget.style.background = 'rgba(59, 130, 246, 0.05)';
-               }
-            }}
-            onMouseLeave={(e) => {
-               if(!isChecking) {
-                 e.currentTarget.style.borderColor = 'var(--border-color)';
-                 e.currentTarget.style.color = 'var(--text-primary)';
-                 e.currentTarget.style.background = 'var(--bg-primary)';
-               }
+              position: 'absolute',
+              cursor: 'pointer',
+              top: 0, left: 0, right: 0, bottom: 0,
+              backgroundColor: autoUpdateEnabled ? 'var(--accent-primary)' : 'var(--text-muted)',
+              transition: '.3s',
+              borderRadius: 34,
+              opacity: autoUpdateEnabled ? 1 : 0.3
             }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={isChecking ? "spin" : ""}>
-              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
-            </svg>
-            {isChecking ? t('updater.checking', 'Checking...') : t('updater.check', 'Check Now')}
-          </button>
+            <span style={{
+              position: 'absolute',
+              content: '""',
+              height: 14,
+              width: 14,
+              left: 3,
+              bottom: 3,
+              backgroundColor: 'white',
+              transition: '.3s',
+              borderRadius: '50%',
+              transform: autoUpdateEnabled ? 'translateX(16px)' : 'translateX(0)'
+            }} />
+          </label>
         </div>
       </div>
     </div>
