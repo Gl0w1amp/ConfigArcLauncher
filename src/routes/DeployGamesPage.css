@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-lg);
-  padding-bottom: var(--spacing-xl);
+  padding-bottom: var(--spacing-md);
 }
 
 .deploy-games-header {
@@ -118,6 +118,35 @@
   gap: 8px;
 }
 
+.files-card .file-list {
+  height: 50px;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+  grid-auto-rows: max-content;
+}
+
+.files-card .file-list .empty-text {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.files-card .file-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.files-card .file-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.files-card .file-list::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
 .file-item {
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
@@ -128,6 +157,9 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
 }
 
 .deploy-games-actions {
@@ -171,6 +203,48 @@
   box-shadow: 0 6px 8px -1px rgba(59, 130, 246, 0.4);
 }
 
+.decrypt-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.decrypt-btn:disabled {
+  cursor: progress;
+  opacity: 0.9;
+}
+
+.decrypt-btn.is-loading {
+  box-shadow: none;
+}
+
+.decrypt-btn.is-loading:hover {
+  transform: none;
+}
+
+.btn-progress-track {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.btn-progress-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.45));
+  transition: width 0.2s ease;
+}
+
+.btn-progress-label {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .results-card {
   gap: 16px;
 }
@@ -178,6 +252,27 @@
 .results-list {
   display: grid;
   gap: 10px;
+}
+
+.results-card .results-list {
+  max-height: min(140px, calc(100vh - 480px));
+  overflow-y: auto;
+  padding-right: 6px;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+
+.results-card .results-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.results-card .results-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.results-card .results-list::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
 }
 
 .result-row {
@@ -375,7 +470,6 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
-
 
 /* Card Refactoring */
 .deploy-games-card {

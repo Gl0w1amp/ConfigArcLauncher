@@ -2,7 +2,7 @@ use std::{
     fs::{create_dir_all, File, FileTimes},
     io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
-    time::{Duration, SystemTime},
+    time::{Duration, Instant, SystemTime},
 };
 
 use aes::{
@@ -45,6 +45,15 @@ pub struct DecryptSummary {
     pub results: Vec<DecryptResult>,
     pub key_source: String,
     pub key_game_count: usize,
+}
+
+#[derive(Serialize, Clone)]
+pub struct DecryptProgress {
+    pub percent: u8,
+    pub processed: u64,
+    pub total: u64,
+    pub current_file: usize,
+    pub total_files: usize,
 }
 
 #[derive(Serialize, Clone)]
@@ -183,15 +192,7 @@ fn normalize_id(bytes: &[u8]) -> Result<String> {
     Ok(raw.trim_matches(char::from(0)).trim().to_string())
 }
 
-fn decrypt_container(
-    path: &Path,
-    no_extract: bool,
-    keys: &FsDecryptKeys,
-    result: &mut DecryptResult,
-) -> Result<()> {
-    let file = File::open(path)?;
-    let mut reader = BufReader::with_capacity(0x40000, file);
-
+fn read_bootid_from_reader(reader: &mut BufReader<File>, keys: &FsDecryptKeys) -> Result<BootId> {
     let mut bootid_bytes = [0u8; std::mem::size_of::<BootId>()];
     reader.read_exact(&mut bootid_bytes)?;
 
@@ -202,7 +203,27 @@ fn decrypt_container(
         .decrypt_padded_mut::<NoPadding>(&mut bootid_bytes)
         .map_err(|e| anyhow!("Could not decrypt BootID: {e:#?}"))?;
 
-    let bootid = unsafe { std::ptr::read_unaligned(bootid_bytes.as_ptr() as *const BootId) };
+    Ok(unsafe { std::ptr::read_unaligned(bootid_bytes.as_ptr() as *const BootId) })
+}
+
+fn output_size_from_bootid(bootid: &BootId) -> u64 {
+    bootid
+        .block_count
+        .saturating_sub(bootid.header_block_count)
+        .saturating_mul(bootid.block_size)
+}
+
+fn decrypt_container(
+    path: &Path,
+    no_extract: bool,
+    keys: &FsDecryptKeys,
+    result: &mut DecryptResult,
+    mut progress: Option<&mut dyn FnMut(u64)>,
+) -> Result<()> {
+    let file = File::open(path)?;
+    let mut reader = BufReader::with_capacity(0x40000, file);
+
+    let bootid = read_bootid_from_reader(&mut reader, keys)?;
 
     if bootid.container_type != ContainerType::OS
         && bootid.container_type != ContainerType::APP
@@ -302,7 +323,7 @@ fn decrypt_container(
     };
     let output_path = path.with_file_name(&output_filename);
     let output_file = File::create(&output_path)?;
-    let output_size = (bootid.block_count - bootid.header_block_count) * bootid.block_size;
+    let output_size = output_size_from_bootid(&bootid);
 
     output_file.set_len(output_size)?;
 
@@ -310,6 +331,9 @@ fn decrypt_container(
     let cipher = Aes128Dec::new_from_slice(&key).map_err(|e| anyhow!(e))?;
     let mut page: Vec<u8> = Vec::with_capacity(PAGE_SIZE as usize);
     let mut page_iv = [0u8; 16];
+    let mut processed: u64 = 0;
+    let mut last_emit = Instant::now();
+    let mut last_reported: u64 = 0;
 
     reader.seek(SeekFrom::Start(data_offset))?;
 
@@ -328,9 +352,22 @@ fn decrypt_container(
             .map_err(|e| anyhow!(e))?;
 
         writer.write_all(&page)?;
+        processed = processed.saturating_add(PAGE_SIZE);
+        if let Some(ref mut report) = progress {
+            if last_emit.elapsed() >= Duration::from_millis(120) {
+                report(processed);
+                last_reported = processed;
+                last_emit = Instant::now();
+            }
+        }
     }
 
     writer.flush()?;
+    if let Some(ref mut report) = progress {
+        if processed != last_reported {
+            report(processed);
+        }
+    }
 
     if no_extract {
         result.output = Some(output_path.to_string_lossy().into_owned());
@@ -372,10 +409,67 @@ pub fn decrypt_game_files(
     files: Vec<PathBuf>,
     no_extract: bool,
     key_url: Option<String>,
+    mut progress: Option<&mut dyn FnMut(DecryptProgress)>,
 ) -> Result<DecryptSummary> {
     let (keys, info) = load_keys(key_url.as_deref())?;
     let mut results = Vec::new();
 
+    let mut file_sizes = Vec::new();
+    let mut total_bytes = 0u64;
+    if progress.is_some() {
+        for path in &files {
+            let estimated = (|| -> Result<u64> {
+                let file = File::open(path)?;
+                let mut reader = BufReader::with_capacity(0x40000, file);
+                let bootid = read_bootid_from_reader(&mut reader, &keys)?;
+                Ok(output_size_from_bootid(&bootid))
+            })()
+            .or_else(|_| {
+                path.metadata()
+                    .map(|meta| meta.len())
+                    .map_err(|e| anyhow!(e))
+            })
+            .unwrap_or(0);
+            file_sizes.push(estimated);
+            total_bytes = total_bytes.saturating_add(estimated);
+        }
+        if total_bytes == 0 {
+            total_bytes = 1;
+        }
+    }
+
+    let mut processed_total: u64 = 0;
+    let mut last_percent: u8 = 0;
+    let mut last_emit = Instant::now();
+
+    let mut emit_progress = |progress: &mut Option<&mut dyn FnMut(DecryptProgress)>,
+                             processed: u64,
+                             current_file: usize,
+                             total_files: usize,
+                             force: bool| {
+        if let Some(cb) = progress.as_mut() {
+            let percent = processed
+                .saturating_mul(100)
+                .saturating_div(total_bytes)
+                .min(100) as u8;
+            if force || percent != last_percent || last_emit.elapsed() >= Duration::from_millis(150) {
+                last_percent = percent;
+                last_emit = Instant::now();
+                cb(DecryptProgress {
+                    percent,
+                    processed,
+                    total: total_bytes,
+                    current_file,
+                    total_files,
+                });
+            }
+        }
+    };
+
+    let total_files = files.len();
+    if progress.is_some() {
+        emit_progress(&mut progress, processed_total, 0, total_files, true);
+    }
     for path in files {
         let mut entry = DecryptResult {
             input: path.to_string_lossy().into_owned(),
@@ -386,11 +480,58 @@ pub fn decrypt_game_files(
             error: None,
         };
 
-        if let Err(err) = decrypt_container(&path, no_extract, &keys, &mut entry) {
+        let current_file = results.len() + 1;
+        let mut last_in_file = 0u64;
+        let has_progress = progress.is_some();
+        let mut report_progress = |processed_in_file: u64| {
+            let delta = processed_in_file.saturating_sub(last_in_file);
+            last_in_file = processed_in_file;
+            processed_total = processed_total.saturating_add(delta);
+            if processed_total > total_bytes {
+                processed_total = total_bytes;
+            }
+            emit_progress(
+                &mut progress,
+                processed_total,
+                current_file,
+                total_files,
+                false,
+            );
+        };
+        let progress_ref: Option<&mut dyn FnMut(u64)> = if has_progress {
+            Some(&mut report_progress)
+        } else {
+            None
+        };
+
+        if let Err(err) = decrypt_container(&path, no_extract, &keys, &mut entry, progress_ref) {
             entry.error = Some(err.to_string());
         }
 
+        if progress.is_some() {
+            if let Some(estimated) = file_sizes.get(current_file - 1).copied() {
+                if last_in_file < estimated {
+                    processed_total = processed_total.saturating_add(estimated - last_in_file);
+                    if processed_total > total_bytes {
+                        processed_total = total_bytes;
+                    }
+                    emit_progress(
+                        &mut progress,
+                        processed_total,
+                        current_file,
+                        total_files,
+                        true,
+                    );
+                }
+            }
+        }
+
         results.push(entry);
+    }
+
+    if progress.is_some() {
+        processed_total = total_bytes;
+        emit_progress(&mut progress, processed_total, total_files, total_files, true);
     }
 
     Ok(DecryptSummary {

@@ -599,6 +599,10 @@ fn emit_launch_progress(window: &Window, game_id: &str, stage: &str) {
     );
 }
 
+fn emit_decrypt_progress(window: &Window, progress: fsdecrypt::DecryptProgress) {
+    let _ = window.emit("decrypt-progress", progress);
+}
+
 #[derive(Serialize)]
 pub struct VhdDetectResult {
     pub game: Game,
@@ -1763,6 +1767,7 @@ pub async fn load_fsdecrypt_keys_cmd(key_url: Option<String>) -> Result<fsdecryp
 
 #[command]
 pub async fn decrypt_game_files_cmd(
+    window: Window,
     files: Vec<String>,
     no_extract: bool,
     key_url: Option<String>,
@@ -1779,10 +1784,16 @@ pub async fn decrypt_game_files_cmd(
             Some(trimmed)
         }
     });
-    tauri::async_runtime::spawn_blocking(move || fsdecrypt::decrypt_game_files(paths, no_extract, key_url))
-        .await
-        .map_err(|e| e.to_string())?
-        .map_err(|e| e.to_string())
+    let window = window.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut report_progress = |progress: fsdecrypt::DecryptProgress| {
+            emit_decrypt_progress(&window, progress);
+        };
+        fsdecrypt::decrypt_game_files(paths, no_extract, key_url, Some(&mut report_progress))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+    .map_err(|e| e.to_string())
 }
 
 #[command]

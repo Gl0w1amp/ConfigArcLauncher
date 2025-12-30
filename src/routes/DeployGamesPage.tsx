@@ -1,10 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { listen } from '@tauri-apps/api/event';
 import { decryptGameFiles, loadDecryptKeys, pickDecryptFiles } from '../api/deployGamesApi';
 import { DecryptResult, KeyStatus } from '../types/deployGames';
 import { useToast, ToastContainer } from '../components/common/Toast';
 import { FSDECRYPT_KEY_URL_STORAGE_KEY } from '../constants/storage';
 import './DeployGamesPage.css';
+
+type DecryptProgress = {
+  percent: number;
+  processed: number;
+  total: number;
+  current_file: number;
+  total_files: number;
+};
 
 const Icons = {
   Key: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="7.5" cy="15.5" r="5.5"/><path d="M12 15.5h9"/><path d="M16 15.5v-3"/><path d="M20 15.5v-3"/></svg>,
@@ -28,6 +37,7 @@ function DeployGamesPage() {
   const [results, setResults] = useState<DecryptResult[]>([]);
   const [keyStatus, setKeyStatus] = useState<KeyStatus | null>(null);
   const [checkingKeys, setCheckingKeys] = useState<boolean>(false);
+  const [decryptProgress, setDecryptProgress] = useState<number | null>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem(FSDECRYPT_KEY_URL_STORAGE_KEY);
@@ -36,6 +46,23 @@ function DeployGamesPage() {
     }).catch(() => {
       // Ignore errors on auto-check
     });
+  }, []);
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen<DecryptProgress>('decrypt-progress', (event) => {
+      setDecryptProgress(event.payload.percent);
+    })
+      .then((fn) => {
+        unlisten = fn;
+      })
+      .catch(console.error);
+
+    return () => {
+      if (unlisten) {
+        unlisten();
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -67,6 +94,7 @@ function DeployGamesPage() {
       return;
     }
     setLoading(true);
+    setDecryptProgress(0);
     try {
       const res = await decryptGameFiles(files, noExtract, keyUrl.trim() || undefined);
       setResults(res.results);
@@ -76,6 +104,7 @@ function DeployGamesPage() {
       showToast(String(err), 'error');
     } finally {
       setLoading(false);
+      setDecryptProgress(null);
     }
   };
 
@@ -97,6 +126,8 @@ function DeployGamesPage() {
     if (source.startsWith('url:')) return t('deployGames.sourceRemote');
     return source;
   };
+
+  const displayProgress = Math.min(100, Math.max(0, decryptProgress ?? 0));
 
   return (
     <div className="deploy-games-container">
@@ -149,7 +180,7 @@ function DeployGamesPage() {
           </div>
         </div>
 
-        <div className="deploy-games-card">
+        <div className="deploy-games-card files-card">
           <div className="card-header">
             <h3><Icons.File /> {t('deployGames.filesTitle')}</h3>
             <span className="file-count">{files.length}</span>
@@ -179,8 +210,24 @@ function DeployGamesPage() {
       </div>
 
       <div className="deploy-games-actions">
-        <button className="action-btn btn-primary" onClick={handleDecrypt} disabled={loading}>
-          <Icons.Play /> {loading ? t('deployGames.decrypting') : t('deployGames.decrypt')}
+        <button
+          className={`action-btn btn-primary decrypt-btn ${loading ? 'is-loading' : ''}`}
+          onClick={handleDecrypt}
+          disabled={loading}
+        >
+          {loading ? (
+            <>
+              <span className="btn-progress-track" aria-hidden="true" />
+              <span className="btn-progress-bar" aria-hidden="true" style={{ width: `${displayProgress}%` }} />
+              <span className="btn-progress-label">
+                {t('deployGames.decrypting')} {displayProgress}%
+              </span>
+            </>
+          ) : (
+            <>
+              <Icons.Play /> {t('deployGames.decrypt')}
+            </>
+          )}
         </button>
         <label className="checkbox-row">
           <input
