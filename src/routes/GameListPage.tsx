@@ -1,14 +1,14 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { listen } from '@tauri-apps/api/event';
-import GameList from '../components/games/GameList';
 import GameEditorDialog from '../components/games/GameEditorDialog';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { AlertDialog } from '../components/common/AlertDialog';
 import { useGamesState } from '../state/gamesStore';
-import { useProfilesState } from '../state/configStore';
-import { Game } from '../types/games';
+import { ConfigProfile, Game } from '../types/games';
 import { applyProfileToGame, launchGame } from '../api/gamesApi';
+import { listProfiles } from '../api/configApi';
+import './GameListPage.css';
 
 type LaunchProgress = {
   game_id: string;
@@ -29,17 +29,14 @@ const emptyGame = (): Game => ({
 function GameListPage() {
   const { t } = useTranslation();
   const { games, loading, error, activeGameId, reload, saveGame, deleteGame, activateGame } = useGamesState();
-  const { profiles, loading: profilesLoading, reload: reloadProfiles } = useProfilesState();
   const [editing, setEditing] = useState<Game | null>(null);
   const [gameToDelete, setGameToDelete] = useState<string | null>(null);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [launchProgress, setLaunchProgress] = useState<LaunchProgress | null>(null);
-  
-  useEffect(() => {
-    if (activeGameId) {
-      reloadProfiles();
-    }
-  }, [activeGameId, reloadProfiles]);
+  const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
+  const [profiles, setProfiles] = useState<ConfigProfile[]>([]);
+  const [profilesLoading, setProfilesLoading] = useState(false);
+  const [profileId, setProfileId] = useState('');
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -62,6 +59,36 @@ function GameListPage() {
   }, []);
 
   const sortedGames = useMemo(() => [...games].sort((a, b) => a.name.localeCompare(b.name)), [games]);
+  const selectedGame = useMemo(
+    () => (selectedGameId ? sortedGames.find((game) => game.id === selectedGameId) ?? null : null),
+    [sortedGames, selectedGameId]
+  );
+
+  useEffect(() => {
+    if (!sortedGames.length) {
+      setSelectedGameId(null);
+      return;
+    }
+    if (selectedGameId && sortedGames.some((game) => game.id === selectedGameId)) {
+      return;
+    }
+    setSelectedGameId(activeGameId ?? sortedGames[0].id);
+  }, [sortedGames, activeGameId, selectedGameId]);
+
+  useEffect(() => {
+    if (!selectedGameId) {
+      setProfiles([]);
+      setProfileId('');
+      return;
+    }
+    const storageKey = `lastProfile:${selectedGameId}`;
+    setProfileId(localStorage.getItem(storageKey) ?? '');
+    setProfilesLoading(true);
+    listProfiles(selectedGameId)
+      .then(setProfiles)
+      .catch(console.error)
+      .finally(() => setProfilesLoading(false));
+  }, [selectedGameId]);
 
   const handleSave = async (game: Game) => {
     await saveGame(game);
@@ -87,7 +114,7 @@ function GameListPage() {
     }
   };
 
-  const handleDeleteRequest = async (id: string) => {
+  const handleDeleteRequest = (id: string) => {
     setGameToDelete(id);
   };
 
@@ -95,6 +122,35 @@ function GameListPage() {
     if (gameToDelete) {
       await deleteGame(gameToDelete);
       setGameToDelete(null);
+    }
+  };
+
+  const handleProfileChange = (value: string) => {
+    if (!selectedGameId) return;
+    const storageKey = `lastProfile:${selectedGameId}`;
+    setProfileId(value);
+    if (value) {
+      localStorage.setItem(storageKey, value);
+      handleApplyProfile(selectedGameId, value);
+    } else {
+      localStorage.removeItem(storageKey);
+    }
+  };
+
+  const handleLaunchSelected = () => {
+    if (!selectedGameId) return;
+    handleLaunch(selectedGameId, profileId || undefined);
+  };
+
+  const handleEditSelected = () => {
+    if (selectedGame) {
+      setEditing(selectedGame);
+    }
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedGame) {
+      handleDeleteRequest(selectedGame.id);
     }
   };
 
@@ -119,35 +175,144 @@ function GameListPage() {
     }
   })();
 
+  const isVhd = (selectedGame?.launch_mode ?? 'folder') === 'vhd';
+  const detailItems = selectedGame ? [
+    {
+      label: t('games.mode'),
+      value: isVhd ? t('games.modeVhd') : t('games.modeFolder'),
+    },
+    {
+      label: isVhd ? t('games.vhdBase') : t('games.exec'),
+      value: selectedGame.executable_path || '-',
+    },
+    {
+      label: t('games.workdir'),
+      value: selectedGame.working_dir || '-',
+    },
+    {
+      label: t('games.args'),
+      value: selectedGame.launch_args.length ? selectedGame.launch_args.join(' ') : '-',
+    },
+  ] : [];
+
+  const newsItems: Array<{ title: string; meta: string }> = [];
+
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-        <div>
-          <h2 style={{ margin: '0 0 4px 0' }}>{t('games.title')}</h2>
-          <small>{t('games.subtitle')}</small>
+    <div className="games-view">
+      <header className="games-header">
+        <div className="games-title-block">
+          <span className="games-title-accent" aria-hidden="true" />
+          <div>
+            <h2 className="games-title">{selectedGame?.name ?? t('games.title')}</h2>
+            <p className="games-subtitle">{selectedGame ? t('games.subtitle') : t('games.noGames')}</p>
+          </div>
         </div>
-        <button onClick={() => setEditing(emptyGame())}>{t('games.add')}</button>
-      </div>
+        <div className="games-header-actions">
+          <button onClick={() => setEditing(emptyGame())}>{t('games.add')}</button>
+          <button onClick={reload}>Refresh</button>
+        </div>
+      </header>
+
       {launchProgress && (
-        <div style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid var(--accent-primary)', padding: 10, borderRadius: 8, marginBottom: 12 }}>
+        <div className="games-launch-progress">
           <strong>{t('games.launchProgress.title', { name: launchingGame?.name ?? '' })}</strong>
-          <div style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 4 }}>{launchMessage}</div>
+          <div className="games-launch-message">{launchMessage}</div>
         </div>
       )}
-      {loading && <p>{t('common.loading')}</p>}
-      {error && <p style={{ color: '#f87171' }}>{error}</p>}
-      <GameList
-        games={sortedGames}
-        profiles={profiles}
-        profilesLoading={profilesLoading}
-        activeGameId={activeGameId || undefined}
-        onEdit={setEditing}
-        onDelete={handleDeleteRequest}
-        onLaunch={handleLaunch}
-        onActivate={activateGame}
-        onApplyProfile={handleApplyProfile}
-        onRefresh={reload}
-      />
+
+      <div className="games-layout">
+        <aside className="games-library">
+          <div className="games-library-title">Library</div>
+          {loading && <div className="games-state">{t('common.loading')}</div>}
+          {error && <div className="games-state error">{error}</div>}
+          <div className="games-library-list">
+            {!sortedGames.length && !loading && (
+              <div className="games-library-empty">{t('games.noGames')}</div>
+            )}
+            {sortedGames.map((game) => (
+              <button
+                key={game.id}
+                type="button"
+                className={`games-library-item ${selectedGameId === game.id ? 'selected' : ''} ${!game.enabled ? 'disabled' : ''}`}
+                onClick={() => {
+                  setSelectedGameId(game.id);
+                  const storedProfile = localStorage.getItem(`lastProfile:${game.id}`) ?? '';
+                  activateGame(game.id, storedProfile || undefined).catch(console.error);
+                }}
+              >
+                <span className="games-library-name">{game.name}</span>
+                {activeGameId === game.id && <span className="games-library-badge">{t('common.active')}</span>}
+              </button>
+            ))}
+          </div>
+        </aside>
+
+        <section className="games-panel">
+          {selectedGame ? (
+            <>
+              <div className="games-panel-header">
+                <div className="games-panel-title">Overview</div>
+                <div className="games-panel-actions">
+                  <button onClick={handleEditSelected}>{t('common.edit')}</button>
+                  <button className="danger" onClick={handleDeleteSelected}>{t('common.delete')}</button>
+                </div>
+              </div>
+              <div className="games-detail-grid">
+                {detailItems.map((detail) => (
+                  <div key={detail.label} className="games-detail-card" title={detail.value}>
+                    <div className="games-detail-label">{detail.label}</div>
+                    <div className="games-detail-value">{detail.value}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="games-status-row">
+                {!selectedGame.enabled && <span className="games-status disabled">{t('common.disabled')}</span>}
+                {activeGameId === selectedGame.id && <span className="games-status active">{t('common.active')}</span>}
+              </div>
+            </>
+          ) : (
+            <div className="games-panel-empty">{t('games.noGames')}</div>
+          )}
+        </section>
+      </div>
+
+      <div className="games-bottom">
+        {newsItems.length > 0 && (
+          <section className="games-panel games-news">
+            <div className="games-panel-title">News</div>
+            <div className="games-news-list">
+              {newsItems.map((item) => (
+                <div key={item.title} className="games-news-item">
+                  <div className="games-news-title">{item.title}</div>
+                  <div className="games-news-meta">{item.meta}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section className="games-panel games-launch">
+          <div className="games-panel-title">Launch</div>
+          <select
+            className="games-launch-select"
+            value={profileId}
+            onChange={(e) => handleProfileChange(e.target.value)}
+            disabled={profilesLoading || !selectedGame}
+          >
+            <option value="">{profilesLoading ? t('common.loading') : t('games.currentFile')}</option>
+            {profiles.map((profile) => (
+              <option key={profile.id} value={profile.id}>{profile.name}</option>
+            ))}
+          </select>
+          <div className="games-launch-actions">
+            <button className="primary games-launch-main" onClick={handleLaunchSelected} disabled={!selectedGame}>
+              {t('common.launch')}
+            </button>
+            <button className="ghost-button games-launch-extra" disabled>Extra</button>
+          </div>
+        </section>
+      </div>
+
       {editing && (
         <GameEditorDialog
           game={editing}
