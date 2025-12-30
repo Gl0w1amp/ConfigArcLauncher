@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1] - 2025-12-30
+
+### Features
+- Store dropped IO DLLs under the config IO folder and update paths automatically.
+- Show update notes from the local CHANGELOG instead of remote release body.
+- Add a dedicated light theme background.
+
 ## [0.4.0] - 2025-12-30
 
 ### Features
