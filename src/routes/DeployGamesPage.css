@@ -267,7 +267,7 @@
 }
 
 .results-card .results-list {
-  max-height: min(140px, calc(100vh - 480px));
+  max-height: min(138px, calc(100vh - 480px));
   overflow-y: auto;
   padding-right: 6px;
   scrollbar-gutter: stable;

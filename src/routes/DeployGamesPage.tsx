@@ -49,16 +49,45 @@ function DeployGamesPage() {
   }, []);
 
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
+    let unlisten: (() => void) | null = null;
+    let disposed = false;
     listen<DecryptProgress>('decrypt-progress', (event) => {
       setDecryptProgress(event.payload.percent);
     })
       .then((fn) => {
+        if (disposed) {
+          fn();
+          return;
+        }
         unlisten = fn;
       })
       .catch(console.error);
 
     return () => {
+      disposed = true;
+      if (unlisten) {
+        unlisten();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    let unlisten: (() => void) | null = null;
+    let disposed = false;
+    listen<DecryptResult>('decrypt-result', (event) => {
+      setResults((prev) => [...prev, event.payload]);
+    })
+      .then((fn) => {
+        if (disposed) {
+          fn();
+          return;
+        }
+        unlisten = fn;
+      })
+      .catch(console.error);
+
+    return () => {
+      disposed = true;
       if (unlisten) {
         unlisten();
       }
@@ -93,11 +122,12 @@ function DeployGamesPage() {
       showToast(t('deployGames.noFiles'), 'error');
       return;
     }
+    setResults([]);
     setLoading(true);
     setDecryptProgress(0);
     try {
       const res = await decryptGameFiles(files, noExtract, keyUrl.trim() || undefined);
-      setResults(res.results);
+      setResults((prev) => (prev.length > 0 ? prev : res.results));
       setKeyStatus({ key_source: res.key_source, key_game_count: res.key_game_count });
       showToast(t('deployGames.resultOk'), 'success');
     } catch (err) {
@@ -271,13 +301,13 @@ function DeployGamesPage() {
                     {result.output && (
                       <div className="result-output" title={result.output}>→ {result.output}</div>
                     )}
+                    {result.error && (
+                      <div className="result-error">{result.error}</div>
+                    )}
                     <div className="result-meta">
                       {result.container_type && <span className="meta-pill">{result.container_type}</span>}
                       {!isFailed && <span className="meta-pill">{outputText}</span>}
                     </div>
-                    {result.error && (
-                      <div className="result-error">{result.error}</div>
-                    )}
                     {result.warnings.map((warning, idx) => (
                       <div key={`${result.input}-warn-${idx}`} className="result-warning">{warning}</div>
                     ))}

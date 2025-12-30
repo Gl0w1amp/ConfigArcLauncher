@@ -603,6 +603,10 @@ fn emit_decrypt_progress(window: &Window, progress: fsdecrypt::DecryptProgress) 
     let _ = window.emit("decrypt-progress", progress);
 }
 
+fn emit_decrypt_result(window: &Window, result: fsdecrypt::DecryptResult) {
+    let _ = window.emit("decrypt-result", result);
+}
+
 #[derive(Serialize)]
 pub struct VhdDetectResult {
     pub game: Game,
@@ -1789,7 +1793,16 @@ pub async fn decrypt_game_files_cmd(
         let mut report_progress = |progress: fsdecrypt::DecryptProgress| {
             emit_decrypt_progress(&window, progress);
         };
-        fsdecrypt::decrypt_game_files(paths, no_extract, key_url, Some(&mut report_progress))
+        let mut report_result = |result: fsdecrypt::DecryptResult| {
+            emit_decrypt_result(&window, result);
+        };
+        fsdecrypt::decrypt_game_files(
+            paths,
+            no_extract,
+            key_url,
+            Some(&mut report_progress),
+            Some(&mut report_result),
+        )
     })
     .await
     .map_err(|e| e.to_string())?

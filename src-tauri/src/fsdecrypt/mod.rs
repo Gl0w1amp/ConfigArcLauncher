@@ -1,4 +1,5 @@
 use std::{
+    any::Any,
     fs::{create_dir_all, File, FileTimes},
     io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
@@ -61,6 +62,16 @@ pub struct DecryptProgress {
 pub struct KeyStatus {
     pub key_source: String,
     pub key_game_count: usize,
+}
+
+fn panic_message(err: Box<dyn Any + Send>) -> String {
+    if let Some(msg) = err.downcast_ref::<&str>() {
+        (*msg).to_string()
+    } else if let Some(msg) = err.downcast_ref::<String>() {
+        msg.clone()
+    } else {
+        "unknown panic".to_string()
+    }
 }
 
 fn exfat_timestamp_to_system_time(timestamp: &exfat_fs::timestamp::Timestamp) -> Result<SystemTime> {
@@ -411,6 +422,7 @@ pub fn decrypt_game_files(
     no_extract: bool,
     key_url: Option<String>,
     mut progress: Option<&mut dyn FnMut(DecryptProgress)>,
+    mut on_result: Option<&mut dyn FnMut(DecryptResult)>,
 ) -> Result<DecryptSummary> {
     let (keys, info) = load_keys(key_url.as_deref())?;
     let mut results = Vec::new();
@@ -506,9 +518,19 @@ pub fn decrypt_game_files(
             None
         };
 
-        if let Err(err) = decrypt_container(&path, no_extract, &keys, &mut entry, progress_ref) {
-            entry.error = Some(err.to_string());
-            entry.failed = true;
+        let decrypt_outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            decrypt_container(&path, no_extract, &keys, &mut entry, progress_ref)
+        }));
+        match decrypt_outcome {
+            Ok(Ok(())) => {}
+            Ok(Err(err)) => {
+                entry.error = Some(err.to_string());
+                entry.failed = true;
+            }
+            Err(err) => {
+                entry.error = Some(format!("Decrypt panic: {}", panic_message(err)));
+                entry.failed = true;
+            }
         }
 
         if progress.is_some() {
@@ -529,6 +551,9 @@ pub fn decrypt_game_files(
             }
         }
 
+        if let Some(cb) = on_result.as_mut() {
+            cb(entry.clone());
+        }
         results.push(entry);
     }
 
