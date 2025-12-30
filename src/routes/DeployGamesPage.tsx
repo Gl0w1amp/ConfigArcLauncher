@@ -128,6 +128,10 @@ function DeployGamesPage() {
   };
 
   const displayProgress = Math.min(100, Math.max(0, decryptProgress ?? 0));
+  const failedCount = results.reduce((count, result) => (
+    count + (result.failed || Boolean(result.error) ? 1 : 0)
+  ), 0);
+  const successCount = results.length - failedCount;
 
   return (
     <div className="deploy-games-container">
@@ -242,6 +246,14 @@ function DeployGamesPage() {
       <div className="deploy-games-card results-card">
         <div className="card-header">
           <h3>{t('deployGames.resultsTitle')}</h3>
+          <div className="card-badges">
+            <span className="meta-badge success">
+              <Icons.Check /> {t('deployGames.resultOk')}: {successCount}
+            </span>
+            <span className="meta-badge error">
+              <Icons.X /> {t('deployGames.resultFailed')}: {failedCount}
+            </span>
+          </div>
         </div>
         <div className="card-content">
           {results.length === 0 && (
@@ -249,10 +261,11 @@ function DeployGamesPage() {
           )}
           <div className="results-list">
             {results.map((result, idx) => {
-              const statusText = result.error ? t('deployGames.resultFailed') : t('deployGames.resultOk');
+              const isFailed = result.failed || Boolean(result.error);
+              const statusText = isFailed ? t('deployGames.resultFailed') : t('deployGames.resultOk');
               const outputText = result.extracted ? t('deployGames.resultExtracted') : t('deployGames.resultWritten');
               return (
-                <div key={`${result.input}-${idx}`} className={`result-row ${result.error ? 'error' : 'ok'}`}>
+                <div key={`${result.input}-${idx}`} className={`result-row ${isFailed ? 'error' : 'ok'}`}>
                   <div className="result-info">
                     <div className="result-path" title={result.input}>{result.input}</div>
                     {result.output && (
@@ -260,7 +273,7 @@ function DeployGamesPage() {
                     )}
                     <div className="result-meta">
                       {result.container_type && <span className="meta-pill">{result.container_type}</span>}
-                      {!result.error && <span className="meta-pill">{outputText}</span>}
+                      {!isFailed && <span className="meta-pill">{outputText}</span>}
                     </div>
                     {result.error && (
                       <div className="result-error">{result.error}</div>
@@ -269,8 +282,8 @@ function DeployGamesPage() {
                       <div key={`${result.input}-warn-${idx}`} className="result-warning">{warning}</div>
                     ))}
                   </div>
-                  <span className={`result-badge ${result.error ? 'error' : 'ok'}`}>
-                    {result.error ? <Icons.X /> : <Icons.Check />}
+                  <span className={`result-badge ${isFailed ? 'error' : 'ok'}`}>
+                    {isFailed ? <Icons.X /> : <Icons.Check />}
                     {statusText}
                   </span>
                 </div>

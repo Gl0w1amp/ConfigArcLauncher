@@ -37,6 +37,7 @@ pub struct DecryptResult {
     pub container_type: Option<String>,
     pub extracted: bool,
     pub warnings: Vec<String>,
+    pub failed: bool,
     pub error: Option<String>,
 }
 
@@ -477,6 +478,7 @@ pub fn decrypt_game_files(
             container_type: None,
             extracted: false,
             warnings: Vec::new(),
+            failed: false,
             error: None,
         };
 
@@ -506,6 +508,7 @@ pub fn decrypt_game_files(
 
         if let Err(err) = decrypt_container(&path, no_extract, &keys, &mut entry, progress_ref) {
             entry.error = Some(err.to_string());
+            entry.failed = true;
         }
 
         if progress.is_some() {

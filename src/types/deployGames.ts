@@ -4,6 +4,7 @@ export interface DecryptResult {
   container_type?: string | null;
   extracted: boolean;
   warnings: string[];
+  failed: boolean;
   error?: string | null;
 }
 
