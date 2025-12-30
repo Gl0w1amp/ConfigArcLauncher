@@ -10,6 +10,7 @@ type Props = {
 
 function AppLayout({ children }: Props) {
   const location = useLocation();
+  const isGamesPage = location.pathname === '/games' || location.pathname.startsWith('/games/');
 
   return (
     <div className="app-shell">
@@ -19,12 +20,18 @@ function AppLayout({ children }: Props) {
       <Header />
       <div className="app-body">
         <Sidebar />
-        <main className="app-content">
-          <div className="app-content-surface">
-            <div key={location.pathname} className="app-page">
+        <main className={`app-content ${isGamesPage ? 'full' : ''}`}>
+          {isGamesPage ? (
+            <div key={location.pathname} className="app-page app-page-full">
               {children}
             </div>
-          </div>
+          ) : (
+            <div className="app-content-surface">
+              <div key={location.pathname} className="app-page">
+                {children}
+              </div>
+            </div>
+          )}
         </main>
         <RightRail />
       </div>

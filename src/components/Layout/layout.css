@@ -246,6 +246,10 @@
   min-height: 0;
 }
 
+.app-content.full {
+  padding: 0;
+}
+
 .app-content-surface {
   height: 100%;
   border-radius: 20px;
@@ -262,6 +266,12 @@
 .app-page {
   min-height: 100%;
   animation: page-enter 0.35s ease;
+}
+
+.app-page-full {
+  height: 100%;
+  overflow-y: auto;
+  padding: var(--spacing-xl);
 }
 
 .app-content-surface::before {
