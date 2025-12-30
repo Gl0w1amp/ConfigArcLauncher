@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.0] - 2025-12-30
+
+### Features
+- Redesign the app shell with a custom titlebar, navigation rails, and layered backgrounds.
+- Overhaul the games page layout with Library/Overview/News sections and a fixed launch CTA.
+- Add a news panel placeholder and refreshed launch controls.
+- Add a config toolbar with trust status display.
+- Enable drag-and-drop in OptionField and ManageModsPage.
+- Add auto-detection for game folders and VHDs in GameEditorDialog.
+
 ## [0.3.0] - 2025-12-24
 
 ### Features
