@@ -140,9 +140,7 @@ fn default_launch_args(game_name: &str) -> Vec<String> {
             "-screen-height".into(), "1920".into(),
             "-silent-crashes".into()
         ],
-        "Chunithm" => vec![
-        "Chunithm" => vec![]
-        ],
+        "Chunithm" => vec![],
         "Ongeki" => vec![
             "-screen-fullscreen".into(), "0".into(),
             "-popupwindow".into(),
