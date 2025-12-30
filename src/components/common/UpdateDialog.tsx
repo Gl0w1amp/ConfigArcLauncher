@@ -1,14 +1,30 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal } from './Modal';
 import './Dialog.css';
 import { Update } from '@tauri-apps/plugin-updater';
+import { loadChangelog } from '../../api/updateApi';
 
 type Props = {
   updateInfo: Update;
   installing: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+};
+
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const extractChangelogSection = (content: string, version: string) => {
+  const safeVersion = escapeRegExp(version.trim());
+  if (!safeVersion) return content.trim();
+  const heading = new RegExp(`^##\\s*\\[?v?${safeVersion}\\]?(?:\\s*-.*)?$`, 'mi');
+  const match = heading.exec(content);
+  if (!match) return content.trim();
+  const start = match.index;
+  const after = content.slice(start + match[0].length);
+  const next = after.search(/^##\\s+/m);
+  const end = next === -1 ? content.length : start + match[0].length + next;
+  return content.slice(start, end).trim();
 };
 
 export function UpdateDialog({ 
@@ -18,6 +34,34 @@ export function UpdateDialog({
   onCancel 
 }: Props) {
   const { t } = useTranslation();
+  const [changelog, setChangelog] = useState<string>('');
+  const [changelogError, setChangelogError] = useState<string>('');
+
+  useEffect(() => {
+    let active = true;
+    loadChangelog()
+      .then((content) => {
+        if (!active) return;
+        setChangelog(content);
+        setChangelogError('');
+      })
+      .catch((err) => {
+        if (!active) return;
+        setChangelog('');
+        setChangelogError(err instanceof Error ? err.message : String(err));
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const resolvedChangelog = useMemo(() => {
+    if (!changelog) return '';
+    return extractChangelogSection(changelog, updateInfo.version);
+  }, [changelog, updateInfo.version]);
+
+  const changelogBody = resolvedChangelog || (changelogError ? `Failed to load CHANGELOG.md: ${changelogError}` : '');
   
   return (
     <Modal title={t('updater.title')} onClose={onCancel} width={500}>
@@ -49,7 +93,7 @@ export function UpdateDialog({
           </div>
         </div>
 
-        {updateInfo.body && (
+        {changelogBody && (
           <div style={{ 
             background: 'var(--bg-tertiary)', 
             padding: 'var(--spacing-md)', 
@@ -61,7 +105,7 @@ export function UpdateDialog({
             border: '1px solid var(--border-color)',
             fontFamily: 'monospace'
           }}>
-            {updateInfo.body}
+            {changelogBody}
           </div>
         )}
 

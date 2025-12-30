@@ -1315,6 +1315,13 @@ fn unique_copy_destination(dir: &Path, src: &Path) -> Result<PathBuf, String> {
     Ok(dest)
 }
 
+fn changelog_path() -> PathBuf {
+    std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|p| p.join("CHANGELOG.md")))
+        .unwrap_or_else(|| Path::new("CHANGELOG.md").to_path_buf())
+}
+
 #[derive(Serialize)]
 pub struct VfsScanResult {
     pub amfs: Option<String>,
@@ -1691,6 +1698,12 @@ pub fn store_io_dll_cmd(path: String) -> Result<String, String> {
     let dest = unique_copy_destination(&io_dir, &src)?;
     fs::copy(&src, &dest).map_err(|e| e.to_string())?;
     Ok(dest.to_string_lossy().into_owned())
+}
+
+#[command]
+pub fn load_changelog_cmd() -> Result<String, String> {
+    let path = changelog_path();
+    fs::read_to_string(&path).map_err(|e| format!("Failed to read changelog: {}", e))
 }
 
 #[command]
