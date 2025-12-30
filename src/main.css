@@ -67,6 +67,7 @@
 
   --border-color: #cbd5e1;
 
+  --app-bg-image: url("/backgrounds/arcade-splash-light.svg");
   --frame-titlebar-bg: rgba(248, 250, 252, 0.75);
   --frame-titlebar-border: rgba(15, 23, 42, 0.1);
   --frame-rail-bg: rgba(248, 250, 252, 0.82);
