@@ -152,6 +152,7 @@ function Sidebar() {
               <NavLink
                 key={item.to}
                 to={item.to}
+                end={item.to === '/deploy'}
                 className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`}
                 aria-label={item.label}
                 title={item.label}
