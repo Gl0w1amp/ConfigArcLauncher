@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.2] - 2025-12-31
+
+### Fixes
+- Restore full-titlebar drag region while keeping window controls clickable.
+- Allow custom titlebar buttons to minimize, maximize, and close the window.
+
 ## [0.4.1] - 2025-12-30
 
 ### Features
