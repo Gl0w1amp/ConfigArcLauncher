@@ -255,18 +255,24 @@ function ConfigEditorPage() {
           <button onClick={handleProfileDelete} disabled={!selectedProfileId}>{t('config.deleteProfile')}</button>
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ fontWeight: 600, color: trustStatus?.trusted ? 'var(--success)' : 'var(--warning)' }}>
-          {trustLoading ? t('config.trustChecking') : trustStatus?.trusted ? t('config.trustOk') : trustStatus?.missing_files ? t('config.trustMissing') : t('config.trustFailed')}
-        </span>
-        <button onClick={refreshTrust} disabled={trustLoading}>{trustLoading ? t('config.trustChecking') : t('config.trustRefresh')}</button>
-        
-        <Link to="/deploy" style={{ textDecoration: 'none' }}>
-          <button type="button">{t('config.openDeploy')}</button>
-        </Link>
+      <div className="config-toolbar">
+        <div className="config-toolbar-left">
+          <span
+            className="config-trust-status"
+            style={{ color: trustStatus?.trusted ? 'var(--success)' : 'var(--warning)' }}
+          >
+            {trustLoading ? t('config.trustChecking') : trustStatus?.trusted ? t('config.trustOk') : trustStatus?.missing_files ? t('config.trustMissing') : t('config.trustFailed')}
+          </span>
+          <button className="config-toolbar-button" onClick={refreshTrust} disabled={trustLoading}>
+            {trustLoading ? t('config.trustChecking') : t('config.trustRefresh')}
+          </button>
+          <Link to="/deploy" style={{ textDecoration: 'none' }}>
+            <button className="config-toolbar-button" type="button">{t('config.openDeploy')}</button>
+          </Link>
+        </div>
 
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button onClick={handleAutoCompleteVfs} style={{ padding: '4px 8px', fontSize: '0.9em' }}>
+        <div className="config-toolbar-right">
+          <button className="config-toolbar-button" onClick={handleAutoCompleteVfs}>
             {t('config.autoComplete', { defaultValue: 'Auto Complete' })}
           </button>
           <label className="toggle-switch">

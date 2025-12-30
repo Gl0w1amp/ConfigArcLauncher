@@ -245,3 +245,34 @@ input:focus + .toggle-slider {
   font-weight: 500;
 }
 
+.config-toolbar {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.config-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.config-toolbar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.config-toolbar-button {
+  padding: 4px 8px;
+  font-size: 0.9rem;
+}
+
+.config-trust-status {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
