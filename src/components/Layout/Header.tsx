@@ -43,7 +43,7 @@ function Header() {
           <span className="titlebar-text">{t('common.appName')}</span>
         </div>
       </div>
-      <div className="titlebar-actions">
+      <div className="titlebar-actions" data-tauri-drag-region="false">
         <button
           type="button"
           className="titlebar-button"
