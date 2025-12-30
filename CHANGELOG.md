@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.4] - 2025-12-31
+
+### Features
+- Stream game decrypt results per file with live success/failure counts.
+
+### Fixes
+- Capture decrypt panics per file so batches continue and errors surface in UI.
+- Avoid duplicate decrypt results when streaming events.
+- Add missing updater/mode translations for Chinese and Japanese.
+
 ## [0.4.2] - 2025-12-31
 
 ### Fixes
