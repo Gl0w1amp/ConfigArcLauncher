@@ -18,6 +18,25 @@
   --warning: #f59e0b;
   --danger: #ef4444;
 
+  --app-bg-image: url("/backgrounds/arcade-splash.svg");
+  --frame-titlebar-bg: rgba(10, 14, 26, 0.58);
+  --frame-titlebar-border: rgba(255, 255, 255, 0.08);
+  --frame-rail-bg: rgba(10, 14, 26, 0.7);
+  --frame-rail-border: rgba(255, 255, 255, 0.12);
+  --frame-rail-hover: rgba(236, 72, 153, 0.18);
+  --frame-rail-active: rgba(59, 130, 246, 0.95);
+  --frame-surface: rgba(8, 12, 22, 0.72);
+  --frame-surface-strong: rgba(9, 14, 26, 0.85);
+  --frame-surface-border: rgba(255, 255, 255, 0.12);
+  --frame-surface-shadow: 0 18px 40px rgba(4, 6, 12, 0.45);
+  --frame-glow: rgba(236, 72, 153, 0.35);
+  --frame-overlay-strong: rgba(6, 8, 16, 0.92);
+  --frame-overlay-soft: rgba(6, 8, 16, 0.45);
+  --frame-spot-a: rgba(248, 113, 113, 0.18);
+  --frame-spot-b: rgba(59, 130, 246, 0.18);
+  --frame-spot-c: rgba(236, 72, 153, 0.2);
+  --frame-sparkle: rgba(255, 255, 255, 0.12);
+
   /* Spacing */
   --spacing-xs: 4px;
   --spacing-sm: 8px;
@@ -47,6 +66,24 @@
   --text-muted: #94a3b8;
 
   --border-color: #cbd5e1;
+
+  --frame-titlebar-bg: rgba(248, 250, 252, 0.75);
+  --frame-titlebar-border: rgba(15, 23, 42, 0.1);
+  --frame-rail-bg: rgba(248, 250, 252, 0.82);
+  --frame-rail-border: rgba(148, 163, 184, 0.35);
+  --frame-rail-hover: rgba(59, 130, 246, 0.15);
+  --frame-rail-active: rgba(59, 130, 246, 0.85);
+  --frame-surface: rgba(255, 255, 255, 0.78);
+  --frame-surface-strong: rgba(248, 250, 252, 0.92);
+  --frame-surface-border: rgba(148, 163, 184, 0.35);
+  --frame-surface-shadow: 0 16px 30px rgba(15, 23, 42, 0.12);
+  --frame-glow: rgba(59, 130, 246, 0.25);
+  --frame-overlay-strong: rgba(248, 250, 252, 0.84);
+  --frame-overlay-soft: rgba(248, 250, 252, 0.45);
+  --frame-spot-a: rgba(59, 130, 246, 0.16);
+  --frame-spot-b: rgba(14, 165, 233, 0.14);
+  --frame-spot-c: rgba(236, 72, 153, 0.12);
+  --frame-sparkle: rgba(15, 23, 42, 0.08);
   
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.05);
@@ -63,7 +100,7 @@ body, html {
   height: 100%;
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-family: "Bahnschrift", "Segoe UI", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 

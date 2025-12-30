@@ -34,8 +34,7 @@ function GameListPage() {
   const [gameToDelete, setGameToDelete] = useState<string | null>(null);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [launchProgress, setLaunchProgress] = useState<LaunchProgress | null>(null);
-
-
+  
   useEffect(() => {
     if (activeGameId) {
       reloadProfiles();

@@ -1,5 +1,7 @@
+import { useLocation } from 'react-router-dom';
 import Header from './Header';
 import Sidebar from './Sidebar';
+import RightRail from './RightRail';
 import './layout.css';
 
 type Props = {
@@ -7,14 +9,24 @@ type Props = {
 };
 
 function AppLayout({ children }: Props) {
+  const location = useLocation();
+
   return (
-    <div className="layout-shell">
-      <Sidebar />
-      <div className="layout-main">
-        <Header />
-        <main className="layout-content">
-          {children}
+    <div className="app-shell">
+      <div className="app-background" aria-hidden="true" />
+      <div className="app-overlay" aria-hidden="true" />
+      <div className="app-sparkle" aria-hidden="true" />
+      <Header />
+      <div className="app-body">
+        <Sidebar />
+        <main className="app-content">
+          <div className="app-content-surface">
+            <div key={location.pathname} className="app-page">
+              {children}
+            </div>
+          </div>
         </main>
+        <RightRail />
       </div>
     </div>
   );
