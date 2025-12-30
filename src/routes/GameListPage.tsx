@@ -318,7 +318,13 @@ function GameListPage() {
         <button className="primary games-launch-main" onClick={handleLaunchSelected} disabled={!selectedGame}>
           {t('common.launch')}
         </button>
-        <button className="ghost-button games-launch-extra" disabled>Extra</button>
+        <button className="ghost-button games-launch-extra" disabled aria-label="Extra">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="6" cy="12" r="2" />
+            <circle cx="12" cy="12" r="2" />
+            <circle cx="18" cy="12" r="2" />
+          </svg>
+        </button>
       </div>
 
       {editing && (

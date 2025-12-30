@@ -412,13 +412,30 @@
 .games-launch-extra {
   min-width: 160px;
   min-height: 52px;
-  font-size: 1.05rem;
+  font-size: 1.25rem;
   border-radius: 999px;
 }
 
 .games-launch-main {
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(14, 165, 233, 0.85));
   box-shadow: 0 12px 24px rgba(59, 130, 246, 0.35);
+}
+
+.games-launch-extra {
+  min-width: 52px;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 1rem;
+}
+
+.games-launch-extra svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
 }
 
 .ghost-button {
