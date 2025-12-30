@@ -1319,9 +1319,26 @@ fn unique_copy_destination(dir: &Path, src: &Path) -> Result<PathBuf, String> {
 }
 
 fn changelog_path() -> PathBuf {
-    std::env::current_exe()
-        .ok()
-        .and_then(|exe| exe.parent().map(|p| p.join("CHANGELOG.md")))
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            candidates.push(dir.join("CHANGELOG.md"));
+            candidates.push(dir.join("resources").join("CHANGELOG.md"));
+        }
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        candidates.push(cwd.join("CHANGELOG.md"));
+    }
+
+    for path in &candidates {
+        if path.exists() {
+            return path.to_path_buf();
+        }
+    }
+
+    candidates
+        .first()
+        .cloned()
         .unwrap_or_else(|| Path::new("CHANGELOG.md").to_path_buf())
 }
 

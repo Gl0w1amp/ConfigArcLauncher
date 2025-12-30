@@ -1,9 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal } from './Modal';
 import './Dialog.css';
 import { Update } from '@tauri-apps/plugin-updater';
-import { loadChangelog } from '../../api/updateApi';
 
 type Props = {
   updateInfo: Update;
@@ -34,34 +33,14 @@ export function UpdateDialog({
   onCancel 
 }: Props) {
   const { t } = useTranslation();
-  const [changelog, setChangelog] = useState<string>('');
-  const [changelogError, setChangelogError] = useState<string>('');
-
-  useEffect(() => {
-    let active = true;
-    loadChangelog()
-      .then((content) => {
-        if (!active) return;
-        setChangelog(content);
-        setChangelogError('');
-      })
-      .catch((err) => {
-        if (!active) return;
-        setChangelog('');
-        setChangelogError(err instanceof Error ? err.message : String(err));
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
 
   const resolvedChangelog = useMemo(() => {
-    if (!changelog) return '';
-    return extractChangelogSection(changelog, updateInfo.version);
-  }, [changelog, updateInfo.version]);
+    const body = updateInfo.body?.trim() ?? '';
+    if (!body) return '';
+    return extractChangelogSection(body, updateInfo.version);
+  }, [updateInfo.body, updateInfo.version]);
 
-  const changelogBody = resolvedChangelog || (changelogError ? `Failed to load CHANGELOG.md: ${changelogError}` : '');
+  const changelogBody = resolvedChangelog;
   
   return (
     <Modal title={t('updater.title')} onClose={onCancel} width={500}>

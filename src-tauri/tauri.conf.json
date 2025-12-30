@@ -24,7 +24,8 @@
   "bundle": {
     "active": true,
     "targets": ["nsis"],
-    "createUpdaterArtifacts": true
+    "createUpdaterArtifacts": true,
+    "resources": ["../CHANGELOG.md"]
   },
   "plugins": {
     "updater": {
