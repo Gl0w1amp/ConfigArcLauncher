@@ -63,60 +63,6 @@
   height: 100%;
 }
 
-.download-order-toggle {
-  position: relative;
-  display: inline-flex;
-  background: var(--bg-secondary);
-  border-radius: 8px;
-  padding: 4px;
-  border: 1px solid var(--border-color);
-  height: 36px;
-  box-sizing: border-box;
-}
-
-.download-order-toggle-indicator {
-  position: absolute;
-  top: 4px;
-  bottom: 4px;
-  left: 4px;
-  width: calc(50% - 4px);
-  background: var(--accent-primary);
-  border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  transition: transform 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
-}
-
-.download-order-toggle[data-mode="raw"] .download-order-toggle-indicator {
-  transform: translateX(100%);
-}
-
-.download-order-toggle button {
-  position: relative;
-  z-index: 1;
-  background: transparent;
-  border: none;
-  padding: 0 16px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  cursor: pointer;
-  flex: 1;
-  min-width: 80px;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: color 0.2s;
-}
-
-.download-order-toggle button.active {
-  color: #fff;
-}
-
-.download-order-toggle button:hover:not(.active) {
-  color: var(--text-primary);
-}
-
 .download-order-card-body {
   display: flex;
   flex-direction: column;
@@ -173,4 +119,3 @@
  color: var(--text-primary);
  cursor: pointer;
 }
-

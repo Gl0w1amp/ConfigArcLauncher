@@ -6,7 +6,7 @@ import './DownloadOrderPage.css';
 
 type DownloadOrderConfig = Record<string, any>;
 
-const defaultHeaders = ['Pragma: DFI', 'User-Agent: ALL.Net'].join('\n');
+const defaultHeaders = '';
 
 function DownloadOrderPage() {
   const { t } = useTranslation();
@@ -22,8 +22,6 @@ function DownloadOrderPage() {
   const [encodeRequest, setEncodeRequest] = useState(true);
   const [headersText, setHeadersText] = useState(defaultHeaders);
   const [response, setResponse] = useState('');
-  const [rawResponse, setRawResponse] = useState('');
-  const [responseMode, setResponseMode] = useState<'decoded' | 'raw'>('decoded');
   const [decodeError, setDecodeError] = useState<string | null>(null);
   const [statusSummary, setStatusSummary] = useState('');
   const [loading, setLoading] = useState(false);
@@ -114,13 +112,9 @@ function DownloadOrderPage() {
       const statusText = result.status_text ? ` ${result.status_text}` : '';
       setStatusSummary(`${result.status_code}${statusText}${lengthText}`);
       setResponse(result.decoded || '');
-      setRawResponse(result.raw || '');
       setDecodeError(result.decode_error ?? null);
       if (!result.decoded && result.raw) {
-        setResponseMode('raw');
         showToast(t('downloadOrder.decodedEmpty'), 'warning');
-      } else {
-        setResponseMode('decoded');
       }
       if (result.decode_error) {
         showToast(t('downloadOrder.decodeError', { error: result.decode_error }), 'error');
@@ -135,8 +129,7 @@ function DownloadOrderPage() {
 
   const handleCopy = async () => {
     try {
-      const text = responseMode === 'decoded' ? response : rawResponse;
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(response);
       showToast(t('downloadOrder.copyOk'), 'success');
     } catch (err) {
       showToast(t('downloadOrder.copyError', { error: String(err) }), 'error');
@@ -254,33 +247,10 @@ function DownloadOrderPage() {
           <div className="download-order-card-header">
             <h3>{t('downloadOrder.responseTitle')}</h3>
             <div className="download-order-actions">
-              <div
-                className="download-order-toggle"
-                data-mode={responseMode}
-                aria-label={t('downloadOrder.responseTitle')}
-              >
-                <span className="download-order-toggle-indicator" aria-hidden="true" />
-                <button
-                  type="button"
-                  className={responseMode === 'decoded' ? 'active' : ''}
-                  onClick={() => setResponseMode('decoded')}
-                  aria-pressed={responseMode === 'decoded'}
-                >
-                  {t('downloadOrder.decoded')}
-                </button>
-                <button
-                  type="button"
-                  className={responseMode === 'raw' ? 'active' : ''}
-                  onClick={() => setResponseMode('raw')}
-                  aria-pressed={responseMode === 'raw'}
-                >
-                  {t('downloadOrder.raw')}
-                </button>
-              </div>
               <button
                 type="button"
                 onClick={handleCopy}
-                disabled={responseMode === 'decoded' ? !response : !rawResponse}
+                disabled={!response}
               >
                 {t('downloadOrder.copy')}
               </button>
@@ -289,7 +259,7 @@ function DownloadOrderPage() {
           <div className="download-order-card-body">
             <textarea
               className="download-order-response"
-              value={responseMode === 'decoded' ? response : rawResponse}
+              value={response}
               readOnly
               placeholder={t('downloadOrder.responseEmpty')}
             />
