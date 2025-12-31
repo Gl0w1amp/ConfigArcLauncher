@@ -24,7 +24,7 @@
     "editorJson": "JSON エディタ",
     "deploy": "デプロイ",
     "deploySegatools": "Segatools",
-    "deployGames": "ゲーム復号化",
+    "deployGames": "ゲームイメージ復号化",
     "manage": "管理",
     "manageData": "データ",
     "manageAime": "Aime",
@@ -146,7 +146,7 @@
     "files": "ファイル検証"
   },
   "deployGames": {
-    "title": "ゲーム復号化",
+    "title": "ゲームイメージ復号化",
     "subtitle": "OS/APP/OPTION コンテナを復号化してコンテンツを展開します。",
     "keyTitle": "キーソース",
     "keySubtitle": "fsdecrypt_keys.json をアプリの隣に配置するか、URL を指定してください。",
@@ -176,6 +176,26 @@
     "checkingKeys": "確認中...",
     "sourceLocal": "ローカル",
     "sourceRemote": "リモート"
+  },
+  "utilities": {
+    "title": "ユーティリティ",
+    "subtitle": "必要に応じて有効化/非表示にできる内蔵ツールです。",
+    "emptyTitle": "利用可能なユーティリティがありません",
+    "emptySubtitle": "設定で有効化するか更新を確認してください。"
+  },
+  "extensions": {
+    "title": "拡張",
+    "subtitle": "アプリに同梱されたオプションモジュールとユーティリティ。",
+    "disabled": "無効",
+    "open": "開く",
+    "enableInSettings": "設定で有効化",
+    "disabledTitle": "拡張が無効です",
+    "disabledBody": "設定で {{name}} を有効化してください。",
+    "openSettings": "設定を開く"
+  },
+  "rail": {
+    "status": "ステータス",
+    "help": "ヘルプ"
   },
   "json": {
     "title": "JSON エディタ",
@@ -294,7 +314,9 @@
     "autoUpdate": {
       "title": "起動時にアップデートを確認",
       "desc": "有効にすると、起動時に GitHub Releases を確認し、インストール前に確認します。"
-    }
+    },
+    "extensions": "拡張",
+    "extensionsEmpty": "拡張が登録されていません。"
   },
   "updater": {
     "title": "アップデートがあります",

@@ -20,18 +20,6 @@ function IconGames() {
   );
 }
 
-function IconDeployGames() {
-  return (
-    <svg {...iconProps} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="4" y="5" width="16" height="12" rx="2" />
-      <path d="M8 21h8" />
-      <path d="M12 17v4" />
-      <path d="M12 8v5" />
-      <path d="M9.5 10.5L12 13l2.5-2.5" />
-    </svg>
-  );
-}
-
 function IconDeploySegatools() {
   return (
     <svg {...iconProps} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -126,7 +114,6 @@ function Sidebar() {
       { to: '/games', label: t('nav.games'), icon: <IconGames /> },
     ],
     [
-      { to: '/deploy/games', label: t('nav.deployGames'), icon: <IconDeployGames /> },
       { to: '/deploy', label: t('nav.deploySegatools'), icon: <IconDeploySegatools /> },
     ],
     [

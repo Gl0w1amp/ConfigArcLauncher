@@ -1,3 +1,6 @@
+import { NavLink } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+
 const iconProps = {
   viewBox: '0 0 24 24',
   'aria-hidden': true,
@@ -33,26 +36,39 @@ function IconHelp() {
 }
 
 function RightRail() {
+  const { t } = useTranslation();
   const items = [
-    { id: 'extension', label: 'Extensions', icon: <IconPlug /> },
-    { id: 'status', label: 'Status', icon: <IconPulse /> },
-    { id: 'help', label: 'Help', icon: <IconHelp /> },
+    { id: 'extensions', label: t('extensions.title'), icon: <IconPlug />, to: '/extensions' },
+    { id: 'status', label: t('rail.status'), icon: <IconPulse /> },
+    { id: 'help', label: t('rail.help'), icon: <IconHelp /> },
   ];
 
   return (
     <aside className="app-rail">
       <div className="app-rail-stack">
         {items.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className="app-rail-button"
-            title={item.label}
-            aria-label={item.label}
-            disabled
-          >
-            {item.icon}
-          </button>
+          item.to ? (
+            <NavLink
+              key={item.id}
+              to={item.to}
+              className={({ isActive }) => `app-rail-button app-rail-link ${isActive ? 'active' : ''}`}
+              title={item.label}
+              aria-label={item.label}
+            >
+              {item.icon}
+            </NavLink>
+          ) : (
+            <button
+              key={item.id}
+              type="button"
+              className="app-rail-button"
+              title={item.label}
+              aria-label={item.label}
+              disabled
+            >
+              {item.icon}
+            </button>
+          )
         ))}
       </div>
     </aside>

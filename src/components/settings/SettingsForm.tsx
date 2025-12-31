@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
 import { AUTO_UPDATE_STORAGE_KEY } from '../../constants/storage';
+import { useExtensions } from '../../context/ExtensionsContext';
 
 function SettingsForm() {
   const { t, i18n } = useTranslation();
   const { theme, setTheme } = useTheme();
+  const { extensions, isEnabled, setEnabled } = useExtensions();
   const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(
     () => localStorage.getItem(AUTO_UPDATE_STORAGE_KEY) === '1'
   );
@@ -35,6 +37,50 @@ function SettingsForm() {
       localStorage.removeItem(AUTO_UPDATE_STORAGE_KEY);
     }
   };
+
+  const utilityExtensions = extensions.filter((ext) => ext.category === 'utility');
+
+  const renderToggle = (id: string, enabled: boolean, onToggle: (next: boolean) => void) => (
+    <div style={{ position: 'relative', display: 'inline-block', width: 36, height: 20 }}>
+      <input
+        type="checkbox"
+        checked={enabled}
+        onChange={(e) => onToggle(e.target.checked)}
+        style={{ opacity: 0, width: 0, height: 0 }}
+        id={id}
+      />
+      <label
+        htmlFor={id}
+        style={{
+          position: 'absolute',
+          cursor: 'pointer',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: enabled ? 'var(--accent-primary)' : 'var(--text-muted)',
+          transition: '.3s',
+          borderRadius: 34,
+          opacity: enabled ? 1 : 0.3
+        }}
+      >
+        <span
+          style={{
+            position: 'absolute',
+            content: '""',
+            height: 14,
+            width: 14,
+            left: 3,
+            bottom: 3,
+            backgroundColor: 'white',
+            transition: '.3s',
+            borderRadius: '50%',
+            transform: enabled ? 'translateX(16px)' : 'translateX(0)'
+          }}
+        />
+      </label>
+    </div>
+  );
 
   return (
     <div style={{ 
@@ -215,6 +261,47 @@ function SettingsForm() {
             }} />
           </label>
         </div>
+      </div>
+
+      <h3 style={{ marginBottom: 'var(--spacing-md)', marginTop: 'var(--spacing-lg)' }}>
+        {t('settings.extensions')}
+      </h3>
+
+      <div style={{ display: 'grid', gap: 'var(--spacing-sm)' }}>
+        {utilityExtensions.length === 0 && (
+          <div style={{ color: 'var(--text-muted)' }}>
+            {t('settings.extensionsEmpty')}
+          </div>
+        )}
+        {utilityExtensions.map((ext) => {
+          const enabled = isEnabled(ext.id);
+          return (
+            <div
+              key={ext.id}
+              style={{
+                border: '1px solid var(--border-color)',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--bg-tertiary)',
+                padding: 'var(--spacing-sm) var(--spacing-md)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 'var(--spacing-md)',
+                minHeight: '56px'
+              }}
+            >
+              <div style={{ display: 'grid', gap: 4 }}>
+                <span style={{ fontWeight: 600 }}>{t(ext.titleKey)}</span>
+                {ext.descriptionKey && (
+                  <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+                    {t(ext.descriptionKey)}
+                  </span>
+                )}
+              </div>
+              {renderToggle(`extension-toggle-${ext.id}`, enabled, (next) => setEnabled(ext.id, next))}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

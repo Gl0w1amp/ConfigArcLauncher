@@ -24,7 +24,7 @@
     "editorJson": "JSON 编辑器",
     "deploy": "部署",
     "deploySegatools": "segatools 部署",
-    "deployGames": "游戏解密",
+    "deployGames": "游戏镜像解密器",
     "manage": "管理",
     "manageData": "数据",
     "manageAime": "Aime",
@@ -228,7 +228,9 @@
     "autoUpdate": {
       "title": "启动时检查更新",
       "desc": "开启后，启动时会检查 GitHub Releases 并在安装前提示确认。"
-    }
+    },
+    "extensions": "??",
+    "extensionsEmpty": "?????????"
   },
   "updater": {
     "title": "发现新版本",
@@ -792,7 +794,7 @@
     "files": "文件校验"
   },
   "deployGames": {
-    "title": "游戏解密",
+    "title": "游戏镜像解密器",
     "subtitle": "解密 OS/APP/OPTION 容器并提取内容。",
     "keyTitle": "密钥来源",
     "keySubtitle": "将 fsdecrypt_keys.json 放在程序旁或提供 URL。",
@@ -822,5 +824,25 @@
     "checkingKeys": "检查中...",
     "sourceLocal": "本地",
     "sourceRemote": "远程"
+  },
+  "utilities": {
+    "title": "????",
+    "subtitle": "??????????????",
+    "emptyTitle": "暂无可用工具",
+    "emptySubtitle": "请在设置中启用，或检查更新。"
+  },
+  "extensions": {
+    "disabled": "已禁用",
+    "open": "打开",
+    "enableInSettings": "去设置启用",
+    "disabledTitle": "?????",
+    "disabledBody": "请在设置中启用 {{name}}。",
+    "openSettings": "打开设置",
+    "title": "??",
+    "subtitle": "???????????????"
+  },
+  "rail": {
+    "status": "??",
+    "help": "??"
   }
 }

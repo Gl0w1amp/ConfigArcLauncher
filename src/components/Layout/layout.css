@@ -198,11 +198,18 @@
   color: white;
 }
 
+.app-rail-link.active {
+  background: var(--frame-rail-active);
+  box-shadow: 0 12px 28px rgba(59, 130, 246, 0.35);
+  color: white;
+}
+
 .app-nav-link {
   border: none;
 }
 
-.app-nav-link.active::after {
+.app-nav-link.active::after,
+.app-rail-link.active::after {
   content: "";
   position: absolute;
   bottom: 6px;
@@ -227,7 +234,8 @@
   height: 20px;
 }
 
-.app-nav-link.active svg {
+.app-nav-link.active svg,
+.app-rail-link.active svg {
   filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.35));
 }
 

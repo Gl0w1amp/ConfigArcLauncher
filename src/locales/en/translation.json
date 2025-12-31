@@ -24,7 +24,7 @@
     "editorJson": "JSON Editor",
     "deploy": "Deploy",
     "deploySegatools": "Segatools",
-    "deployGames": "Game Decrypt",
+    "deployGames": "Game Image Decrypter",
     "manage": "Manage",
     "manageData": "Data",
     "manageAime": "Aime",
@@ -146,7 +146,7 @@
     "files": "File Verification"
   },
   "deployGames": {
-    "title": "Deploy games",
+    "title": "Game Image Decrypter",
     "subtitle": "Decrypt OS/APP/OPTION containers and extract content.",
     "keyTitle": "Key source",
     "keySubtitle": "Place fsdecrypt_keys.json next to the app or provide a URL.",
@@ -176,6 +176,26 @@
     "keyCount": "Keys: {{count}}",
     "sourceLocal": "Local",
     "sourceRemote": "Remote"
+  },
+  "utilities": {
+    "title": "Utilities",
+    "subtitle": "Built-in tools you can enable or hide as needed.",
+    "emptyTitle": "No utilities available",
+    "emptySubtitle": "Enable utilities in Settings or check for updates."
+  },
+  "extensions": {
+    "title": "Extensions",
+    "subtitle": "Optional modules and utilities bundled with the app.",
+    "disabled": "Disabled",
+    "open": "Open",
+    "enableInSettings": "Enable in Settings",
+    "disabledTitle": "Extension disabled",
+    "disabledBody": "Enable {{name}} in Settings to use it.",
+    "openSettings": "Open Settings"
+  },
+  "rail": {
+    "status": "Status",
+    "help": "Help"
   },
   "json": {
     "title": "JSON Editor",
@@ -294,7 +314,9 @@
     "autoUpdate": {
       "title": "Check for updates on startup",
       "desc": "When enabled, ConfigArc checks GitHub Releases at launch and prompts before installing."
-    }
+    },
+    "extensions": "Extensions",
+    "extensionsEmpty": "No extensions registered yet."
   },
   "updater": {
     "title": "Update Available",

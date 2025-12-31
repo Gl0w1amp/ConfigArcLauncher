@@ -1,0 +1,15 @@
+.extension-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  background: var(--accent-primary);
+  color: white;
+  font-weight: 600;
+}
+
+.extension-link:hover {
+  background: var(--accent-hover);
+  box-shadow: var(--shadow-glow);
+}
