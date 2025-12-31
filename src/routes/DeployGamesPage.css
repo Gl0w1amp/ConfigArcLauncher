@@ -61,37 +61,37 @@
   justify-content: flex-end;
 }
 
-.meta-badge {
+.deploy-games-container .meta-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
+  padding: 3px 9px;
   border-radius: 999px;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
   color: var(--text-secondary);
 }
 
-.meta-badge.key-loaded {
+.deploy-games-container .meta-badge.key-loaded {
   color: var(--success);
   border-color: rgba(16, 185, 129, 0.35);
   background: rgba(16, 185, 129, 0.1);
 }
 
-.meta-badge.key-missing {
+.deploy-games-container .meta-badge.key-missing {
   color: var(--warning);
   border-color: rgba(245, 158, 11, 0.3);
   background: rgba(245, 158, 11, 0.1);
 }
 
-.meta-badge.success {
+.deploy-games-container .meta-badge.success {
   color: var(--success);
   border-color: rgba(16, 185, 129, 0.35);
   background: rgba(16, 185, 129, 0.1);
 }
 
-.meta-badge.error {
+.deploy-games-container .meta-badge.error {
   color: var(--danger);
   border-color: rgba(239, 68, 68, 0.3);
   background: rgba(239, 68, 68, 0.1);
@@ -193,7 +193,7 @@
   height: 16px;
 }
 
-.action-btn {
+.deploy-games-container .action-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -203,13 +203,13 @@
   font-weight: 600;
 }
 
-.btn-primary {
+.deploy-games-container .btn-primary {
   background: var(--accent-primary);
   color: white;
   box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
 }
 
-.btn-primary:hover {
+.deploy-games-container .btn-primary:hover {
   background: var(--accent-hover);
   transform: translateY(-1px);
   box-shadow: 0 6px 8px -1px rgba(59, 130, 246, 0.4);
@@ -440,29 +440,29 @@
 }
 
 /* Buttons */
-.btn-secondary {
+.deploy-games-container .btn-secondary {
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
   color: var(--text-primary);
 }
 
-.btn-secondary:hover {
+.deploy-games-container .btn-secondary:hover {
   background: var(--bg-hover);
   border-color: var(--text-muted);
 }
 
-.btn-danger-ghost {
+.deploy-games-container .btn-danger-ghost {
   background: transparent;
   border: 1px solid transparent;
   color: var(--text-muted);
 }
 
-.btn-danger-ghost:hover {
+.deploy-games-container .btn-danger-ghost:hover {
   color: var(--danger);
   background: rgba(239, 68, 68, 0.1);
 }
 
-.icon-only {
+.deploy-games-container .icon-only {
   padding: 0;
   width: 40px;
   height: 40px;
