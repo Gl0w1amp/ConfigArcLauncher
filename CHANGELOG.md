@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.4.5] - 2025-12-31
+
+### Features
+- Improve updater release notes handling by bundling CHANGELOG.md, expanding lookup paths, and adding a versioned notes extractor script.
+- Refresh Manage Data/Mods page headers with shared styling and cleaner title/subtitle layout.
+- Add a subtle gradient to the app content surface and simplify the background layers.
+- Refine the Manage Aime sidebar icon for clearer card/detail shapes.
+
+### Fixes
+- Render toast containers via portals on Config Editor and Deploy Games pages to avoid layout clipping.
+
 ## [0.4.4] - 2025-12-31
 
 ### Features

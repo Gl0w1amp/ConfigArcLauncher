@@ -1,6 +1,6 @@
 {
   "productName": "ConfigArc Launcher",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "identifier": "com.configarc.launcher",
   "build": {
     "beforeDevCommand": "npm run dev",
