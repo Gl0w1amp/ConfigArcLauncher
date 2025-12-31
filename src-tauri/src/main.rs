@@ -61,6 +61,7 @@ fn main() {
             delete_mod_cmd,
             load_fsdecrypt_keys_cmd,
             decrypt_game_files_cmd,
+            download_order_cmd,
             segatools_trust_status_cmd,
             deploy_segatoools_cmd,
             rollback_segatoools_cmd

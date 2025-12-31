@@ -1,5 +1,6 @@
 import type React from 'react';
 import DeployGamesPage from '../routes/DeployGamesPage';
+import DownloadOrderPage from '../routes/DownloadOrderPage';
 
 export type ExtensionCategory = 'utility';
 
@@ -21,6 +22,16 @@ const builtInExtensions: ExtensionDefinition[] = [
     descriptionKey: 'deployGames.subtitle',
     route: '/extensions/game-image-decrypter',
     component: DeployGamesPage,
+    category: 'utility',
+    defaultEnabled: true,
+    builtIn: true,
+  },
+  {
+    id: 'download-order',
+    titleKey: 'downloadOrder.title',
+    descriptionKey: 'downloadOrder.subtitle',
+    route: '/extensions/download-order',
+    component: DownloadOrderPage,
     category: 'utility',
     defaultEnabled: true,
     builtIn: true,

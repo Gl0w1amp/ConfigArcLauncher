@@ -1,0 +1,176 @@
+.download-order-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.download-order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.download-order-header h2 {
+  margin: 0 0 4px 0;
+  font-size: 1.5rem;
+}
+
+.download-order-header small {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.download-order-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--spacing-md);
+  align-items: start;
+}
+
+.download-order-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.download-order-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  height: 64px;
+  border-bottom: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.02);
+  flex-shrink: 0;
+}
+
+.download-order-card-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  white-space: nowrap;
+}
+
+.download-order-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  height: 100%;
+}
+
+.download-order-toggle {
+  position: relative;
+  display: inline-flex;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  padding: 4px;
+  border: 1px solid var(--border-color);
+  height: 36px;
+  box-sizing: border-box;
+}
+
+.download-order-toggle-indicator {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc(50% - 4px);
+  background: var(--accent-primary);
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+.download-order-toggle[data-mode="raw"] .download-order-toggle-indicator {
+  transform: translateX(100%);
+}
+
+.download-order-toggle button {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  border: none;
+  padding: 0 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex: 1;
+  min-width: 80px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.download-order-toggle button.active {
+  color: #fff;
+}
+
+.download-order-toggle button:hover:not(.active) {
+  color: var(--text-primary);
+}
+
+.download-order-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.download-order-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.download-order-field label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.download-order-row {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.download-order-hint {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.download-order-response {
+  min-height: 220px;
+  width: 100%;
+  resize: vertical;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+}
+
+.checkbox-wrapper {
+ display: flex;
+ align-items: center;
+ gap: 8px;
+ height: 36px; /* Match input height */
+ padding: 0 4px;
+}
+
+.checkbox-wrapper input[type=checkbox] {
+ width: 16px;
+ height: 16px;
+ accent-color: var(--accent-primary);
+}
+
+.checkbox-wrapper label {
+ font-size: 0.9rem;
+ color: var(--text-primary);
+ cursor: pointer;
+}
+

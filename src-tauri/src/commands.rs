@@ -18,6 +18,11 @@ use crate::trusted::{
 use crate::vhd::{load_vhd_config, mount_vhd_with_elevation, resolve_vhd_config, save_vhd_config, unmount_vhd_handle, VhdConfig};
 use crate::fsdecrypt;
 use serde::{Serialize, Deserialize};
+use base64::{engine::general_purpose, Engine as _};
+use flate2::{Compression, write::DeflateEncoder, write::ZlibEncoder, read::ZlibDecoder};
+use reqwest::blocking::Client;
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue, CONTENT_TYPE, USER_AGENT};
+use reqwest::Proxy;
 use std::collections::HashSet;
 use tauri::{command, Emitter, Window};
 use serde_json::Value;
@@ -26,6 +31,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use std::os::windows::process::CommandExt;
+use std::io::{Read, Write};
 
 fn redact_keychip_id(content: &str) -> String {
     let mut result = String::with_capacity(content.len());
@@ -1824,6 +1830,320 @@ pub async fn decrypt_game_files_cmd(
     .await
     .map_err(|e| e.to_string())?
     .map_err(|e| e.to_string())
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DownloadOrderRequest {
+    pub url: String,
+    pub game_id: String,
+    pub ver: String,
+    pub serial: String,
+    pub headers: Vec<String>,
+    pub proxy: Option<String>,
+    pub timeout_secs: Option<u64>,
+    #[serde(alias = "encode_request")]
+    pub encode_request: Option<bool>,
+}
+
+#[derive(Serialize)]
+pub struct DownloadOrderResponse {
+    pub raw: String,
+    pub decoded: String,
+    pub decode_error: Option<String>,
+    pub status_code: u16,
+    pub status_text: String,
+    pub content_length: Option<u64>,
+}
+
+#[command]
+pub async fn download_order_cmd(payload: DownloadOrderRequest) -> Result<DownloadOrderResponse, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let debug_logs = cfg!(debug_assertions)
+            || std::env::var_os("CONFIGARC_DEBUG_DOWNLOAD_ORDER").is_some();
+        let url = payload.url.trim().to_string();
+        if url.is_empty() {
+            return Err("URL is required".to_string());
+        }
+        let game_id = payload.game_id.trim().to_string();
+        if game_id.is_empty() {
+            return Err("gameId is required".to_string());
+        }
+        let ver = payload.ver.trim().to_string();
+        if ver.is_empty() {
+            return Err("ver is required".to_string());
+        }
+        let serial = payload.serial.trim().to_string();
+        if serial.is_empty() {
+            return Err("serial is required".to_string());
+        }
+
+        let encode_request = payload.encode_request.unwrap_or(true);
+        let timeout_secs = payload.timeout_secs.unwrap_or(15);
+        let proxy = payload
+            .proxy
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string);
+        let header_lines = payload.headers;
+
+        if debug_logs {
+            eprintln!(
+                "[download_order] request url={} game_id={} ver={} serial={} encode_request={} timeout_secs={} proxy={}",
+                url,
+                game_id,
+                ver,
+                serial,
+                encode_request,
+                timeout_secs,
+                proxy.as_deref().unwrap_or("<none>")
+            );
+        }
+
+        let query = format!("game_id={}&ver={}&serial={}", game_id, ver, serial);
+        let compression_level = Compression::new(6);
+        let encode_zlib = |input: &str| -> Result<String, String> {
+            let mut encoder = ZlibEncoder::new(Vec::new(), compression_level);
+            encoder.write_all(input.as_bytes()).map_err(|e| e.to_string())?;
+            let compressed = encoder.finish().map_err(|e| e.to_string())?;
+            Ok(general_purpose::STANDARD.encode(compressed))
+        };
+        let encode_deflate = |input: &str| -> Result<String, String> {
+            let mut encoder = DeflateEncoder::new(Vec::new(), compression_level);
+            encoder.write_all(input.as_bytes()).map_err(|e| e.to_string())?;
+            let compressed = encoder.finish().map_err(|e| e.to_string())?;
+            Ok(general_purpose::STANDARD.encode(compressed))
+        };
+        let (primary_body, primary_label) = if encode_request {
+            (encode_zlib(&query)?, "zlib")
+        } else {
+            (query.clone(), "plain")
+        };
+
+        let timeout = Duration::from_secs(timeout_secs);
+        let mut builder = Client::builder().timeout(timeout).no_proxy();
+        if let Some(proxy) = proxy.as_deref() {
+            builder = builder.proxy(Proxy::all(proxy).map_err(|e| e.to_string())?);
+        }
+        let client = builder.build().map_err(|e| e.to_string())?;
+
+        let mut headers = HeaderMap::new();
+        let mut has_content_type = false;
+        let mut has_user_agent = false;
+        for raw in header_lines {
+            let line = raw.trim();
+            if line.is_empty() {
+                continue;
+            }
+            let (name, value) = line
+                .split_once(':')
+                .ok_or_else(|| format!("Invalid header: {}", line))?;
+            let name = name.trim();
+            let value = value.trim();
+            if name.is_empty() || value.is_empty() {
+                return Err(format!("Invalid header: {}", line));
+            }
+            let header_name = HeaderName::from_bytes(name.as_bytes()).map_err(|e| e.to_string())?;
+            let header_value = HeaderValue::from_str(value).map_err(|e| e.to_string())?;
+            if header_name == CONTENT_TYPE {
+                has_content_type = true;
+            }
+            if header_name == USER_AGENT {
+                has_user_agent = true;
+            }
+            headers.insert(header_name, header_value);
+        }
+        if !has_content_type {
+            headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/x-www-form-urlencoded"));
+        }
+        if !has_user_agent {
+            headers.insert(USER_AGENT, HeaderValue::from_static("ALL.Net"));
+        }
+        // DownloadOrder requires Pragma: DFI; force it to avoid empty responses.
+        headers.insert(HeaderName::from_static("pragma"), HeaderValue::from_static("DFI"));
+
+        if debug_logs {
+            let header_dump = headers
+                .iter()
+                .map(|(name, value)| {
+                    let value = value.to_str().unwrap_or("<binary>");
+                    format!("{}: {}", name.as_str(), value)
+                })
+                .collect::<Vec<_>>()
+                .join("; ");
+            eprintln!("[download_order] headers {}", header_dump);
+        }
+
+        let send_request = |body: &str, label: &str| -> Result<(u16, String, Option<u64>, String), String> {
+            if debug_logs {
+                let body_head = body.chars().take(80).collect::<String>();
+                eprintln!(
+                    "[download_order] sending {} body_len={} body_head={}",
+                    label,
+                    body.len(),
+                    body_head
+                );
+            }
+
+            if proxy.is_none() {
+                // Use raw TCP to ensure header casing (Pragma: DFI) which reqwest/hyper lowercases
+                use std::net::TcpStream;
+                use std::io::{Read, Write};
+                
+                let parsed_url = reqwest::Url::parse(&url).map_err(|e| e.to_string())?;
+                let host = parsed_url.host_str().ok_or("Invalid host")?;
+                let port = parsed_url.port_or_known_default().unwrap_or(80);
+                let path = parsed_url.path();
+                
+                let addr = format!("{}:{}", host, port);
+                let mut stream = TcpStream::connect(&addr).map_err(|e| format!("Connection failed: {}", e))?;
+                stream.set_read_timeout(Some(timeout)).ok();
+                stream.set_write_timeout(Some(timeout)).ok();
+                
+                let request = format!(
+                    "POST {} HTTP/1.1\r\n\
+                     Host: {}\r\n\
+                     User-Agent: ALL.Net\r\n\
+                     Pragma: DFI\r\n\
+                     Content-Type: application/x-www-form-urlencoded\r\n\
+                     Content-Length: {}\r\n\
+                     Connection: close\r\n\
+                     \r\n\
+                     {}",
+                    path, host, body.len(), body
+                );
+                
+                stream.write_all(request.as_bytes()).map_err(|e| e.to_string())?;
+                
+                let mut response_bytes = Vec::new();
+                stream.read_to_end(&mut response_bytes).map_err(|e| e.to_string())?;
+                
+                let response_str = String::from_utf8_lossy(&response_bytes);
+                let mut parts = response_str.splitn(2, "\r\n\r\n");
+                let header_part = parts.next().unwrap_or("");
+                let body_part = parts.next().unwrap_or("");
+                
+                let status_line = header_part.lines().next().unwrap_or("");
+                let mut status_parts = status_line.split_whitespace();
+                let _http_ver = status_parts.next();
+                let status_code_str = status_parts.next().unwrap_or("0");
+                let status_code: u16 = status_code_str.parse().unwrap_or(0);
+                let status_text = status_parts.collect::<Vec<_>>().join(" ");
+                
+                let content_length = header_part.lines()
+                    .find(|l| l.to_lowercase().starts_with("content-length:"))
+                    .and_then(|l| l.split(':').nth(1))
+                    .and_then(|v| v.trim().parse::<u64>().ok());
+
+                if debug_logs {
+                     eprintln!("[download_order] raw response status={} len={}", status_code, body_part.len());
+                }
+
+                Ok((status_code, status_text, content_length, body_part.to_string()))
+            } else {
+                let response = client
+                    .post(&url)
+                    .headers(headers.clone())
+                    .body(body.to_string())
+                    .send()
+                    .map_err(|e| e.to_string())?;
+                let status = response.status();
+                let status_code = status.as_u16();
+                let status_text = status.canonical_reason().unwrap_or("").to_string();
+                let content_length = response.content_length();
+                if debug_logs {
+                    let header_dump = response
+                        .headers()
+                        .iter()
+                        .map(|(name, value)| {
+                            let value = value.to_str().unwrap_or("<binary>");
+                            format!("{}: {}", name.as_str(), value)
+                        })
+                        .collect::<Vec<_>>()
+                        .join("; ");
+                    eprintln!(
+                        "[download_order] response url={} version={:?} status={} {} content_length={:?} headers={}",
+                        response.url(),
+                        response.version(),
+                        status_code,
+                        status_text,
+                        content_length,
+                        header_dump
+                    );
+                }
+                let text = response.text().map_err(|e| e.to_string())?;
+                Ok((status_code, status_text, content_length, text))
+            }
+        };
+
+        let (mut status_code, mut status_text, mut content_length, mut text) =
+            send_request(&primary_body, primary_label)?;
+
+        if encode_request && text.trim().is_empty() {
+            if debug_logs {
+                eprintln!("[download_order] empty response, retrying with raw deflate");
+            }
+            let fallback_body = encode_deflate(&query)?;
+            let (fallback_status, fallback_status_text, fallback_length, fallback_raw) =
+                send_request(&fallback_body, "deflate_raw")?;
+            status_code = fallback_status;
+            status_text = fallback_status_text;
+            content_length = fallback_length;
+            text = fallback_raw;
+        }
+        let trimmed = text.trim();
+        let mut decoded_text = String::new();
+        let mut decode_error = None;
+        if !trimmed.is_empty() {
+            match general_purpose::STANDARD.decode(trimmed) {
+                Ok(decoded) => {
+                    let mut decoder = ZlibDecoder::new(decoded.as_slice());
+                    let mut output = Vec::new();
+                    if let Err(err) = decoder.read_to_end(&mut output) {
+                        decode_error = Some(err.to_string());
+                    } else {
+                        decoded_text = String::from_utf8_lossy(&output).to_string();
+                    }
+                }
+                Err(err) => {
+                    decode_error = Some(err.to_string());
+                }
+            }
+        }
+        if debug_logs {
+            let raw_head = text.chars().take(120).collect::<String>();
+            eprintln!(
+                "[download_order] response status={} {} content_length={:?} raw_len={} raw_head={}",
+                status_code,
+                status_text,
+                content_length,
+                text.len(),
+                raw_head
+            );
+            if let Some(ref err) = decode_error {
+                eprintln!("[download_order] decode_error={}", err);
+            }
+            if !decoded_text.is_empty() {
+                let decoded_head = decoded_text.chars().take(120).collect::<String>();
+                eprintln!(
+                    "[download_order] decoded_len={} decoded_head={}",
+                    decoded_text.len(),
+                    decoded_head
+                );
+            }
+        }
+        Ok(DownloadOrderResponse {
+            raw: text,
+            decoded: decoded_text,
+            decode_error,
+            status_code,
+            status_text,
+            content_length,
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[command]
