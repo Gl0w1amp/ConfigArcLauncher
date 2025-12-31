@@ -66,10 +66,10 @@ function IconEditorJson() {
 function IconManageAime() {
   return (
     <svg {...iconProps} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="6" y="4" width="12" height="16" rx="2" />
-      <path d="M9 8h6" />
-      <path d="M9 12h6" />
-      <circle cx="12" cy="16" r="1" />
+      <rect x="3.5" y="6" width="17" height="12" rx="2.5" />
+      <path d="M3.5 9.5h17" />
+      <rect x="6.5" y="12" width="4" height="3" rx="0.8" />
+      <path d="M13.5 13.5h4" />
     </svg>
   );
 }
