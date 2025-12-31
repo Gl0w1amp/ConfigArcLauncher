@@ -217,6 +217,46 @@
   scrollbar-gutter: stable;
 }
 
+.download-order-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+}
+
+.download-order-progress-header,
+.download-order-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.download-order-progress-meta {
+  color: var(--text-muted);
+}
+
+.download-order-progress-track {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.download-order-progress-bar {
+  position: absolute;
+  inset: 0;
+  width: 0;
+  background: var(--accent-primary);
+  box-shadow: var(--shadow-glow);
+  transition: width 0.2s ease;
+}
+
 .download-order-dialog-item {
   display: grid;
   grid-template-columns: 20px 1fr;

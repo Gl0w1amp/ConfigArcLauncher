@@ -39,3 +39,6 @@ export const fetchDownloadOrderInstruction = (url: string) =>
 
 export const downloadOrderFiles = (items: DownloadOrderDownloadItem[]) =>
   invokeTauri<DownloadOrderDownloadResult[]>('download_order_download_files_cmd', { items });
+
+export const cancelDownloadOrder = () =>
+  invokeTauri<void>('download_order_cancel_cmd');

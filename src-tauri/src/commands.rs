@@ -29,9 +29,12 @@ use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use std::os::windows::process::CommandExt;
 use std::io::{Read, Write};
+
+static DOWNLOAD_ORDER_CANCELLED: AtomicBool = AtomicBool::new(false);
 
 fn redact_keychip_id(content: &str) -> String {
     let mut result = String::with_capacity(content.len());
@@ -1869,6 +1872,16 @@ pub struct DownloadOrderDownloadResult {
     pub path: String,
 }
 
+#[derive(Serialize, Clone)]
+pub struct DownloadOrderProgress {
+    pub percent: f64,
+    pub current_file: usize,
+    pub total_files: usize,
+    pub filename: String,
+    pub downloaded: u64,
+    pub total: Option<u64>,
+}
+
 fn sanitize_filename(name: &str) -> String {
     let mut result = String::with_capacity(name.len());
     for ch in name.chars() {
@@ -1940,6 +1953,12 @@ pub async fn download_order_fetch_text_cmd(url: String) -> Result<String, String
 }
 
 #[command]
+pub fn download_order_cancel_cmd() -> Result<(), String> {
+    DOWNLOAD_ORDER_CANCELLED.store(true, Ordering::SeqCst);
+    Ok(())
+}
+
+#[command]
 pub async fn download_order_download_files_cmd(
     app: AppHandle,
     items: Vec<DownloadOrderDownloadItem>,
@@ -1948,6 +1967,7 @@ pub async fn download_order_download_files_cmd(
         if items.is_empty() {
             return Err("No files selected".to_string());
         }
+        DOWNLOAD_ORDER_CANCELLED.store(false, Ordering::SeqCst);
         let download_dir = app
             .path()
             .download_dir()
@@ -1962,8 +1982,13 @@ pub async fn download_order_download_files_cmd(
             .map_err(|e| e.to_string())?;
         let mut used_names = HashSet::new();
         let mut results = Vec::with_capacity(items.len());
+        let total_files = items.len();
+        let is_cancelled = || DOWNLOAD_ORDER_CANCELLED.load(Ordering::SeqCst);
 
         for (index, item) in items.into_iter().enumerate() {
+            if is_cancelled() {
+                return Err("Download cancelled".to_string());
+            }
             let url = item.url.trim().to_string();
             if url.is_empty() {
                 return Err("URL is required".to_string());
@@ -1994,8 +2019,56 @@ pub async fn download_order_download_files_cmd(
                 .map_err(|e| e.to_string())?
                 .error_for_status()
                 .map_err(|e| e.to_string())?;
+            let total = resp.content_length();
             let mut file = fs::File::create(&path).map_err(|e| e.to_string())?;
-            std::io::copy(&mut resp, &mut file).map_err(|e| e.to_string())?;
+            let mut downloaded: u64 = 0;
+            let mut buffer = [0u8; 64 * 1024];
+            let mut last_emit = Instant::now();
+            let emit_progress = |done: bool,
+                                 downloaded: u64,
+                                 total: Option<u64>,
+                                 name: &str,
+                                 current_file: usize| {
+                let file_progress = match total {
+                    Some(total) if total > 0 => (downloaded as f64) / (total as f64),
+                    _ => {
+                        if done { 1.0 } else { 0.0 }
+                    }
+                };
+                let overall = ((current_file - 1) as f64 + file_progress) / (total_files as f64);
+                let percent = (overall * 100.0).clamp(0.0, 100.0);
+                let payload = DownloadOrderProgress {
+                    percent,
+                    current_file,
+                    total_files,
+                    filename: name.to_string(),
+                    downloaded,
+                    total,
+                };
+                let _ = app.emit("download-order-progress", payload);
+            };
+
+            let current_file = index + 1;
+            emit_progress(false, downloaded, total, &name, current_file);
+
+            loop {
+                let read = resp.read(&mut buffer).map_err(|e| e.to_string())?;
+                if read == 0 {
+                    break;
+                }
+                file.write_all(&buffer[..read]).map_err(|e| e.to_string())?;
+                downloaded = downloaded.saturating_add(read as u64);
+                if is_cancelled() {
+                    drop(file);
+                    let _ = fs::remove_file(&path);
+                    return Err("Download cancelled".to_string());
+                }
+                if last_emit.elapsed() >= Duration::from_millis(120) {
+                    emit_progress(false, downloaded, total, &name, current_file);
+                    last_emit = Instant::now();
+                }
+            }
+            emit_progress(true, downloaded, total, &name, current_file);
 
             results.push(DownloadOrderDownloadResult {
                 url,

@@ -1,6 +1,8 @@
-import { useRef, useState, type ChangeEvent } from 'react';
+import { useRef, useState, useEffect, type ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { listen } from '@tauri-apps/api/event';
 import {
+  cancelDownloadOrder,
   downloadOrderFiles,
   fetchDownloadOrderInstruction,
   requestDownloadOrder,
@@ -15,6 +17,14 @@ type DownloadItem = {
   id: string;
   name: string;
   url: string;
+};
+type DownloadProgress = {
+  percent: number;
+  current_file: number;
+  total_files: number;
+  filename: string;
+  downloaded: number;
+  total?: number | null;
 };
 
 const defaultHeaders = '';
@@ -42,6 +52,30 @@ function DownloadOrderPage() {
   const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
   const [instructionUrl, setInstructionUrl] = useState<string | null>(null);
   const [downloadBusy, setDownloadBusy] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null);
+
+  useEffect(() => {
+    let unlisten: (() => void) | null = null;
+    let disposed = false;
+    listen<DownloadProgress>('download-order-progress', (event) => {
+      setDownloadProgress(event.payload);
+    })
+      .then((fn) => {
+        if (disposed) {
+          fn();
+          return;
+        }
+        unlisten = fn;
+      })
+      .catch(console.error);
+
+    return () => {
+      disposed = true;
+      if (unlisten) {
+        unlisten();
+      }
+    };
+  }, []);
 
   const parseHeaders = (raw: string) =>
     raw
@@ -153,6 +187,7 @@ function DownloadOrderPage() {
     const selectedItems = downloadItems.filter((item) => downloadSelection[item.id]);
     if (!selectedItems.length) return;
     setDownloadBusy(true);
+    setDownloadProgress(null);
     try {
       const results = await downloadOrderFiles(
         selectedItems.map((item) => ({
@@ -169,6 +204,43 @@ function DownloadOrderPage() {
       );
       setDownloadDialogOpen(false);
     } catch (err) {
+      const message = String(err);
+      if (message.toLowerCase().includes('cancel')) {
+        showToast(
+          t('downloadOrder.downloadCancelled', {
+            defaultValue: 'Download cancelled.',
+          }),
+          'info'
+        );
+      } else {
+        showToast(
+          t('downloadOrder.downloadError', {
+            error: message,
+            defaultValue: `Download failed: ${message}`,
+          }),
+          'error'
+        );
+      }
+    } finally {
+      setDownloadBusy(false);
+      setDownloadProgress(null);
+    }
+  };
+
+  const handleCancelDownload = async () => {
+    if (!downloadBusy) {
+      setDownloadDialogOpen(false);
+      return;
+    }
+    try {
+      await cancelDownloadOrder();
+      showToast(
+        t('downloadOrder.downloadCanceling', {
+          defaultValue: 'Cancelling download...',
+        }),
+        'info'
+      );
+    } catch (err) {
       showToast(
         t('downloadOrder.downloadError', {
           error: String(err),
@@ -176,8 +248,6 @@ function DownloadOrderPage() {
         }),
         'error'
       );
-    } finally {
-      setDownloadBusy(false);
     }
   };
   const getValue = (config: DownloadOrderConfig, keys: string[]) => {
@@ -283,6 +353,19 @@ function DownloadOrderPage() {
     0
   );
   const allSelected = downloadItems.length > 0 && selectedCount === downloadItems.length;
+  const progressPercent = Math.min(100, Math.max(0, downloadProgress?.percent ?? 0));
+  const formatBytes = (value?: number | null) => {
+    if (value === undefined || value === null) return '';
+    if (value < 1024) return `${value} B`;
+    const units = ['KB', 'MB', 'GB'];
+    let size = value / 1024;
+    let unitIndex = 0;
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex += 1;
+    }
+    return `${size.toFixed(1)} ${units[unitIndex]}`;
+  };
 
   return (
     <div className="download-order-container">
@@ -432,7 +515,7 @@ function DownloadOrderPage() {
       {downloadDialogOpen && (
         <Modal
           title={t('downloadOrder.downloadDialogTitle', { defaultValue: 'Select downloads' })}
-          onClose={() => setDownloadDialogOpen(false)}
+          onClose={handleCancelDownload}
           width={640}
         >
           <div className="download-order-dialog">
@@ -449,6 +532,7 @@ function DownloadOrderPage() {
                 <input
                   type="checkbox"
                   checked={allSelected}
+                  disabled={downloadBusy}
                   onChange={(event) => {
                     const checked = event.target.checked;
                     const nextSelection: Record<string, boolean> = {};
@@ -472,6 +556,7 @@ function DownloadOrderPage() {
                   <input
                     type="checkbox"
                     checked={Boolean(downloadSelection[item.id])}
+                    disabled={downloadBusy}
                     onChange={(event) => {
                       const checked = event.target.checked;
                       setDownloadSelection((prev) => ({
@@ -487,12 +572,38 @@ function DownloadOrderPage() {
                 </label>
               ))}
             </div>
+            {downloadProgress && (
+              <div className="download-order-progress">
+                <div className="download-order-progress-header">
+                  <span>
+                    {t('downloadOrder.downloading', { defaultValue: 'Downloading' })}
+                  </span>
+                  <span>{progressPercent.toFixed(0)}%</span>
+                </div>
+                <div className="download-order-progress-track">
+                  <div
+                    className="download-order-progress-bar"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+                <div className="download-order-progress-meta">
+                  <span>{downloadProgress.filename}</span>
+                  <span>
+                    {downloadProgress.current_file}/{downloadProgress.total_files}
+                    {downloadProgress.total
+                      ? ` · ${formatBytes(downloadProgress.downloaded)} / ${formatBytes(
+                          downloadProgress.total
+                        )}`
+                      : ''}
+                  </span>
+                </div>
+              </div>
+            )}
             <div className="dialog-footer">
               <button
                 type="button"
                 className="dialog-btn dialog-btn-secondary"
-                onClick={() => setDownloadDialogOpen(false)}
-                disabled={downloadBusy}
+                onClick={handleCancelDownload}
               >
                 {t('common.cancel', { defaultValue: 'Cancel' })}
               </button>
