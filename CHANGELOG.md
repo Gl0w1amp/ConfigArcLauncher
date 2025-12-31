@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.5.0] - 2026-01-01
+
+### Features
+- Add Download Order auto-parse toggle with instruction-file selection and batch downloads.
+- Stream Download Order download progress with cancel support.
+
+### Fixes
+- Route instruction-file fetching and downloads through the backend to avoid webview fetch failures.
+
 ## [0.4.5] - 2025-12-31
 
 ### Features
