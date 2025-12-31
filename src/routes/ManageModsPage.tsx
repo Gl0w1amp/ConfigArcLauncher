@@ -146,9 +146,9 @@ function ManageModsPage() {
 
   return (
     <div style={{ display: 'grid', gap: 12 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="page-header">
         <div>
-          <h2 style={{ margin: 0 }}>{t('manage.mods.title')}{activeGame ? ` · ${activeGame.name}` : ''}</h2>
+          <h2>{t('manage.mods.title')}{activeGame ? ` · ${activeGame.name}` : ''}</h2>
           <small>{t('manage.mods.subtitle')}</small>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>

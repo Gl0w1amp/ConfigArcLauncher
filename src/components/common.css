@@ -32,3 +32,20 @@
   border-radius: var(--radius-md);
   margin: var(--spacing-md) 0;
 }
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0;
+}
+
+.page-header h2 {
+  margin: 0 0 4px 0;
+}
+
+.page-header small {
+  color: var(--text-muted);
+  display: block;
+  font-size: 0.9rem;
+}
