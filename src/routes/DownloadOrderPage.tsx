@@ -1,10 +1,21 @@
 import { useRef, useState, type ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { requestDownloadOrder } from '../api/downloadOrderApi';
+import {
+  downloadOrderFiles,
+  fetchDownloadOrderInstruction,
+  requestDownloadOrder,
+} from '../api/downloadOrderApi';
 import { useToast, ToastContainer } from '../components/common/Toast';
+import { Modal } from '../components/common/Modal';
+import '../components/common/Dialog.css';
 import './DownloadOrderPage.css';
 
 type DownloadOrderConfig = Record<string, any>;
+type DownloadItem = {
+  id: string;
+  name: string;
+  url: string;
+};
 
 const defaultHeaders = '';
 
@@ -25,6 +36,12 @@ function DownloadOrderPage() {
   const [decodeError, setDecodeError] = useState<string | null>(null);
   const [statusSummary, setStatusSummary] = useState('');
   const [loading, setLoading] = useState(false);
+  const [autoParse, setAutoParse] = useState(true);
+  const [downloadItems, setDownloadItems] = useState<DownloadItem[]>([]);
+  const [downloadSelection, setDownloadSelection] = useState<Record<string, boolean>>({});
+  const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
+  const [instructionUrl, setInstructionUrl] = useState<string | null>(null);
+  const [downloadBusy, setDownloadBusy] = useState(false);
 
   const parseHeaders = (raw: string) =>
     raw
@@ -32,6 +49,137 @@ function DownloadOrderPage() {
       .map((line) => line.trim())
       .filter(Boolean);
 
+  const extractInstructionUrl = (decoded: string) => {
+    const trimmed = decoded.trim();
+    if (!trimmed) return null;
+    try {
+      const params = new URLSearchParams(trimmed);
+      const uriParam = params.get('uri') ?? params.get('URI');
+      if (uriParam) {
+        const trimmedUri = uriParam.trim();
+        if (!trimmedUri) return null;
+        const parts = trimmedUri.split('|').map((part) => part.trim()).filter(Boolean);
+        return parts[0] ?? trimmedUri.replace(/^\|+/, '');
+      }
+    } catch {
+      // Fall back to regex parsing below.
+    }
+    const match = trimmed.match(/(?:^|[&?])uri=([^&]+)/i);
+    if (!match) return null;
+    const decodedParam = decodeURIComponent(match[1]);
+    const parts = decodedParam.split('|').map((part) => part.trim()).filter(Boolean);
+    return parts[0] ?? decodedParam.replace(/^\|+/, '');
+  };
+
+  const extractDownloadUrls = (text: string) => {
+    const urls: string[] = [];
+    const seen = new Set<string>();
+    for (const line of text.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith(';')) continue;
+      const match = trimmed.match(/^INSTALL\d*\s*=\s*(.+)$/i);
+      if (!match) continue;
+      const value = match[1].split(';')[0].trim();
+      if (!value || seen.has(value)) continue;
+      seen.add(value);
+      urls.push(value);
+    }
+    return urls;
+  };
+
+  const buildDownloadItems = (urls: string[]) =>
+    urls.map((url, index) => {
+      let name = `download-${index + 1}`;
+      try {
+        const pathname = new URL(url).pathname;
+        const last = pathname.split('/').filter(Boolean).pop();
+        if (last) {
+          name = decodeURIComponent(last);
+        }
+      } catch {
+        // Use fallback name if URL parsing fails.
+      }
+      return {
+        id: `${index}-${name}`,
+        name,
+        url,
+      };
+    });
+
+  const handleAutoParse = async (decoded: string) => {
+    const targetUrl = extractInstructionUrl(decoded);
+    if (!targetUrl) {
+      showToast(
+        t('downloadOrder.autoParseNoUri', {
+          defaultValue: 'No instruction file URL found in the decoded response.',
+        }),
+        'warning'
+      );
+      return;
+    }
+    setInstructionUrl(targetUrl);
+    try {
+      const text = await fetchDownloadOrderInstruction(targetUrl);
+      const urls = extractDownloadUrls(text);
+      if (!urls.length) {
+        showToast(
+          t('downloadOrder.downloadListEmpty', {
+            defaultValue: 'No download links found in the instruction file.',
+          }),
+          'info'
+        );
+        return;
+      }
+      const items = buildDownloadItems(urls);
+      const nextSelection: Record<string, boolean> = {};
+      items.forEach((item) => {
+        nextSelection[item.id] = true;
+      });
+      setDownloadItems(items);
+      setDownloadSelection(nextSelection);
+      setDownloadDialogOpen(true);
+    } catch (err) {
+      showToast(
+        t('downloadOrder.autoParseFailed', {
+          error: String(err),
+          defaultValue: `Failed to fetch instruction file: ${String(err)}`,
+        }),
+        'error'
+      );
+    }
+  };
+
+  const handleDownloadConfirm = async () => {
+    const selectedItems = downloadItems.filter((item) => downloadSelection[item.id]);
+    if (!selectedItems.length) return;
+    setDownloadBusy(true);
+    try {
+      const results = await downloadOrderFiles(
+        selectedItems.map((item) => ({
+          url: item.url,
+          filename: item.name,
+        }))
+      );
+      showToast(
+        t('downloadOrder.downloadOk', {
+          count: results.length,
+          defaultValue: `Downloaded ${results.length} file(s).`,
+        }),
+        'success'
+      );
+      setDownloadDialogOpen(false);
+    } catch (err) {
+      showToast(
+        t('downloadOrder.downloadError', {
+          error: String(err),
+          defaultValue: `Download failed: ${String(err)}`,
+        }),
+        'error'
+      );
+    } finally {
+      setDownloadBusy(false);
+    }
+  };
   const getValue = (config: DownloadOrderConfig, keys: string[]) => {
     for (const key of keys) {
       if (config[key] !== undefined && config[key] !== null && config[key] !== '') {
@@ -116,6 +264,9 @@ function DownloadOrderPage() {
       if (!result.decoded && result.raw) {
         showToast(t('downloadOrder.decodedEmpty'), 'warning');
       }
+      if (autoParse && result.decoded) {
+        void handleAutoParse(result.decoded);
+      }
       if (result.decode_error) {
         showToast(t('downloadOrder.decodeError', { error: result.decode_error }), 'error');
       }
@@ -127,14 +278,11 @@ function DownloadOrderPage() {
     }
   };
 
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(response);
-      showToast(t('downloadOrder.copyOk'), 'success');
-    } catch (err) {
-      showToast(t('downloadOrder.copyError', { error: String(err) }), 'error');
-    }
-  };
+  const selectedCount = downloadItems.reduce(
+    (count, item) => count + (downloadSelection[item.id] ? 1 : 0),
+    0
+  );
+  const allSelected = downloadItems.length > 0 && selectedCount === downloadItems.length;
 
   return (
     <div className="download-order-container">
@@ -247,13 +395,17 @@ function DownloadOrderPage() {
           <div className="download-order-card-header">
             <h3>{t('downloadOrder.responseTitle')}</h3>
             <div className="download-order-actions">
-              <button
-                type="button"
-                onClick={handleCopy}
-                disabled={!response}
-              >
-                {t('downloadOrder.copy')}
-              </button>
+              <label className="download-order-auto-toggle">
+                <input
+                  type="checkbox"
+                  checked={autoParse}
+                  onChange={(event) => setAutoParse(event.target.checked)}
+                />
+                <span className="download-order-auto-slider" />
+                <span className="download-order-auto-label">
+                  {t('downloadOrder.autoParseLabel', { defaultValue: 'Auto parse' })}
+                </span>
+              </label>
             </div>
           </div>
           <div className="download-order-card-body">
@@ -277,6 +429,87 @@ function DownloadOrderPage() {
         </div>
       </div>
       <ToastContainer toasts={toasts} />
+      {downloadDialogOpen && (
+        <Modal
+          title={t('downloadOrder.downloadDialogTitle', { defaultValue: 'Select downloads' })}
+          onClose={() => setDownloadDialogOpen(false)}
+          width={640}
+        >
+          <div className="download-order-dialog">
+            {instructionUrl && (
+              <div className="download-order-dialog-source">
+                <span className="download-order-dialog-label">
+                  {t('downloadOrder.downloadDialogSource', { defaultValue: 'Instruction file' })}
+                </span>
+                <span className="download-order-dialog-url">{instructionUrl}</span>
+              </div>
+            )}
+            <div className="download-order-dialog-controls">
+              <label className="download-order-dialog-select">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={(event) => {
+                    const checked = event.target.checked;
+                    const nextSelection: Record<string, boolean> = {};
+                    downloadItems.forEach((item) => {
+                      nextSelection[item.id] = checked;
+                    });
+                    setDownloadSelection(nextSelection);
+                  }}
+                />
+                <span>
+                  {t('downloadOrder.downloadSelectAll', { defaultValue: 'Select all' })}
+                </span>
+              </label>
+              <span className="download-order-dialog-count">
+                {selectedCount}/{downloadItems.length}
+              </span>
+            </div>
+            <div className="download-order-dialog-list">
+              {downloadItems.map((item) => (
+                <label key={item.id} className="download-order-dialog-item">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(downloadSelection[item.id])}
+                    onChange={(event) => {
+                      const checked = event.target.checked;
+                      setDownloadSelection((prev) => ({
+                        ...prev,
+                        [item.id]: checked,
+                      }));
+                    }}
+                  />
+                  <div>
+                    <div className="download-order-dialog-name">{item.name}</div>
+                    <div className="download-order-dialog-url">{item.url}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
+            <div className="dialog-footer">
+              <button
+                type="button"
+                className="dialog-btn dialog-btn-secondary"
+                onClick={() => setDownloadDialogOpen(false)}
+                disabled={downloadBusy}
+              >
+                {t('common.cancel', { defaultValue: 'Cancel' })}
+              </button>
+              <button
+                type="button"
+                className="dialog-btn dialog-btn-primary"
+                onClick={handleDownloadConfirm}
+                disabled={downloadBusy || selectedCount === 0}
+              >
+                {downloadBusy
+                  ? t('downloadOrder.downloading', { defaultValue: 'Downloading...' })
+                  : t('downloadOrder.downloadSelected', { defaultValue: 'Download selected' })}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

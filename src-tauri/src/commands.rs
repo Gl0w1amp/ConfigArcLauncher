@@ -24,7 +24,7 @@ use reqwest::blocking::Client;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue, CONTENT_TYPE, USER_AGENT};
 use reqwest::Proxy;
 use std::collections::HashSet;
-use tauri::{command, Emitter, Window};
+use tauri::{command, AppHandle, Emitter, Manager, Window};
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -1854,6 +1854,160 @@ pub struct DownloadOrderResponse {
     pub status_code: u16,
     pub status_text: String,
     pub content_length: Option<u64>,
+}
+
+#[derive(Deserialize)]
+pub struct DownloadOrderDownloadItem {
+    pub url: String,
+    pub filename: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct DownloadOrderDownloadResult {
+    pub url: String,
+    pub filename: String,
+    pub path: String,
+}
+
+fn sanitize_filename(name: &str) -> String {
+    let mut result = String::with_capacity(name.len());
+    for ch in name.chars() {
+        let is_invalid = matches!(ch, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*')
+            || ch.is_control();
+        if is_invalid {
+            result.push('_');
+        } else {
+            result.push(ch);
+        }
+    }
+    let trimmed = result.trim().trim_end_matches('.');
+    if trimmed.is_empty() {
+        "download".to_string()
+    } else {
+        trimmed.to_string()
+    }
+}
+
+fn unique_filename(base: &str, used: &mut HashSet<String>, dir: &Path) -> String {
+    if !used.contains(base) && !dir.join(base).exists() {
+        used.insert(base.to_string());
+        return base.to_string();
+    }
+    let path = Path::new(base);
+    let stem = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or(base);
+    let ext = path.extension().and_then(|s| s.to_str());
+    let mut index = 1;
+    loop {
+        let candidate = if let Some(ext) = ext {
+            format!("{}-{}.{}", stem, index, ext)
+        } else {
+            format!("{}-{}", stem, index)
+        };
+        if !used.contains(&candidate) && !dir.join(&candidate).exists() {
+            used.insert(candidate.clone());
+            return candidate;
+        }
+        index += 1;
+    }
+}
+
+#[command]
+pub async fn download_order_fetch_text_cmd(url: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let trimmed = url.trim();
+        if trimmed.is_empty() {
+            return Err("URL is required".to_string());
+        }
+        let client = Client::builder()
+            .timeout(Duration::from_secs(30))
+            .build()
+            .map_err(|e| e.to_string())?;
+        let mut resp = client
+            .get(trimmed)
+            .send()
+            .map_err(|e| e.to_string())?
+            .error_for_status()
+            .map_err(|e| e.to_string())?;
+        let mut buffer = Vec::new();
+        resp.read_to_end(&mut buffer).map_err(|e| e.to_string())?;
+        Ok(String::from_utf8_lossy(&buffer).to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[command]
+pub async fn download_order_download_files_cmd(
+    app: AppHandle,
+    items: Vec<DownloadOrderDownloadItem>,
+) -> Result<Vec<DownloadOrderDownloadResult>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        if items.is_empty() {
+            return Err("No files selected".to_string());
+        }
+        let download_dir = app
+            .path()
+            .download_dir()
+            .map_err(|e| e.to_string())?;
+        if !download_dir.exists() {
+            fs::create_dir_all(&download_dir).map_err(|e| e.to_string())?;
+        }
+
+        let client = Client::builder()
+            .timeout(Duration::from_secs(120))
+            .build()
+            .map_err(|e| e.to_string())?;
+        let mut used_names = HashSet::new();
+        let mut results = Vec::with_capacity(items.len());
+
+        for (index, item) in items.into_iter().enumerate() {
+            let url = item.url.trim().to_string();
+            if url.is_empty() {
+                return Err("URL is required".to_string());
+            }
+            let mut name = item
+                .filename
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(sanitize_filename)
+                .unwrap_or_else(|| {
+                    reqwest::Url::parse(&url)
+                        .ok()
+                        .and_then(|parsed| {
+                            parsed
+                                .path_segments()
+                                .and_then(|segments| segments.last().map(str::to_string))
+                        })
+                        .map(|name| sanitize_filename(&name))
+                        .unwrap_or_else(|| format!("download-{}", index + 1))
+                });
+            name = unique_filename(&name, &mut used_names, &download_dir);
+            let path = download_dir.join(&name);
+
+            let mut resp = client
+                .get(&url)
+                .send()
+                .map_err(|e| e.to_string())?
+                .error_for_status()
+                .map_err(|e| e.to_string())?;
+            let mut file = fs::File::create(&path).map_err(|e| e.to_string())?;
+            std::io::copy(&mut resp, &mut file).map_err(|e| e.to_string())?;
+
+            results.push(DownloadOrderDownloadResult {
+                url,
+                filename: name,
+                path: path.to_string_lossy().into_owned(),
+            });
+        }
+
+        Ok(results)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[command]

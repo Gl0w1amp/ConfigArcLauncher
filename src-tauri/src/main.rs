@@ -62,6 +62,8 @@ fn main() {
             load_fsdecrypt_keys_cmd,
             decrypt_game_files_cmd,
             download_order_cmd,
+            download_order_fetch_text_cmd,
+            download_order_download_files_cmd,
             segatools_trust_status_cmd,
             deploy_segatoools_cmd,
             rollback_segatoools_cmd

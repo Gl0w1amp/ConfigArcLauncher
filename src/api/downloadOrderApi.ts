@@ -22,3 +22,20 @@ export type DownloadOrderResponse = {
 
 export const requestDownloadOrder = (payload: DownloadOrderPayload) =>
   invokeTauri<DownloadOrderResponse>('download_order_cmd', { payload });
+
+export type DownloadOrderDownloadItem = {
+  url: string;
+  filename?: string;
+};
+
+export type DownloadOrderDownloadResult = {
+  url: string;
+  filename: string;
+  path: string;
+};
+
+export const fetchDownloadOrderInstruction = (url: string) =>
+  invokeTauri<string>('download_order_fetch_text_cmd', { url });
+
+export const downloadOrderFiles = (items: DownloadOrderDownloadItem[]) =>
+  invokeTauri<DownloadOrderDownloadResult[]>('download_order_download_files_cmd', { items });
