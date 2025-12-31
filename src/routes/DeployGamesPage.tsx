@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { listen } from '@tauri-apps/api/event';
 import { decryptGameFiles, loadDecryptKeys, pickDecryptFiles } from '../api/deployGamesApi';
@@ -323,7 +324,7 @@ function DeployGamesPage() {
         </div>
       </div>
 
-      <ToastContainer toasts={toasts} />
+      {createPortal(<ToastContainer toasts={toasts} />, document.body)}
     </div>
   );
 }

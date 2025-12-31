@@ -1,5 +1,6 @@
 import type { ChangeEvent } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import SegatoolsEditor from '../components/config/SegatoolsEditor';
 import { useConfigState, useProfilesState } from '../state/configStore';
@@ -352,7 +353,7 @@ function ConfigEditorPage() {
           onCancel={() => setShowAdvancedConfirm(false)}
           isDangerous
         />
-      )}      <ToastContainer toasts={toasts} />
+      )}      {createPortal(<ToastContainer toasts={toasts} />, document.body)}
     </div>
   );
 }
