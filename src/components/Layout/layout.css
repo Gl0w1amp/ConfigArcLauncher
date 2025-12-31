@@ -258,7 +258,7 @@
   height: 100%;
   border-radius: 20px;
   padding: var(--spacing-xl);
-  background: var(--frame-surface);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.08), transparent 35%, transparent 70%, rgba(255, 255, 255, 0.04)), var(--frame-surface);
   border: 1px solid var(--frame-surface-border);
   box-shadow: var(--frame-surface-shadow);
   backdrop-filter: blur(12px);
@@ -288,14 +288,6 @@
   border-radius: 999px;
   background: linear-gradient(180deg, rgba(236, 72, 153, 0.6), rgba(59, 130, 246, 0.4));
   box-shadow: 0 0 12px var(--frame-glow);
-}
-
-.app-content-surface::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.08), transparent 35%, transparent 70%, rgba(255, 255, 255, 0.04));
-  pointer-events: none;
 }
 
 @keyframes app-pan {
