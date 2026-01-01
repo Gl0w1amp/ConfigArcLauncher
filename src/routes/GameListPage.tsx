@@ -30,6 +30,7 @@ function GameListPage() {
   const { t } = useTranslation();
   const { games, loading, error, activeGameId, reload, saveGame, deleteGame, activateGame } = useGamesState();
   const [editing, setEditing] = useState<Game | null>(null);
+  const [editingField, setEditingField] = useState<'execPath' | 'workdir' | 'launchArgs' | 'baseVhdPath' | 'patchVhdPath' | null>(null);
   const [gameToDelete, setGameToDelete] = useState<string | null>(null);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [launchProgress, setLaunchProgress] = useState<LaunchProgress | null>(null);
@@ -94,6 +95,7 @@ function GameListPage() {
   const handleSave = async (game: Game) => {
     await saveGame(game);
     setEditing(null);
+    setEditingField(null);
   };
 
   const handleLaunch = async (gameId: string, profileId?: string) => {
@@ -143,10 +145,10 @@ function GameListPage() {
     handleLaunch(selectedGameId, profileId || undefined);
   };
 
-  const handleEditSelected = () => {
-    if (selectedGame) {
-      setEditing(selectedGame);
-    }
+  const handleEditDetail = (field: 'execPath' | 'workdir' | 'launchArgs' | 'baseVhdPath' | 'patchVhdPath') => {
+    if (!selectedGame) return;
+    setEditing(selectedGame);
+    setEditingField(field);
   };
 
   const handleDeleteSelected = () => {
@@ -179,20 +181,31 @@ function GameListPage() {
   const isVhd = (selectedGame?.launch_mode ?? 'folder') === 'vhd';
   const detailItems = selectedGame ? [
     {
+      key: 'mode',
       label: t('games.mode'),
       value: isVhd ? t('games.modeVhd') : t('games.modeFolder'),
+      editable: false,
     },
     {
+      key: 'exec',
       label: isVhd ? t('games.vhdBase') : t('games.exec'),
       value: selectedGame.executable_path || '-',
+      editable: true,
+      field: isVhd ? 'baseVhdPath' : 'execPath',
     },
     {
+      key: 'workdir',
       label: t('games.workdir'),
       value: selectedGame.working_dir || '-',
+      editable: true,
+      field: 'workdir',
     },
     {
+      key: 'args',
       label: t('games.args'),
       value: selectedGame.launch_args.length ? selectedGame.launch_args.join(' ') : '-',
+      editable: !isVhd,
+      field: 'launchArgs',
     },
   ] : [];
 
@@ -212,7 +225,10 @@ function GameListPage() {
           </div>
         </div>
         <div className="games-header-actions">
-          <button onClick={() => setEditing(emptyGame())}>{t('games.add')}</button>
+          <button onClick={() => {
+            setEditing(emptyGame());
+            setEditingField(null);
+          }}>{t('games.add')}</button>
           <button onClick={reload}>Refresh</button>
         </div>
       </header>
@@ -262,12 +278,39 @@ function GameListPage() {
               </div>
               <div className="games-overview-body">
                 <div className="games-detail-grid">
-                  {detailItems.map((detail) => (
-                    <div key={detail.label} className="games-detail-card" title={detail.value}>
-                      <div className="games-detail-label">{detail.label}</div>
-                      <div className="games-detail-value">{detail.value}</div>
-                    </div>
-                  ))}
+                  {detailItems.map((detail) => {
+                    const content = (
+                      <>
+                        <div className="games-detail-label">{detail.label}</div>
+                        <div className="games-detail-value">{detail.value}</div>
+                      </>
+                    );
+                    if (detail.editable && detail.field) {
+                      return (
+                        <div
+                          key={detail.key}
+                          className="games-detail-card interactive"
+                          title={detail.value}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => handleEditDetail(detail.field)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              handleEditDetail(detail.field);
+                            }
+                          }}
+                        >
+                          {content}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={detail.key} className="games-detail-card" title={detail.value}>
+                        {content}
+                      </div>
+                    );
+                  })}
                 </div>
                 <div className="games-profile-row">
                   <div className="games-profile-label">Profile</div>
@@ -290,7 +333,6 @@ function GameListPage() {
                   {activeGameId === selectedGame.id && <span className="games-status active">{t('common.active')}</span>}
                 </div>
                 <div className="games-overview-actions">
-                  <button onClick={handleEditSelected}>{t('common.edit')}</button>
                   <button className="danger" onClick={handleDeleteSelected}>{t('common.delete')}</button>
                 </div>
               </div>
@@ -346,7 +388,12 @@ function GameListPage() {
         <GameEditorDialog
           game={editing}
           onSave={handleSave}
-          onCancel={() => setEditing(null)}
+          onCancel={() => {
+            setEditing(null);
+            setEditingField(null);
+          }}
+          initialField={editingField ?? undefined}
+          lockMode={games.some((game) => game.id === editing.id)}
         />
       )}
       {gameToDelete && (

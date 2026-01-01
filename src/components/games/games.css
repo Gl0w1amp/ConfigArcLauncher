@@ -111,3 +111,97 @@
   padding: 8px 20px;
   font-weight: 600;
 }
+
+/* Game Editor Dialog */
+.game-editor-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: grid;
+  place-items: center;
+  z-index: 100;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease;
+}
+
+.game-editor-form {
+  background: var(--bg-secondary);
+  padding: 24px;
+  border-radius: 12px;
+  width: 480px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  animation: slideUp 0.2s ease;
+}
+
+.game-editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.game-editor-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.game-editor-label {
+  display: block;
+  margin-bottom: 16px;
+}
+
+.game-editor-label-text {
+  margin-bottom: 6px;
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.game-editor-input {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+  outline: none;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.game-editor-input:hover {
+  border-color: var(--text-secondary);
+}
+
+.game-editor-input:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.game-editor-input.monospace {
+  font-family: 'JetBrains Mono', "Microsoft YaHei", "Meiryo", monospace;
+  font-size: 0.85rem;
+}
+
+.game-editor-panel-wrapper {
+  margin-bottom: 8px;
+  position: relative;
+  overflow: hidden;
+  /* Add padding to prevent focus ring clipping */
+  padding: 4px;
+  margin: -4px -4px 4px -4px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}

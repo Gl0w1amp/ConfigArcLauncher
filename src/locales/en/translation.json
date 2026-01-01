@@ -69,8 +69,13 @@
       "baseVhdPath": "Base VHD Path",
       "patchVhdPath": "Patch VHD Path",
       "workdirOptional": "Working Directory (optional)",
-      "launchArgs": "Launch Arguments (space separated)",
+      "launchArgs": "Launch Arguments",
+      "launchArgsPlaceholder": "Type an argument and press Enter",
+      "launchArgsEmpty": "No arguments yet",
+      "addArg": "Add",
+      "removeArg": "Remove argument",
       "deltaEnabled": "Enable runtime delta",
+      "modeLocked": "Launch mode is locked and cannot be changed.",
       "vhdMissing": "Base and patch VHD paths are required for VHD mode.",
       "save": "Save Game"
     }

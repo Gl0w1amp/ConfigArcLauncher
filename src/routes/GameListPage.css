@@ -310,6 +310,46 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.games-detail-grid .games-detail-card {
+  animation: games-fade-up 0.32s ease both;
+}
+
+.games-detail-grid .games-detail-card:nth-child(1) {
+  animation-delay: 0.04s;
+}
+
+.games-detail-grid .games-detail-card:nth-child(2) {
+  animation-delay: 0.08s;
+}
+
+.games-detail-grid .games-detail-card:nth-child(3) {
+  animation-delay: 0.12s;
+}
+
+.games-detail-grid .games-detail-card:nth-child(4) {
+  animation-delay: 0.16s;
+}
+
+.games-detail-grid .games-detail-card:nth-child(5) {
+  animation-delay: 0.2s;
+}
+
+.games-detail-card.interactive {
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.games-detail-card.interactive:hover {
+  border-color: rgba(59, 130, 246, 0.55);
+  box-shadow: var(--shadow-glow);
+  transform: translateY(-1px);
+}
+
+.games-detail-card.interactive:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
 .games-detail-label {
   font-size: 0.7rem;
   text-transform: uppercase;
@@ -549,6 +589,17 @@
   from {
     opacity: 0;
     transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes games-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
