@@ -193,6 +193,36 @@ fn detect_game_in_dir(dir: &Path) -> Option<DetectedGameInfo> {
     None
 }
 
+fn detect_game_with_fallback(dir: &Path) -> Option<DetectedGameInfo> {
+    if let Some(detected) = detect_game_in_dir(dir) {
+        return Some(detected);
+    }
+
+    let package_bin = dir.join("package").join("bin");
+    if let Some(detected) = detect_game_in_dir(&package_bin) {
+        return Some(detected);
+    }
+
+    let mut subdirs = Vec::new();
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                subdirs.push(path);
+            }
+        }
+    }
+    subdirs.sort_by_key(|p| p.to_string_lossy().to_lowercase());
+
+    for subdir in subdirs {
+        if let Some(detected) = detect_game_in_dir(&subdir) {
+            return Some(detected);
+        }
+    }
+
+    None
+}
+
 fn build_folder_game(detected: DetectedGameInfo) -> Game {
     Game {
         id: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis().to_string(),
@@ -690,7 +720,7 @@ fn build_vhd_game(dir: &Path, vhd: &VhdConfig) -> Game {
 }
 
 fn auto_detect_game_in_dir(dir: &Path) -> Result<AutoDetectResult, String> {
-    if let Some(detected) = detect_game_in_dir(dir) {
+    if let Some(detected) = detect_game_with_fallback(dir) {
         return Ok(AutoDetectResult {
             game: build_folder_game(detected),
             vhd: None,
