@@ -52,27 +52,27 @@
       "workdirOptional": "工作目录 (可选)",
       "launchArgs": "启动参数 (空格分隔)",
       "save": "保存游戏",
-      "autoDetectVhd": "???? VHD ???",
+      "autoDetectVhd": "自动检测 VHD 文件夹",
       "mode": "启动模式",
       "modeFolder": "文件夹",
       "modeVhd": "VHD",
-      "baseVhdPath": "?? VHD ??",
-      "patchVhdPath": "??? VHD ??",
-      "deltaEnabled": "????????",
-      "vhdMissing": "VHD ???????????????"
+      "baseVhdPath": "基础 VHD 路径",
+      "patchVhdPath": "补丁 VHD 路径",
+      "deltaEnabled": "启用运行时增量",
+      "vhdMissing": "VHD 模式需要填写基础和补丁 VHD 路径。"
     },
     "mode": "模式",
     "modeFolder": "文件夹",
     "modeVhd": "VHD",
-    "vhdBase": "?? VHD",
+    "vhdBase": "基础 VHD",
     "launchProgress": {
-      "title": "???? {{name}}",
-      "mounting": "???? VHD...",
-      "detecting": "????????...",
-      "configuring": "???? segatools ??...",
-      "launching": "??????...",
-      "started": "?????",
-      "error": "????"
+      "title": "正在启动 {{name}}",
+      "mounting": "正在挂载 VHD...",
+      "detecting": "正在检测游戏文件...",
+      "configuring": "正在更新 segatools 设置...",
+      "launching": "正在启动游戏...",
+      "started": "游戏已启动",
+      "error": "启动失败"
     }
   },
   "config": {
@@ -229,8 +229,8 @@
       "title": "启动时检查更新",
       "desc": "开启后，启动时会检查 GitHub Releases 并在安装前提示确认。"
     },
-    "extensions": "??",
-    "extensionsEmpty": "?????????"
+    "extensions": "扩展",
+    "extensionsEmpty": "暂无已注册扩展。"
   },
   "updater": {
     "title": "发现新版本",
@@ -826,8 +826,8 @@
     "sourceRemote": "远程"
   },
   "utilities": {
-    "title": "????",
-    "subtitle": "??????????????",
+    "title": "工具",
+    "subtitle": "内置工具，可按需启用或隐藏。",
     "emptyTitle": "暂无可用工具",
     "emptySubtitle": "请在设置中启用，或检查更新。"
   },
@@ -835,43 +835,45 @@
     "disabled": "已禁用",
     "open": "打开",
     "enableInSettings": "去设置启用",
-    "disabledTitle": "?????",
+    "disabledTitle": "扩展已禁用",
     "disabledBody": "请在设置中启用 {{name}}。",
     "openSettings": "打开设置",
-    "title": "??",
-    "subtitle": "???????????????"
+    "title": "扩展",
+    "subtitle": "应用内置的可选模块和工具。"
   },
   "rail": {
-    "status": "??",
-    "help": "??"
+    "status": "状态",
+    "help": "帮助"
   },
   "downloadOrder": {
     "title": "Download Order",
-    "subtitle": "?? DownloadOrder ??????????",
-    "requestTitle": "??",
-    "responseTitle": "??",
-    "urlLabel": "?? URL",
-    "gameIdLabel": "?? ID",
-    "verLabel": "??",
-    "serialLabel": "???",
-    "proxyLabel": "??????",
-    "timeoutLabel": "?????",
+    "subtitle": "发送 DownloadOrder 请求并解码响应。",
+    "requestTitle": "请求",
+    "responseTitle": "响应",
+    "urlLabel": "请求 URL",
+    "gameIdLabel": "游戏 ID",
+    "verLabel": "版本",
+    "serialLabel": "序列号",
+    "proxyLabel": "代理（可选）",
+    "timeoutLabel": "超时（秒）",
+    "optionsLabel": "选项",
+    "encodeRequest": "编码请求（Base64+Deflate）",
     "headersLabel": "HTTP Header",
-    "headersHint": "????????Key: Value?",
-    "request": "????",
-    "requesting": "???...",
-    "requestOk": "????",
-    "importConfig": "????",
-    "importOk": "?????",
-    "importError": "???????{{error}}",
-    "copy": "??",
-    "copyOk": "???",
-    "copyError": "?????{{error}}",
-    "responseEmpty": "?????",
-    "decoded": "????",
-    "raw": "????",
-    "decodedEmpty": "???????????????",
-    "decodeError": "?????{{error}}",
-    "statusLabel": "??"
+    "headersHint": "每行一个请求头，格式：Key: Value。",
+    "request": "发送请求",
+    "requesting": "请求中...",
+    "requestOk": "请求完成",
+    "importConfig": "导入配置",
+    "importOk": "配置已加载",
+    "importError": "加载配置失败：{{error}}",
+    "copy": "复制",
+    "copyOk": "响应已复制",
+    "copyError": "复制失败：{{error}}",
+    "responseEmpty": "暂无响应。",
+    "decoded": "解码后",
+    "raw": "原始",
+    "decodedEmpty": "解码响应为空，显示原始数据。",
+    "decodeError": "解码失败：{{error}}",
+    "statusLabel": "状态"
   }
 }
