@@ -24,10 +24,10 @@ function parseArgs(args: string[]): ArgRow[] {
     const current = args[i];
     const next = args[i + 1];
     if (current.startsWith('-') && next && !next.startsWith('-')) {
-      rows.push({ id: generateId(), param: current, value: next });
+      rows.push({ id: generateId(), param: current.replace(/^-/, ''), value: next });
       i++;
     } else {
-      rows.push({ id: generateId(), param: current, value: '' });
+      rows.push({ id: generateId(), param: current.replace(/^-/, ''), value: '' });
     }
   }
   return rows;
@@ -36,7 +36,10 @@ function parseArgs(args: string[]): ArgRow[] {
 function flattenArgs(rows: ArgRow[]): string[] {
   const args: string[] = [];
   for (const row of rows) {
-    if (row.param) args.push(row.param);
+    if (row.param) {
+      const param = row.param.startsWith('-') ? row.param : `-${row.param}`;
+      args.push(param);
+    }
     if (row.value) args.push(row.value);
   }
   return args;
@@ -157,6 +160,7 @@ function GameEditorDialog({ game, onSave, onCancel, initialField, lockMode }: Pr
   const showExecPath = !isCompact || initialField === 'execPath';
   const showWorkdir = !isCompact || initialField === 'workdir';
   const showLaunchArgs = !isCompact || initialField === 'launchArgs';
+  const isChunithm = draft.name === 'Chunithm' || draft.executable_path?.toLowerCase().endsWith('chusanapp.exe');
 
   const handleArgRowChange = (index: number, field: 'param' | 'value', value: string) => {
     const newRows = [...argRows];
@@ -399,31 +403,34 @@ function GameEditorDialog({ game, onSave, onCancel, initialField, lockMode }: Pr
             )}
             {showLaunchArgs && (
               <label className="game-editor-label">
-                <div className="game-editor-label-text">{t('games.editor.launchArgs')}</div>
+                <div className="game-editor-label-text">
+                  {t('games.editor.launchArgs')}
+                  {isChunithm && <span style={{ color: 'var(--warning)', marginLeft: 8, fontSize: '0.8em' }}>{t('games.editor.argsLocked')}</span>}
+                </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '300px', overflowY: 'auto', padding: '4px 2px' }}>
                   {argRows.map((row, index) => (
                     <div key={row.id} style={{ display: 'flex', gap: 8 }}>
                       <input
                         ref={index === 0 ? argsInputRef : undefined}
                         value={row.param}
-                        disabled={isVhd}
+                        disabled={isVhd || isChunithm}
                         onChange={(e) => handleArgRowChange(index, 'param', e.target.value)}
                         className="game-editor-input monospace"
-                        placeholder="Parameter"
+                        placeholder={t('games.editor.argParamPlaceholder')}
                         style={{ flex: 1 }}
                       />
                       <input
                         value={row.value}
-                        disabled={isVhd}
+                        disabled={isVhd || isChunithm}
                         onChange={(e) => handleArgRowChange(index, 'value', e.target.value)}
                         className="game-editor-input monospace"
-                        placeholder="Value"
+                        placeholder={t('games.editor.argValuePlaceholder')}
                         style={{ flex: 1 }}
                       />
                       <button
                         type="button"
                         onClick={() => handleRemoveArgRow(index)}
-                        disabled={isVhd}
+                        disabled={isVhd || isChunithm}
                         style={{
                           padding: '0 12px',
                           background: 'rgba(239, 68, 68, 0.1)',
@@ -440,24 +447,26 @@ function GameEditorDialog({ game, onSave, onCancel, initialField, lockMode }: Pr
                       </button>
                     </div>
                   ))}
-                  <button
-                    type="button"
-                    onClick={handleAddArgRow}
-                    disabled={isVhd}
-                    style={{
-                      padding: '8px 12px',
-                      background: 'var(--bg-tertiary)',
-                      border: '1px solid var(--border-color)',
-                      color: 'var(--text-primary)',
-                      borderRadius: 6,
-                      cursor: 'pointer',
-                      fontSize: '0.9rem',
-                      width: '100%',
-                      marginTop: 4,
-                    }}
-                  >
-                    + {t('games.editor.addArg')}
-                  </button>
+                  {!isChunithm && (
+                    <button
+                      type="button"
+                      onClick={handleAddArgRow}
+                      disabled={isVhd}
+                      style={{
+                        padding: '8px 12px',
+                        background: 'var(--bg-tertiary)',
+                        border: '1px solid var(--border-color)',
+                        color: 'var(--text-primary)',
+                        borderRadius: 6,
+                        cursor: 'pointer',
+                        fontSize: '0.9rem',
+                        width: '100%',
+                        marginTop: 4,
+                      }}
+                    >
+                      + {t('games.editor.addArg')}
+                    </button>
+                  )}
                 </div>
               </label>
             )}
