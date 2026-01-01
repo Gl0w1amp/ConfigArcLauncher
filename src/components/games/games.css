@@ -68,7 +68,7 @@
   background: var(--bg-tertiary);
   padding: var(--spacing-sm);
   border-radius: var(--radius-sm);
-  font-family: 'Consolas', monospace;
+  font-family: 'Consolas', "Microsoft YaHei", "Meiryo", monospace;
 }
 
 .game-details div {

@@ -164,7 +164,7 @@
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 8px 10px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'JetBrains Mono', "Microsoft YaHei", "Meiryo", monospace;
   font-size: 0.85rem;
   white-space: nowrap;
   overflow: hidden;
@@ -315,7 +315,7 @@
 
 .result-path {
   font-weight: 600;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'JetBrains Mono', "Microsoft YaHei", "Meiryo", monospace;
   font-size: 0.9rem;
   white-space: nowrap;
   overflow: hidden;

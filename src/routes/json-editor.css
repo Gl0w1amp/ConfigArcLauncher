@@ -148,7 +148,7 @@
 
 .json-field textarea {
   min-height: 120px;
-  font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
+  font-family: 'JetBrains Mono', 'Consolas', 'Courier New', "Microsoft YaHei", "Meiryo", monospace;
   resize: vertical;
 }
 

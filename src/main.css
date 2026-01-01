@@ -37,6 +37,15 @@
   --frame-spot-c: rgba(236, 72, 153, 0.2);
   --frame-sparkle: rgba(255, 255, 255, 0.12);
 
+  --font-ui-latin: "Bahnschrift", "Segoe UI", system-ui, sans-serif;
+  --font-ui-zh: "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+  --font-ui-ja: "Meiryo", "Yu Gothic UI", "Noto Sans CJK JP", "MS PGothic", system-ui, sans-serif;
+  --font-ui: "Bahnschrift", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", "Meiryo", "Yu Gothic UI", "Noto Sans CJK SC", "Noto Sans CJK JP", system-ui, sans-serif;
+
+  --control-font-size: 0.95rem;
+  --control-line-height: 1.1;
+  --control-min-height: 32px;
+
   /* Spacing */
   --spacing-xs: 4px;
   --spacing-sm: 8px;
@@ -91,6 +100,14 @@
   --shadow-glow: 0 0 15px rgba(59, 130, 246, 0.25);
 }
 
+:root:lang(zh) {
+  --font-ui: var(--font-ui-zh);
+}
+
+:root:lang(ja) {
+  --font-ui: var(--font-ui-ja);
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
 }
@@ -101,7 +118,7 @@ body, html {
   height: 100%;
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-family: "Bahnschrift", "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -131,7 +148,9 @@ button {
   padding: 8px 16px;
   border-radius: var(--radius-md);
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: var(--control-font-size);
+  line-height: var(--control-line-height);
+  min-height: var(--control-min-height);
   transition: all 0.2s ease;
   display: inline-flex;
   align-items: center;

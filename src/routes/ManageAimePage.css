@@ -129,7 +129,7 @@
 }
 
 .aime-number-display {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'JetBrains Mono', "Microsoft YaHei", "Meiryo", monospace;
   font-size: 1.5rem;
   letter-spacing: 2px;
   color: var(--accent-primary);
@@ -216,7 +216,7 @@
 
 .aime-item-number {
   color: var(--text-muted);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'JetBrains Mono', "Microsoft YaHei", "Meiryo", monospace;
   font-size: 0.85rem;
 }
 

@@ -319,7 +319,7 @@
 }
 
 .games-detail-value {
-  font-family: "Consolas", monospace;
+  font-family: "Consolas", "Microsoft YaHei", "Meiryo", monospace;
   font-size: 0.9rem;
   color: var(--text-primary);
   white-space: nowrap;

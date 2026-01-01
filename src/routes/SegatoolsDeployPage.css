@@ -236,14 +236,14 @@
 }
 
 .file-path {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'JetBrains Mono', "Microsoft YaHei", "Meiryo", monospace;
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--text-primary);
 }
 
 .file-hash {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'JetBrains Mono', "Microsoft YaHei", "Meiryo", monospace;
   font-size: 0.8rem;
   color: var(--text-muted);
 }

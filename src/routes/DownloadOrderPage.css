@@ -150,7 +150,7 @@
   min-height: 220px;
   width: 100%;
   resize: vertical;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'JetBrains Mono', "Microsoft YaHei", "Meiryo", monospace;
   font-size: 0.85rem;
 }
 
