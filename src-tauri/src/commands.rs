@@ -1772,7 +1772,8 @@ pub fn store_io_dll_cmd(path: String) -> Result<String, String> {
     fs::create_dir_all(&io_dir).map_err(|e| e.to_string())?;
     let dest = unique_copy_destination(&io_dir, &src)?;
     fs::copy(&src, &dest).map_err(|e| e.to_string())?;
-    Ok(dest.to_string_lossy().into_owned())
+    let relative = dest.strip_prefix(base).unwrap_or(&dest);
+    Ok(relative.to_string_lossy().into_owned())
 }
 
 #[command]

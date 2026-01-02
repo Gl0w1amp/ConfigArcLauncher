@@ -17,7 +17,7 @@ type Props = {
   required?: boolean;
   options?: { label: string; value: string }[];
   commented?: boolean;
-  onUncomment?: () => void;
+  onUncomment?: (nextValue?: any) => void;
   allowDrop?: boolean;
   onDropError?: (message: string) => void;
 };
@@ -30,7 +30,7 @@ function OptionField({ label, type, value, onChange, helper, description, requir
   const wrapperRef = useRef<HTMLDivElement>(null);
   const scaleFactorRef = useRef<number>(window.devicePixelRatio || 1);
 
-  const canDrop = Boolean(allowDrop && type === 'text' && !commented);
+  const canDrop = Boolean(allowDrop && type === 'text');
 
   useEffect(() => {
     getCurrentWindow()
@@ -52,7 +52,11 @@ function OptionField({ label, type, value, onChange, helper, description, requir
     const handleDrop = async (path: string) => {
       try {
         const storedPath = await storeIoDll(path);
-        onChange(storedPath);
+        if (commented && onUncomment) {
+          onUncomment(storedPath);
+        } else {
+          onChange(storedPath);
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         if (onDropError) {
@@ -95,7 +99,7 @@ function OptionField({ label, type, value, onChange, helper, description, requir
     return () => {
       if (unlisten) unlisten();
     };
-  }, [canDrop, onChange, onDropError]);
+  }, [canDrop, commented, onChange, onDropError, onUncomment]);
 
   const handleCommentedClick = (e: React.MouseEvent) => {
     if (commented) {

@@ -397,16 +397,36 @@ function SegatoolsEditor({ config, onChange, activeGame, advanced = false, onDro
   const presentKeys = (config.presentKeys ?? []).map((k) => k.toLowerCase());
   const commentedKeys = (config.commentedKeys ?? []).map((k) => k.toLowerCase());
 
-  const updateValue = (section: keyof SegatoolsConfig, field: string, value: any) => {
+  const updateValue = (
+    section: keyof SegatoolsConfig,
+    field: string,
+    value: any,
+    options?: { uncomment?: boolean }
+  ) => {
     // Ensure the section is marked as present when modified
     let newPresentSections = config.presentSections;
     if (newPresentSections && !newPresentSections.includes(section as string)) {
       newPresentSections = [...newPresentSections, section as string];
     }
+    const fullKey = `${section}.${field}`.toLowerCase();
+    let newPresentKeys = config.presentKeys;
+    if (newPresentKeys && newPresentKeys.length > 0) {
+      if (!newPresentKeys.some((k) => k.toLowerCase() === fullKey)) {
+        newPresentKeys = [...newPresentKeys, fullKey];
+      }
+    }
+    let newCommentedKeys = config.commentedKeys;
+    if (options?.uncomment) {
+      newCommentedKeys = (config.commentedKeys ?? []).filter(
+        (k) => k.toLowerCase() !== fullKey
+      );
+    }
 
     onChange({
       ...config,
       presentSections: newPresentSections,
+      presentKeys: newPresentKeys,
+      commentedKeys: newCommentedKeys,
       [section]: {
         ...(config as any)[section],
         [field]: value
@@ -450,12 +470,11 @@ function SegatoolsEditor({ config, onChange, activeGame, advanced = false, onDro
                   commented={isCommented}
                   allowDrop={field.allowDrop}
                   onDropError={onDropError}
-                  onUncomment={() => {
-                    const newCommentedKeys = config.commentedKeys?.filter(k => k !== fullKey) || [];
-                    onChange({
-                      ...config,
-                      commentedKeys: newCommentedKeys
-                    });
+                  onUncomment={(nextValue) => {
+                    const valueToUse = nextValue !== undefined
+                      ? nextValue
+                      : (config as any)[section.key][field.name];
+                    updateValue(section.key, field.name, valueToUse, { uncomment: true });
                   }}
                 />
               );
