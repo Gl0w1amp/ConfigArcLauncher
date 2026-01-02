@@ -284,12 +284,12 @@ function ConfigEditorPage() {
           <Link to="/deploy" style={{ textDecoration: 'none' }}>
             <button className="config-toolbar-button" type="button">{t('config.openDeploy')}</button>
           </Link>
-          <button className="config-toolbar-button" type="button" onClick={handleOpenConfigFolder}>
-            {t('config.openConfigFolder', { defaultValue: 'Open Config Folder' })}
-          </button>
         </div>
 
         <div className="config-toolbar-right">
+          <button className="config-toolbar-button" type="button" onClick={handleOpenConfigFolder}>
+            {t('config.openConfigFolder', { defaultValue: 'Open Config Folder' })}
+          </button>
           <button className="config-toolbar-button" onClick={handleAutoCompleteVfs}>
             {t('config.autoComplete', { defaultValue: 'Auto Complete' })}
           </button>

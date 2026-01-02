@@ -267,8 +267,8 @@ input:focus + .toggle-slider {
 }
 
 .config-toolbar-button {
-  padding: 4px 8px;
-  font-size: 0.9rem;
+  padding: 2px 6px;
+  font-size: 0.85rem;
 }
 
 .config-trust-status {
