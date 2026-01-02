@@ -38,6 +38,7 @@ fn main() {
             pick_decrypt_files_cmd,
             default_segatoools_config_cmd,
             segatoools_path_cmd,
+            open_segatoools_folder_cmd,
             get_data_paths_cmd,
             get_active_game_cmd,
             scan_game_vfs_folders_cmd,

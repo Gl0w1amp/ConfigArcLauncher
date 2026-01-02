@@ -112,6 +112,8 @@
     "trustFailed": "未通过可信校验",
     "trustRefresh": "重新校验",
     "openDeploy": "前往部署",
+    "openConfigFolder": "\u6253\u5f00\u914d\u7f6e\u6587\u4ef6\u5939",
+    "openConfigFolderFailed": "\u6253\u5f00\u914d\u7f6e\u6587\u4ef6\u5939\u5931\u8d25\uff1a{{reason}}",
     "trustWarningTitle": "未通过可信校验",
     "trustWarningMessage": "非开源可信版本的 segatools，建议更换。",
     "trustReason": "原因：{{reason}}",

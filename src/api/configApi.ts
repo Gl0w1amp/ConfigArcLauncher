@@ -10,6 +10,7 @@ export const loadProfile = (id: string) => invokeTauri<ConfigProfile>('load_prof
 export const saveProfile = (profile: ConfigProfile) => invokeTauri<void>('save_profile_cmd', { profile });
 export const deleteProfile = (id: string) => invokeTauri<void>('delete_profile_cmd', { id });
 export const getSegatoolsPath = () => invokeTauri<string>('segatoools_path_cmd');
+export const openSegatoolsFolder = () => invokeTauri<void>('open_segatoools_folder_cmd');
 export const exportSegatoolsConfig = () => invokeTauri<string>('export_segatoools_config_cmd');
 export const importSegatoolsConfig = (content: string) => invokeTauri<SegatoolsConfig>('import_segatoools_config_cmd', { content });
 export const exportProfile = (profileId?: string) => invokeTauri<string>('export_profile_cmd', { profileId });

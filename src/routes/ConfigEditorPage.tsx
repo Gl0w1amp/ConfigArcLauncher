@@ -11,7 +11,7 @@ import { useToast, ToastContainer } from '../components/common/Toast';
 import { PromptDialog } from '../components/common/PromptDialog';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { Link } from 'react-router-dom';
-import { exportProfile, importProfile, loadDefaultSegatoolsConfig, scanGameVfsFolders } from '../api/configApi';
+import { exportProfile, importProfile, loadDefaultSegatoolsConfig, openSegatoolsFolder, scanGameVfsFolders } from '../api/configApi';
 import '../components/config/config.css';
 
 function ConfigEditorPage() {
@@ -176,6 +176,20 @@ function ConfigEditorPage() {
     fileInputRef.current?.click();
   };
 
+  const handleOpenConfigFolder = async () => {
+    try {
+      await openSegatoolsFolder();
+    } catch (err) {
+      showToast(
+        t('config.openConfigFolderFailed', {
+          reason: String(err),
+          defaultValue: `Failed to open config folder: ${String(err)}`
+        }),
+        'error'
+      );
+    }
+  };
+
   const handleImportFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -270,6 +284,9 @@ function ConfigEditorPage() {
           <Link to="/deploy" style={{ textDecoration: 'none' }}>
             <button className="config-toolbar-button" type="button">{t('config.openDeploy')}</button>
           </Link>
+          <button className="config-toolbar-button" type="button" onClick={handleOpenConfigFolder}>
+            {t('config.openConfigFolder', { defaultValue: 'Open Config Folder' })}
+          </button>
         </div>
 
         <div className="config-toolbar-right">

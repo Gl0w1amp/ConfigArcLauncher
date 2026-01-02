@@ -1147,6 +1147,22 @@ pub fn segatoools_path_cmd() -> Result<String, String> {
 }
 
 #[command]
+pub fn open_segatoools_folder_cmd() -> Result<(), String> {
+    let ini_path = segatoools_path_for_active().map_err(|e| e.to_string())?;
+    let dir = ini_path
+        .parent()
+        .ok_or_else(|| "Config folder not found".to_string())?;
+    if !dir.exists() {
+        return Err("Config folder not found".to_string());
+    }
+    Command::new("explorer")
+        .arg(dir)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[command]
 pub fn get_data_paths_cmd() -> Result<DataPaths, String> {
     let (cfg, base) = load_active_seg_config()?;
     Ok(DataPaths {
