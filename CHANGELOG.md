@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.5.1] - 2026-01-02
+
+### Features
+- Add a Config Editor button to open the current segatools config folder.
+- Allow IO DLL drop targets to auto-uncomment commented values and fill them.
+
+### Fixes
+- Store dropped IO DLL paths as relative to the config folder for cleaner display.
+- Tighten config toolbar button sizing.
+
 ## [0.5.0] - 2026-01-01
 
 ### Features
