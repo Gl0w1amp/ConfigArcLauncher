@@ -58,7 +58,7 @@ export function useConfigState() {
       const cfg = await loadSegatoolsConfig();
       setConfig(cfg);
       setError(null);
-      await refreshTrust();
+      void refreshTrust();
     } catch (err) {
       setError(String(err));
       setConfig(null);

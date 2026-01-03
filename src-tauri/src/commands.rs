@@ -2421,8 +2421,12 @@ pub async fn download_order_cmd(payload: DownloadOrderRequest) -> Result<Downloa
 }
 
 #[command]
-pub fn segatools_trust_status_cmd() -> Result<SegatoolsTrustStatus, String> {
-    verify_segatoools_for_active().map_err(|e| e.to_string())
+pub async fn segatools_trust_status_cmd() -> Result<SegatoolsTrustStatus, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        verify_segatoools_for_active().map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[command]
