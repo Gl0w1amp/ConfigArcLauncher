@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fetchTrustStatus, deploySegatools, rollbackSegatools } from '../api/trustedApi';
 import { SegatoolsTrustStatus } from '../types/trusted';
@@ -38,22 +38,34 @@ function SegatoolsDeployPage() {
   const [rollbacking, setRollbacking] = useState<boolean>(false);
   const [confirming, setConfirming] = useState<boolean>(false);
   const [pendingFiles, setPendingFiles] = useState<string[]>([]);
+  const loadRequestRef = useRef(0);
   const { toasts, showToast } = useToast();
 
   const activeGame = useMemo(() => games.find(g => g.id === activeGameId), [games, activeGameId]);
 
   const loadStatus = async () => {
+    const requestId = ++loadRequestRef.current;
+    if (!activeGameId) {
+      if (requestId === loadRequestRef.current) {
+        setLoading(false);
+      }
+      return;
+    }
     if (!status) setLoading(true);
     try {
       const res = await fetchTrustStatus();
+      if (requestId !== loadRequestRef.current) return;
       setStatus(res);
       // Update cache
       cachedStatus = res;
       cachedGameId = activeGameId;
     } catch (err) {
+      if (requestId !== loadRequestRef.current) return;
       showToast(t('deploy.statusError', { error: String(err) }), 'error');
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestRef.current) {
+        setLoading(false);
+      }
     }
   };
 
