@@ -169,6 +169,8 @@
 .btn-danger:hover {
   background: var(--danger);
   color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 8px -1px rgba(239, 68, 68, 0.4);
 }
 
 /* File Verification Section */
