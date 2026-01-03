@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.2] - 2026-01-04
+
+### Fixes
+- Run segatools trust verification asynchronously so the UI stays responsive.
+- Add request timeouts and force no-proxy for backend HTTP calls to avoid proxy hangs.
+- Make the rollback action button use the danger glow styling.
+
 ## [0.5.1] - 2026-01-02
 
 ### Features
