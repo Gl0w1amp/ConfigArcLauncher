@@ -5,8 +5,11 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 const DEFAULT_KEYS_FILE: &str = "fsdecrypt_keys.json";
+const KEYS_TIMEOUT_SECS: u64 = 30;
+const KEYS_CONNECT_TIMEOUT_SECS: u64 = 10;
 
 #[derive(Debug, Deserialize)]
 struct KeyPair {
@@ -75,9 +78,13 @@ fn read_keys_from_file(path: &Path) -> Result<(FsDecryptKeys, KeySourceInfo)> {
 }
 
 fn read_keys_from_url(url: &str) -> Result<(FsDecryptKeys, KeySourceInfo)> {
-    let resp = Client::new()
-        .get(url)
-        .send()
+    let client = Client::builder()
+        .timeout(Duration::from_secs(KEYS_TIMEOUT_SECS))
+        .connect_timeout(Duration::from_secs(KEYS_CONNECT_TIMEOUT_SECS))
+        .no_proxy()
+        .build()
+        .map_err(|e| anyhow!("Failed to create HTTP client: {e}"))?;
+    let resp = client.get(url).send()
         .map_err(|e| anyhow!("Failed to download keys json: {e}"))?;
     if !resp.status().is_success() {
         return Err(anyhow!("Failed to download keys json: {}", resp.status()));

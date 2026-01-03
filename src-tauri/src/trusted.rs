@@ -24,6 +24,8 @@ const BACKUP_DIR: &str = "Segatools_Backup";
 const BACKUP_FILES_DIR: &str = "files";
 const BACKUP_META_NAME: &str = "metadata.json";
 const TRUST_CACHE_TTL_SECS: u64 = 300;
+const TRUST_TIMEOUT_SECS: u64 = 60;
+const TRUST_CONNECT_TIMEOUT_SECS: u64 = 10;
 
 #[derive(Debug, Error)]
 pub enum TrustedError {
@@ -310,6 +312,9 @@ fn store_status_for(root: &Path, status: &SegatoolsTrustStatus) {
 
 fn client() -> Result<Client, TrustedError> {
     Client::builder()
+        .timeout(Duration::from_secs(TRUST_TIMEOUT_SECS))
+        .connect_timeout(Duration::from_secs(TRUST_CONNECT_TIMEOUT_SECS))
+        .no_proxy()
         .user_agent("ConfigArcLauncher/TrustedSupplychain")
         .build()
         .map_err(|e| TrustedError::Network(e.to_string()))

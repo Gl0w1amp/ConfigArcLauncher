@@ -1983,6 +1983,8 @@ pub async fn download_order_fetch_text_cmd(url: String) -> Result<String, String
         }
         let client = Client::builder()
             .timeout(Duration::from_secs(30))
+            .connect_timeout(Duration::from_secs(10))
+            .no_proxy()
             .build()
             .map_err(|e| e.to_string())?;
         let mut resp = client
@@ -2025,6 +2027,8 @@ pub async fn download_order_download_files_cmd(
 
         let client = Client::builder()
             .timeout(Duration::from_secs(120))
+            .connect_timeout(Duration::from_secs(10))
+            .no_proxy()
             .build()
             .map_err(|e| e.to_string())?;
         let mut used_names = HashSet::new();
@@ -2196,7 +2200,10 @@ pub async fn download_order_cmd(payload: DownloadOrderRequest) -> Result<Downloa
         };
 
         let timeout = Duration::from_secs(timeout_secs);
-        let mut builder = Client::builder().timeout(timeout).no_proxy();
+        let mut builder = Client::builder()
+            .timeout(timeout)
+            .connect_timeout(Duration::from_secs(10))
+            .no_proxy();
         if let Some(proxy) = proxy.as_deref() {
             builder = builder.proxy(Proxy::all(proxy).map_err(|e| e.to_string())?);
         }
