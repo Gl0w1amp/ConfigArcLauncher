@@ -103,6 +103,30 @@ function ConfigEditorPage() {
     showToast(t('config.profileSaved'), 'success');
   };
 
+  const handleMainSave = async () => {
+    if (!config) return;
+    
+    // Save to disk
+    await save(config);
+    
+    // Save to profile if selected
+    if (selectedProfileId) {
+      const profile = profiles.find((p) => p.id === selectedProfileId);
+      if (profile) {
+        const updatedProfile = {
+          ...profile,
+          segatools: config,
+          updated_at: new Date().toISOString()
+        };
+        await saveProfile(updatedProfile);
+        reloadProfiles();
+        showToast(t('config.savedAndProfile', { defaultValue: 'Saved to Disk & Profile' }), 'success');
+        return;
+      }
+    }
+    showToast(t('config.saved'), 'success');
+  };
+
   const handleProfileDelete = () => {
     if (!selectedProfileId) return;
     setShowDeleteProfileDialog(true);
@@ -388,17 +412,13 @@ function ConfigEditorPage() {
         }
       />
       <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
-        <button onClick={() => { save(config); showToast(t('config.saved'), 'success'); }} disabled={saving} className="primary">
+        <button onClick={handleMainSave} disabled={saving} className="primary">
           <IconSave />
-          {t('config.saveConfig')}
+          {t('config.saveProfile')}
         </button>
         <button onClick={resetToDefaults}>
           <IconUndo />
           {t('config.resetDefaults')}
-        </button>
-        <button onClick={() => { reload(); showToast(t('config.reloaded'), 'info'); }}>
-          <IconHardDrive />
-          {t('config.reloadDisk')}
         </button>
         <button onClick={handleExportIni}>
           <IconDownload />
