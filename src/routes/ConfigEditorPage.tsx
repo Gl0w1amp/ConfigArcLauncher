@@ -249,6 +249,8 @@ function ConfigEditorPage() {
     </div>
   );
 
+  const trustChecking = trustLoading || !trustStatus;
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 12 }}>
@@ -276,7 +278,7 @@ function ConfigEditorPage() {
             className="config-trust-status"
             style={{ color: trustStatus?.trusted ? 'var(--success)' : 'var(--warning)' }}
           >
-            {trustLoading ? t('config.trustChecking') : trustStatus?.trusted ? t('config.trustOk') : trustStatus?.missing_files ? t('config.trustMissing') : t('config.trustFailed')}
+            {trustChecking ? t('config.trustChecking') : trustStatus?.trusted ? t('config.trustOk') : trustStatus?.missing_files ? t('config.trustMissing') : t('config.trustFailed')}
           </span>
           <button className="config-toolbar-button" onClick={refreshTrust} disabled={trustLoading}>
             {trustLoading ? t('config.trustChecking') : t('config.trustRefresh')}
@@ -304,11 +306,11 @@ function ConfigEditorPage() {
           </label>
         </div>
       </div>
-      {!trustStatus?.trusted && (
+      {trustStatus && !trustStatus.trusted && (
         <div style={{ background: 'rgba(248,113,113,0.1)', border: '1px solid var(--danger)', padding: 10, borderRadius: 8, marginBottom: 12 }}>
-          <strong>{trustStatus?.missing_files ? t('config.trustMissingTitle') : t('config.trustWarningTitle')}</strong>
-          <div>{trustStatus?.missing_files ? t('config.trustMissingMessage') : t('config.trustWarningMessage')}</div>
-          {trustStatus?.reason && <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>{t('config.trustReason', { reason: trustStatus.reason })}</div>}
+          <strong>{trustStatus.missing_files ? t('config.trustMissingTitle') : t('config.trustWarningTitle')}</strong>
+          <div>{trustStatus.missing_files ? t('config.trustMissingMessage') : t('config.trustWarningMessage')}</div>
+          {trustStatus.reason && <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>{t('config.trustReason', { reason: trustStatus.reason })}</div>}
         </div>
       )}
       {error && <p style={{ color: '#f87171' }}>{error}</p>}
