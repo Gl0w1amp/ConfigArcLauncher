@@ -11,7 +11,7 @@ import { useToast, ToastContainer } from '../components/common/Toast';
 import { PromptDialog } from '../components/common/PromptDialog';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { Link } from 'react-router-dom';
-import { exportProfile, importProfile, loadDefaultSegatoolsConfig, loadSegatoolsConfig, openSegatoolsFolder, scanGameVfsFolders } from '../api/configApi';
+import { exportProfile, importProfile, loadDefaultSegatoolsConfig, loadGameDirSegatoolsConfig, openSegatoolsFolder, scanGameVfsFolders } from '../api/configApi';
 import '../components/config/config.css';
 
 function ConfigEditorPage() {
@@ -145,7 +145,7 @@ function ConfigEditorPage() {
   const onConfirmImportCurrentIni = async (name: string) => {
     if (!name) return;
     try {
-      const currentConfig = await loadSegatoolsConfig();
+      const currentConfig = await loadGameDirSegatoolsConfig();
       const now = new Date().toISOString();
       const profile: ConfigProfile = {
         id: crypto.randomUUID ? crypto.randomUUID() : `profile-${Date.now()}`,
@@ -163,7 +163,7 @@ function ConfigEditorPage() {
       showToast(
         t('config.importFromCurrentIniOk', {
           name,
-          defaultValue: 'Profile created from current INI'
+          defaultValue: 'Profile created from game INI'
         }),
         'success'
       );
@@ -172,7 +172,7 @@ function ConfigEditorPage() {
       showToast(
         t('config.importFromCurrentIniFailed', {
           reason: String(err),
-          defaultValue: `Failed to import current INI: ${String(err)}`
+          defaultValue: `Failed to import game INI: ${String(err)}`
         }),
         'error'
       );
@@ -378,7 +378,7 @@ function ConfigEditorPage() {
         <button onClick={handleExportIni}>{t('config.exportIni', { defaultValue: 'Export Profile' })}</button>
         <button onClick={handleImportIni}>{t('config.importIni', { defaultValue: 'Import Profile' })}</button>
         <button onClick={handleImportCurrentIni}>
-          {t('config.importFromCurrentIni', { defaultValue: 'Profile from Current INI' })}
+          {t('config.importFromCurrentIni', { defaultValue: 'Profile from Game INI' })}
         </button>
       </div>
       <input
@@ -421,7 +421,7 @@ function ConfigEditorPage() {
       )}
       {showImportCurrentDialog && (
         <PromptDialog
-          title={t('config.importFromCurrentIniTitle', 'Create Profile from Current INI')}
+          title={t('config.importFromCurrentIniTitle', 'Create Profile from Game INI')}
           label={t('config.importFromCurrentIniMessage', 'Enter a name for the new profile:')}
           defaultValue=""
           onConfirm={onConfirmImportCurrentIni}

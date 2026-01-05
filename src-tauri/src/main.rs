@@ -16,6 +16,7 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             get_segatoools_config,
+            get_game_dir_segatoools_config,
             save_segatoools_config,
             export_segatoools_config_cmd,
             import_segatoools_config_cmd,

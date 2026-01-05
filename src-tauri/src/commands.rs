@@ -805,6 +805,18 @@ pub fn get_segatoools_config() -> Result<SegatoolsConfig, String> {
 }
 
 #[command]
+pub fn get_game_dir_segatoools_config() -> Result<SegatoolsConfig, String> {
+    let game = active_game()?;
+    let root = store::game_root_dir(&game).ok_or_else(|| "Game path missing".to_string())?;
+    let path = root.join("segatools.ini");
+    if !path.exists() {
+        return Err("segatools.ini not found in game directory.".to_string());
+    }
+    let cfg = load_segatoools_config(&path).map_err(|e| e.to_string())?;
+    Ok(sanitize_segatoools_for_game(cfg, Some(game.name.as_str())))
+}
+
+#[command]
 pub fn save_segatoools_config(config: SegatoolsConfig) -> Result<(), String> {
     let path = segatoools_path_for_active().map_err(|e| e.to_string())?;
     if !path.exists() {
