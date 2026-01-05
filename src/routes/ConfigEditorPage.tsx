@@ -249,7 +249,7 @@ function ConfigEditorPage() {
     </div>
   );
 
-  const trustChecking = trustLoading || !trustStatus;
+  const trustChecking = !trustStatus;
 
   return (
     <div>

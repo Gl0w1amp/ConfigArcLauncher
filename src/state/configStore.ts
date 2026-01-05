@@ -14,6 +14,47 @@ import { getActiveGame } from '../api/gamesApi';
 import { fetchTrustStatus } from '../api/trustedApi';
 import { SegatoolsTrustStatus } from '../types/trusted';
 
+const TRUST_STATUS_STORAGE_PREFIX = 'trustStatus:';
+const TRUST_STATUS_STORAGE_TTL_MS = 5 * 60 * 1000;
+
+type CachedTrustStatus = {
+  status: SegatoolsTrustStatus;
+  cachedAt: number;
+};
+
+function trustStatusStorageKey(gameId: string) {
+  return `${TRUST_STATUS_STORAGE_PREFIX}${gameId}`;
+}
+
+function readCachedTrustStatus(gameId: string) {
+  const key = trustStatusStorageKey(gameId);
+  const raw = localStorage.getItem(key);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as CachedTrustStatus;
+    if (!parsed || typeof parsed.cachedAt !== 'number' || !parsed.status) {
+      localStorage.removeItem(key);
+      return null;
+    }
+    if (Date.now() - parsed.cachedAt > TRUST_STATUS_STORAGE_TTL_MS) {
+      localStorage.removeItem(key);
+      return null;
+    }
+    return parsed.status;
+  } catch {
+    localStorage.removeItem(key);
+    return null;
+  }
+}
+
+function writeCachedTrustStatus(gameId: string, status: SegatoolsTrustStatus) {
+  const payload: CachedTrustStatus = {
+    status,
+    cachedAt: Date.now(),
+  };
+  localStorage.setItem(trustStatusStorageKey(gameId), JSON.stringify(payload));
+}
+
 export function useConfigState() {
   const [config, setConfig] = useState<SegatoolsConfig | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -23,13 +64,17 @@ export function useConfigState() {
   const [trustStatus, setTrustStatus] = useState<SegatoolsTrustStatus | null>(null);
   const [trustLoading, setTrustLoading] = useState<boolean>(false);
 
-  const refreshTrust = useCallback(async () => {
+  const refreshTrust = useCallback(async (gameId?: string | null) => {
     setTrustLoading(true);
     try {
       const status = await fetchTrustStatus();
       setTrustStatus(status);
+      const targetGameId = gameId ?? activeGameId;
+      if (targetGameId) {
+        writeCachedTrustStatus(targetGameId, status);
+      }
     } catch (err) {
-      setTrustStatus({
+      const status = {
         trusted: false,
         reason: String(err),
         build_id: undefined,
@@ -38,11 +83,16 @@ export function useConfigState() {
         artifact_sha256: undefined,
         checked_files: [],
         has_backup: false,
-      });
+      } as SegatoolsTrustStatus;
+      setTrustStatus(status);
+      const targetGameId = gameId ?? activeGameId;
+      if (targetGameId) {
+        writeCachedTrustStatus(targetGameId, status);
+      }
     } finally {
       setTrustLoading(false);
     }
-  }, []);
+  }, [activeGameId]);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -55,10 +105,12 @@ export function useConfigState() {
         setTrustStatus(null);
         return;
       }
+      const cachedTrust = active ? readCachedTrustStatus(active) : null;
+      setTrustStatus(cachedTrust);
       const cfg = await loadSegatoolsConfig();
       setConfig(cfg);
       setError(null);
-      void refreshTrust();
+      void refreshTrust(active);
     } catch (err) {
       setError(String(err));
       setConfig(null);
