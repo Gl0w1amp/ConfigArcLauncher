@@ -13,6 +13,11 @@ import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { Link } from 'react-router-dom';
 import { exportProfile, importProfile, loadDefaultSegatoolsConfig, loadGameDirSegatoolsConfig, openSegatoolsFolder, scanGameVfsFolders } from '../api/configApi';
 import '../components/config/config.css';
+import { 
+  IconPlus, IconSave, IconTrash, IconRefresh, IconRocket, 
+  IconFolderOpen, IconWand, IconUndo, IconDownload, IconUpload, 
+  IconFileImport, IconHardDrive 
+} from '../components/common/Icons';
 
 function ConfigEditorPage() {
   const { t } = useTranslation();
@@ -309,9 +314,18 @@ function ConfigEditorPage() {
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
-          <button onClick={handleCreateProfile}>{t('config.newProfile')}</button>
-          <button onClick={handleProfileSave}>{t('config.saveProfile')}</button>
-          <button onClick={handleProfileDelete} disabled={!selectedProfileId}>{t('config.deleteProfile')}</button>
+          <button onClick={handleCreateProfile} title={t('config.newProfile')}>
+            <IconPlus />
+          </button>
+          <button onClick={handleProfileSave} title={t('config.saveProfile')}>
+            <IconSave />
+          </button>
+          <button onClick={handleOpenConfigFolder} title={t('config.openConfigFolder', { defaultValue: 'Open Config Folder' })}>
+            <IconFolderOpen />
+          </button>
+          <button onClick={handleProfileDelete} disabled={!selectedProfileId} title={t('config.deleteProfile')} className="danger">
+            <IconTrash />
+          </button>
         </div>
       </div>
       <div className="config-toolbar">
@@ -323,18 +337,20 @@ function ConfigEditorPage() {
             {trustChecking ? t('config.trustChecking') : trustStatus?.trusted ? t('config.trustOk') : trustStatus?.missing_files ? t('config.trustMissing') : t('config.trustFailed')}
           </span>
           <button className="config-toolbar-button" onClick={refreshTrust} disabled={trustLoading}>
+            <IconRefresh className={trustLoading ? "spin" : ""} />
             {trustLoading ? t('config.trustChecking') : t('config.trustRefresh')}
           </button>
           <Link to="/deploy" style={{ textDecoration: 'none' }}>
-            <button className="config-toolbar-button" type="button">{t('config.openDeploy')}</button>
+            <button className="config-toolbar-button" type="button">
+              <IconRocket />
+              {t('config.openDeploy')}
+            </button>
           </Link>
         </div>
 
         <div className="config-toolbar-right">
-          <button className="config-toolbar-button" type="button" onClick={handleOpenConfigFolder}>
-            {t('config.openConfigFolder', { defaultValue: 'Open Config Folder' })}
-          </button>
           <button className="config-toolbar-button" onClick={handleAutoCompleteVfs}>
+            <IconWand />
             {t('config.autoComplete', { defaultValue: 'Auto Complete' })}
           </button>
           <label className="toggle-switch">
@@ -371,13 +387,29 @@ function ConfigEditorPage() {
           )
         }
       />
-      <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-        <button onClick={() => { save(config); showToast(t('config.saved'), 'success'); }} disabled={saving}>{t('config.saveConfig')}</button>
-        <button onClick={resetToDefaults}>{t('config.resetDefaults')}</button>
-        <button onClick={() => { reload(); showToast(t('config.reloaded'), 'info'); }}>{t('config.reloadDisk')}</button>
-        <button onClick={handleExportIni}>{t('config.exportIni', { defaultValue: 'Export Profile' })}</button>
-        <button onClick={handleImportIni}>{t('config.importIni', { defaultValue: 'Import Profile' })}</button>
+      <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
+        <button onClick={() => { save(config); showToast(t('config.saved'), 'success'); }} disabled={saving} className="primary">
+          <IconSave />
+          {t('config.saveConfig')}
+        </button>
+        <button onClick={resetToDefaults}>
+          <IconUndo />
+          {t('config.resetDefaults')}
+        </button>
+        <button onClick={() => { reload(); showToast(t('config.reloaded'), 'info'); }}>
+          <IconHardDrive />
+          {t('config.reloadDisk')}
+        </button>
+        <button onClick={handleExportIni}>
+          <IconDownload />
+          {t('config.exportIni', { defaultValue: 'Export Profile' })}
+        </button>
+        <button onClick={handleImportIni}>
+          <IconUpload />
+          {t('config.importIni', { defaultValue: 'Import Profile' })}
+        </button>
         <button onClick={handleImportCurrentIni}>
+          <IconFileImport />
           {t('config.importFromCurrentIni', { defaultValue: 'Profile from Game INI' })}
         </button>
       </div>

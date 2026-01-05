@@ -276,3 +276,7 @@ input:focus + .toggle-slider {
   font-size: 0.9rem;
 }
 
+
+.spin { animation: spin 1s linear infinite; }
+
+@keyframes spin { 100% { transform: rotate(360deg); } }
