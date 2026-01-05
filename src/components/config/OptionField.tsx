@@ -139,15 +139,14 @@ function OptionField({ label, type, value, onChange, helper, description, requir
 
     if (type === 'checkbox') {
       return (
-        <div onClick={handleCommentedClick} style={{ display: 'inline-block' }}>
-            <input
+        <div className="toggle-switch" onClick={handleCommentedClick} style={commented ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}>
+          <input
             type="checkbox"
-            className="option-checkbox"
             checked={Boolean(value)}
             onChange={(e) => !commented && onChange(e.target.checked)}
             disabled={commented}
-            style={commented ? { opacity: 0.5, cursor: 'not-allowed', pointerEvents: 'none' } : undefined}
-            />
+          />
+          <span className="toggle-slider"></span>
         </div>
       );
     }
