@@ -451,7 +451,8 @@ function SegatoolsEditor({ config, onChange, activeGame, advanced = false, onDro
               const shouldShowField =
                 !shouldFilterSections ||
                 presentKeys.includes(lowerFullKey) ||
-                commentedKeys.includes(lowerFullKey);
+                commentedKeys.includes(lowerFullKey) ||
+                field.name === 'enable';
               if (!shouldShowField) {
                 return null;
               }
