@@ -26,6 +26,7 @@ const BACKUP_META_NAME: &str = "metadata.json";
 const TRUST_CACHE_TTL_SECS: u64 = 300;
 const TRUST_TIMEOUT_SECS: u64 = 60;
 const TRUST_CONNECT_TIMEOUT_SECS: u64 = 10;
+const TRUST_CACHE_FILE_NAME: &str = ".trust_cache.json";
 
 #[derive(Debug, Error)]
 pub enum TrustedError {
@@ -124,7 +125,7 @@ pub struct TrustedFile {
     pub sha256: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileCheckResult {
     pub path: String,
     pub expected_sha256: String,
@@ -133,7 +134,7 @@ pub struct FileCheckResult {
     pub matches: bool,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SegatoolsTrustStatus {
     pub trusted: bool,
     pub reason: Option<String>,
@@ -141,8 +142,11 @@ pub struct SegatoolsTrustStatus {
     pub generated_at: Option<String>,
     pub artifact_name: Option<String>,
     pub artifact_sha256: Option<String>,
+    #[serde(default)]
     pub checked_files: Vec<FileCheckResult>,
+    #[serde(default)]
     pub has_backup: bool,
+    #[serde(default)]
     pub missing_files: bool,
     pub local_build_time: Option<String>,
 }
@@ -223,7 +227,7 @@ struct DownloadedArtifact {
 #[derive(Clone)]
 struct CachedTrustEntry {
     status: SegatoolsTrustStatus,
-    mtimes: HashMap<String, SystemTime>,
+    mtimes: HashMap<String, u128>,
     cached_at: SystemTime,
 }
 
@@ -237,29 +241,46 @@ fn cache_key(root: &Path) -> String {
     root.to_string_lossy().to_string()
 }
 
-fn capture_mtimes(root: &Path, files: &[FileCheckResult]) -> HashMap<String, SystemTime> {
+#[derive(Debug, Serialize, Deserialize)]
+struct PersistentTrustEntry {
+    status: SegatoolsTrustStatus,
+    mtimes: HashMap<String, u128>,
+    cached_at: u64,
+}
+
+fn systemtime_to_nanos(time: SystemTime) -> Option<u128> {
+    time.duration_since(SystemTime::UNIX_EPOCH)
+        .ok()
+        .map(|d| d.as_nanos())
+}
+
+fn file_mtime_nanos(path: &Path) -> Option<u128> {
+    let meta = fs::metadata(path).ok()?;
+    let modified = meta.modified().ok()?;
+    systemtime_to_nanos(modified)
+}
+
+fn trust_cache_path(root: &Path) -> PathBuf {
+    root.join(TRUST_CACHE_FILE_NAME)
+}
+
+fn capture_mtimes(root: &Path, files: &[FileCheckResult]) -> HashMap<String, u128> {
     let mut mtimes = HashMap::new();
     for file in files {
         let path = root.join(&file.path);
-        if let Ok(meta) = fs::metadata(&path) {
-            if let Ok(modified) = meta.modified() {
-                mtimes.insert(file.path.clone(), modified);
-            }
+        if let Some(modified) = file_mtime_nanos(&path) {
+            mtimes.insert(file.path.clone(), modified);
         }
     }
     mtimes
 }
 
-fn files_unchanged(root: &Path, mtimes: &HashMap<String, SystemTime>) -> bool {
+fn files_unchanged(root: &Path, mtimes: &HashMap<String, u128>) -> bool {
     for (rel, cached_time) in mtimes {
         let path = root.join(rel);
-        let meta = match fs::metadata(&path) {
-            Ok(m) => m,
-            Err(_) => return false,
-        };
-        let modified = match meta.modified() {
-            Ok(m) => m,
-            Err(_) => return false,
+        let modified = match file_mtime_nanos(&path) {
+            Some(m) => m,
+            None => return false,
         };
         if &modified != cached_time {
             return false;
@@ -268,7 +289,7 @@ fn files_unchanged(root: &Path, mtimes: &HashMap<String, SystemTime>) -> bool {
     true
 }
 
-fn cached_status_for(root: &Path) -> Option<SegatoolsTrustStatus> {
+fn cached_status_for_memory(root: &Path) -> Option<SegatoolsTrustStatus> {
     let key = cache_key(root);
     let cache = trust_cache().lock().ok()?;
     let entry = cache.get(&key)?;
@@ -286,10 +307,65 @@ fn cached_status_for(root: &Path) -> Option<SegatoolsTrustStatus> {
     Some(entry.status.clone())
 }
 
+fn read_persistent_cache(root: &Path) -> Option<PersistentTrustEntry> {
+    let path = trust_cache_path(root);
+    let data = fs::read(path).ok()?;
+    let entry: PersistentTrustEntry = serde_json::from_slice(&data).ok()?;
+    let cached_at = SystemTime::UNIX_EPOCH + Duration::from_secs(entry.cached_at);
+    let age = SystemTime::now()
+        .duration_since(cached_at)
+        .unwrap_or(Duration::from_secs(TRUST_CACHE_TTL_SECS + 1));
+    if age > Duration::from_secs(TRUST_CACHE_TTL_SECS) {
+        return None;
+    }
+    if !files_unchanged(root, &entry.mtimes) {
+        return None;
+    }
+    Some(entry)
+}
+
+fn write_persistent_cache(root: &Path, entry: &CachedTrustEntry) {
+    let cached_at = match entry.cached_at.duration_since(SystemTime::UNIX_EPOCH) {
+        Ok(duration) => duration.as_secs(),
+        Err(_) => return,
+    };
+    let payload = PersistentTrustEntry {
+        status: entry.status.clone(),
+        mtimes: entry.mtimes.clone(),
+        cached_at,
+    };
+    let path = trust_cache_path(root);
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    if let Ok(json) = serde_json::to_vec(&payload) {
+        let _ = fs::write(path, json);
+    }
+}
+
+fn cached_status_for(root: &Path) -> Option<SegatoolsTrustStatus> {
+    if let Some(status) = cached_status_for_memory(root) {
+        return Some(status);
+    }
+    let entry = read_persistent_cache(root)?;
+    if let Ok(mut cache) = trust_cache().lock() {
+        cache.insert(
+            cache_key(root),
+            CachedTrustEntry {
+                status: entry.status.clone(),
+                mtimes: entry.mtimes,
+                cached_at: SystemTime::now(),
+            },
+        );
+    }
+    Some(entry.status)
+}
+
 fn clear_cached_status(root: &Path) {
     if let Ok(mut cache) = trust_cache().lock() {
         cache.remove(&cache_key(root));
     }
+    let _ = fs::remove_file(trust_cache_path(root));
 }
 
 fn store_status_for(root: &Path, status: &SegatoolsTrustStatus) {
@@ -305,6 +381,7 @@ fn store_status_for(root: &Path, status: &SegatoolsTrustStatus) {
         cached_at: SystemTime::now(),
     };
 
+    write_persistent_cache(root, &entry);
     if let Ok(mut cache) = trust_cache().lock() {
         cache.insert(cache_key(root), entry);
     }
