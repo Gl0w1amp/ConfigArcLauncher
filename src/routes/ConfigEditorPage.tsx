@@ -11,7 +11,7 @@ import { useToast, ToastContainer } from '../components/common/Toast';
 import { PromptDialog } from '../components/common/PromptDialog';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { Link } from 'react-router-dom';
-import { exportProfile, importProfile, loadDefaultSegatoolsConfig, openSegatoolsFolder, scanGameVfsFolders } from '../api/configApi';
+import { exportProfile, importProfile, loadDefaultSegatoolsConfig, loadSegatoolsConfig, openSegatoolsFolder, scanGameVfsFolders } from '../api/configApi';
 import '../components/config/config.css';
 
 function ConfigEditorPage() {
@@ -26,6 +26,7 @@ function ConfigEditorPage() {
   const [showNewProfileDialog, setShowNewProfileDialog] = useState(false);
   const [showDeleteProfileDialog, setShowDeleteProfileDialog] = useState(false);
   const [showAdvancedConfirm, setShowAdvancedConfirm] = useState(false);
+  const [showImportCurrentDialog, setShowImportCurrentDialog] = useState(false);
   const [advancedMode, setAdvancedMode] = useState<boolean>(() => {
     return localStorage.getItem('config:advancedMode') === '1';
   });
@@ -118,6 +119,10 @@ function ConfigEditorPage() {
     setShowNewProfileDialog(true);
   };
 
+  const handleImportCurrentIni = () => {
+    setShowImportCurrentDialog(true);
+  };
+
   const onConfirmCreateProfile = async (name: string) => {
     if (!config || !name) return;
     const defaultConfig = await loadDefaultSegatoolsConfig();
@@ -135,6 +140,43 @@ function ConfigEditorPage() {
     reloadProfiles();
     showToast(t('config.profileCreated'), 'success');
     setShowNewProfileDialog(false);
+  };
+
+  const onConfirmImportCurrentIni = async (name: string) => {
+    if (!name) return;
+    try {
+      const currentConfig = await loadSegatoolsConfig();
+      const now = new Date().toISOString();
+      const profile: ConfigProfile = {
+        id: crypto.randomUUID ? crypto.randomUUID() : `profile-${Date.now()}`,
+        name,
+        description: '',
+        segatools: currentConfig,
+        created_at: now,
+        updated_at: now
+      };
+      await saveProfile(profile);
+      setSelectedProfileId(profile.id);
+      if (activeGameId) localStorage.setItem(`lastProfile:${activeGameId}`, profile.id);
+      reloadProfiles();
+      setConfig(currentConfig);
+      showToast(
+        t('config.importFromCurrentIniOk', {
+          name,
+          defaultValue: 'Profile created from current INI'
+        }),
+        'success'
+      );
+      setShowImportCurrentDialog(false);
+    } catch (err) {
+      showToast(
+        t('config.importFromCurrentIniFailed', {
+          reason: String(err),
+          defaultValue: `Failed to import current INI: ${String(err)}`
+        }),
+        'error'
+      );
+    }
   };
 
   const handleProfileLoad = async (id: string) => {
@@ -335,6 +377,9 @@ function ConfigEditorPage() {
         <button onClick={() => { reload(); showToast(t('config.reloaded'), 'info'); }}>{t('config.reloadDisk')}</button>
         <button onClick={handleExportIni}>{t('config.exportIni', { defaultValue: 'Export Profile' })}</button>
         <button onClick={handleImportIni}>{t('config.importIni', { defaultValue: 'Import Profile' })}</button>
+        <button onClick={handleImportCurrentIni}>
+          {t('config.importFromCurrentIni', { defaultValue: 'Profile from Current INI' })}
+        </button>
       </div>
       <input
         type="file"
@@ -360,7 +405,8 @@ function ConfigEditorPage() {
           onCancel={() => setShowDeleteProfileDialog(false)}
           isDangerous={true}
         />
-      )}      {showAdvancedConfirm && (
+      )}
+      {showAdvancedConfirm && (
         <ConfirmDialog
           title={t('config.advancedModeTitle', 'Enable Advanced Mode?')}
           message={t('config.advancedModeWarning', 'Advanced mode allows you to edit all configuration fields. Incorrect settings may cause the game to fail to start or behave unexpectedly. Are you sure you know what you are doing?')}
@@ -372,7 +418,17 @@ function ConfigEditorPage() {
           onCancel={() => setShowAdvancedConfirm(false)}
           isDangerous
         />
-      )}      {createPortal(<ToastContainer toasts={toasts} />, document.body)}
+      )}
+      {showImportCurrentDialog && (
+        <PromptDialog
+          title={t('config.importFromCurrentIniTitle', 'Create Profile from Current INI')}
+          label={t('config.importFromCurrentIniMessage', 'Enter a name for the new profile:')}
+          defaultValue=""
+          onConfirm={onConfirmImportCurrentIni}
+          onCancel={() => setShowImportCurrentDialog(false)}
+        />
+      )}
+      {createPortal(<ToastContainer toasts={toasts} />, document.body)}
     </div>
   );
 }
