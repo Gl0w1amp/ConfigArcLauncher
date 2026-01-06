@@ -36,7 +36,7 @@
     "subtitle": "管理本地可执行文件并使用选定的配置文件启动。",
     "add": "添加游戏",
     "noGames": "尚未添加游戏。",
-    "exec": "执行路径",
+    "exec": "可执行文件",
     "workdir": "工作目录",
     "args": "参数",
     "currentFile": "当前文件 (segatools.ini)",
@@ -86,7 +86,7 @@
   "config": {
     "title": "INI 编辑器",
     "subtitle": "编辑 segatools.ini 值并管理配置文件。",
-    "noActiveGame": "未选择活跃游戏",
+    "noActiveGame": "未选择激活的游戏",
     "activateFirst": "请先在游戏列表激活一个游戏后再编辑配置。",
     "loadError": "加载配置失败。",
     "loading": "正在加载配置...",
@@ -104,7 +104,7 @@
     "loadedCurrent": "已加载当前文件",
     "loadedProfile": "已加载配置: {{name}}",
     "createProfileTitle": "创建新配置",
-    "createProfileMessage": "输入新配置的名称:",
+    "createProfileMessage": "输入新配置的名称：",
     "deleteProfileTitle": "删除配置",
     "deleteProfileMessage": "确定要删除此配置吗？此操作无法撤销。",
     "trustChecking": "正在校验 segatools...",
@@ -115,7 +115,7 @@
     "openConfigFolder": "\u6253\u5f00\u914d\u7f6e\u6587\u4ef6\u5939",
     "openConfigFolderFailed": "\u6253\u5f00\u914d\u7f6e\u6587\u4ef6\u5939\u5931\u8d25\uff1a{{reason}}",
     "trustWarningTitle": "未通过可信校验",
-    "trustWarningMessage": "非开源可信版本的 segatools，建议更换。",
+    "trustWarningMessage": "检测到非开源的 segatools 构建，建议重新部署可信版本。",
     "trustReason": "原因：{{reason}}",
     "trustMissing": "缺少 segatools",
     "trustMissingTitle": "缺少 segatools",
@@ -143,7 +143,7 @@
       "subtitle": "根据 segatools 路径管理 AMFS / OPTION / APPDATA 内容。",
       "pathsError": "获取路径失败：{{error}}",
       "path": "路径",
-      "pathOk": "路径存在",
+      "pathOk": "磁盘上存在",
       "notConfigured": "segatools.ini 未配置",
       "missingPath": "磁盘上不存在",
       "amfs": "AMFS",
@@ -158,7 +158,7 @@
       "reload": "重新加载",
       "refresh": "刷新",
       "save": "保存",
-      "optionList": "已安装的 option",
+      "optionList": "已安装的 Option",
       "optionEmpty": "当前文件夹中没有 option 文件。",
       "optionLoadError": "读取 option 列表失败：{{error}}",
       "appdataComing": "Appdata 逻辑暂未实现。",
@@ -346,7 +346,7 @@
       },
       "timewarp": {
         "label": "时间扭曲",
-        "desc": "实验性的一天时间扭曲钩子，可跳过硬编码的服务器维护期。"
+        "desc": "实验性的时间扭曲钩子，可跳过硬编码的服务器维护期。"
       },
       "writeable": {
         "label": "允许时钟写入",
@@ -393,7 +393,7 @@
       },
       "aimedbPort": {
         "label": "AimeDB 端口",
-        "desc": "覆盖到 aimedb 服务器的连接端口。"
+        "desc": "覆盖到 AimeDB 服务器的连接端口。"
       }
     },
     "ds": {
@@ -638,7 +638,7 @@
       },
       "systemFlag": {
         "label": "系统标志",
-        "desc": "一个含义不明的 8 位位字段。"
+        "desc": "一个含义不明的 8 位位域。"
       },
       "subnet": {
         "label": "子网",
@@ -724,7 +724,7 @@
       },
       "override": {
         "label": "强制覆盖",
-        "desc": "启用覆盖以始终挂钩 OpenSSL 环境变量。"
+        "desc": "启用强制覆盖，以始终钩住 OpenSSL 环境变量。"
       }
     },
     "system": {
@@ -868,7 +868,7 @@
     "timeoutLabel": "超时（秒）",
     "optionsLabel": "选项",
     "encodeRequest": "编码请求（Base64+Deflate）",
-    "headersLabel": "HTTP Header",
+    "headersLabel": "HTTP 请求头",
     "headersHint": "每行一个请求头，格式：Key: Value。",
     "request": "发送请求",
     "requesting": "请求中...",
