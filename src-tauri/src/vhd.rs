@@ -166,6 +166,11 @@ fn run_diskpart(script: &str) -> Result<(), String> {
     })
 }
 
+fn close_explorer_for_x_drive() {
+    let cmd = "Start-Sleep -Milliseconds 300; $shell = New-Object -ComObject Shell.Application; $shell.Windows() | Where-Object { $_.LocationURL -like 'file:///X:*' -or $_.LocationURL -like 'file:///X:/*' } | ForEach-Object { $_.Quit() }";
+    let _ = run_powershell(cmd);
+}
+
 #[cfg(target_os = "windows")]
 #[link(name = "shell32")]
 extern "system" {
@@ -336,6 +341,8 @@ pub fn mount_vhd(cfg: &ResolvedVhdConfig) -> Result<MountedVhd, String> {
         }
         return Err(err);
     }
+
+    close_explorer_for_x_drive();
 
     Ok(MountedVhd {
         mount_path,

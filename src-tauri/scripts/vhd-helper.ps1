@@ -88,6 +88,7 @@ try {
         Out-Null
 
     try {
+        Start-Sleep -Milliseconds 300
         $shell = New-Object -ComObject Shell.Application
         $shell.Windows() | Where-Object {
             $_.LocationURL -like 'file:///X:*' -or $_.LocationURL -like 'file:///X:/*'
