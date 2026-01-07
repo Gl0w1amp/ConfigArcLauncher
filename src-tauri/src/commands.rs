@@ -980,45 +980,49 @@ pub fn delete_game_cmd(id: String) -> Result<(), String> {
 }
 
 #[command]
-pub fn launch_game_cmd(window: Window, id: String, profile_id: Option<String>) -> Result<(), String> {
-    let games = store::list_games().map_err(|e| e.to_string())?;
-    let game = games
-        .into_iter()
-        .find(|g| g.id == id)
-        .ok_or_else(|| "Game not found".to_string())?;
-    if matches!(game.launch_mode, LaunchMode::Vhd) {
-        return launch_vhd_game(&game, profile_id, &window);
-    }
-    let game_name = game.name.clone();
-    let _ = store::game_root_dir(&game).ok_or_else(|| "Game path missing".to_string())?;
-
-    let config_to_validate = if let Some(pid) = profile_id.filter(|s| !s.is_empty()) {
-        let profile = load_profile(&pid, Some(&id)).map_err(|e| e.to_string())?;
-        let seg_path = segatoools_path_for_game_id(&id).map_err(|e| e.to_string())?;
-        let sanitized = sanitize_segatoools_for_game(profile.segatools, Some(game_name.as_str()));
-        persist_segatoools_config(&seg_path, &sanitized).map_err(|e| e.to_string())?;
-        sanitized
-    } else {
-        let seg_path = segatoools_path_for_game_id(&id).map_err(|e| e.to_string())?;
-        if seg_path.exists() {
-            let cfg = load_segatoools_config(&seg_path).map_err(|e| e.to_string())?;
-            sanitize_segatoools_for_game(cfg, Some(game_name.as_str()))
-        } else {
-            return Err("segatools.ini not found. Please configure the game.".to_string());
+pub async fn launch_game_cmd(window: Window, id: String, profile_id: Option<String>) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let games = store::list_games().map_err(|e| e.to_string())?;
+        let game = games
+            .into_iter()
+            .find(|g| g.id == id)
+            .ok_or_else(|| "Game not found".to_string())?;
+        if matches!(game.launch_mode, LaunchMode::Vhd) {
+            return launch_vhd_game(&game, profile_id, &window);
         }
-    };
+        let game_name = game.name.clone();
+        let _ = store::game_root_dir(&game).ok_or_else(|| "Game path missing".to_string())?;
 
-    let mut missing = Vec::new();
-    if config_to_validate.keychip.id.is_empty() { missing.push("Keychip ID"); }
-    if config_to_validate.vfs.amfs.is_empty() { missing.push("AMFS Path"); }
-    if config_to_validate.vfs.appdata.is_empty() { missing.push("APPDATA Path"); }
-    if config_to_validate.vfs.option.is_empty() { missing.push("OPTION Path"); }
+        let config_to_validate = if let Some(pid) = profile_id.filter(|s| !s.is_empty()) {
+            let profile = load_profile(&pid, Some(&id)).map_err(|e| e.to_string())?;
+            let seg_path = segatoools_path_for_game_id(&id).map_err(|e| e.to_string())?;
+            let sanitized = sanitize_segatoools_for_game(profile.segatools, Some(game_name.as_str()));
+            persist_segatoools_config(&seg_path, &sanitized).map_err(|e| e.to_string())?;
+            sanitized
+        } else {
+            let seg_path = segatoools_path_for_game_id(&id).map_err(|e| e.to_string())?;
+            if seg_path.exists() {
+                let cfg = load_segatoools_config(&seg_path).map_err(|e| e.to_string())?;
+                sanitize_segatoools_for_game(cfg, Some(game_name.as_str()))
+            } else {
+                return Err("segatools.ini not found. Please configure the game.".to_string());
+            }
+        };
 
-    if !missing.is_empty() {
-        return Err(format!("Missing required fields: {}. Please configure them in settings.", missing.join(", ")));
-    }
+        let mut missing = Vec::new();
+        if config_to_validate.keychip.id.is_empty() { missing.push("Keychip ID"); }
+        if config_to_validate.vfs.amfs.is_empty() { missing.push("AMFS Path"); }
+        if config_to_validate.vfs.appdata.is_empty() { missing.push("APPDATA Path"); }
+        if config_to_validate.vfs.option.is_empty() { missing.push("OPTION Path"); }
 
-    launch_game(&game).map_err(|e| e.to_string())
+        if !missing.is_empty() {
+            return Err(format!("Missing required fields: {}. Please configure them in settings.", missing.join(", ")));
+        }
+
+        launch_game(&game).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 fn load_launch_config(game: &Game, profile_id: Option<String>, game_name: &str) -> Result<(SegatoolsConfig, PathBuf), String> {
