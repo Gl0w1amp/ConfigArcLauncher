@@ -112,6 +112,7 @@
     "openDeploy": "デプロイを開く",
     "openConfigFolder": "\u8a2d\u5b9a\u30d5\u30a9\u30eb\u30c0\u30fc\u3092\u958b\u304f",
     "openConfigFolderFailed": "\u8a2d\u5b9a\u30d5\u30a9\u30eb\u30c0\u30fc\u3092\u958b\u3051\u307e\u305b\u3093\u3067\u3057\u305f: {{reason}}",
+    "ioDropHint": "\u3053\u3053\u306b IO DLL \u3092\u30c9\u30ed\u30c3\u30d7",
     "trustWarningTitle": "非信頼の segatools を検出",
     "trustWarningMessage": "オープンソースではない信頼版の segatools を検出しました。信頼できるバージョンを再デプロイしてください。",
     "trustMissingTitle": "segatools が不足しています",

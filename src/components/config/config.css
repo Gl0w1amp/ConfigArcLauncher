@@ -4,6 +4,83 @@
   position: relative;
 }
 
+body.io-drop-active .app-content-surface::after {
+  content: "Drag IO file to an input";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  border: 4px dashed var(--accent-primary);
+  border-radius: 20px;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--accent-primary);
+  font-size: 24px;
+  font-weight: 600;
+  pointer-events: none;
+  animation: fadeIn 0.2s ease;
+}
+
+.option-field.global-drag-target {
+  /* Cannot break out of stacking context easily, so relying on visual distinction */
+  position: relative;
+}
+
+.option-field.drop-focus {
+  position: relative;
+  z-index: 30;
+}
+
+.option-input.drop-hint {
+  border-color: var(--accent-primary);
+  border-width: 2px;
+  border-style: dashed;
+  background: rgba(59, 130, 246, 0.15); /* Brighter bg */
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.3); /* Glow */
+  animation: pulse-border 1.5s infinite;
+  color: var(--text-primary);
+  position: relative;
+  z-index: 30;
+}
+
+.option-input.drop-target {
+  border-color: var(--accent-primary);
+  border-width: 2px;
+  border-style: solid;
+  background: rgba(59, 130, 246, 0.25);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.25);
+  transform: scale(1.02);
+  position: relative;
+  z-index: 30;
+}
+
+
+
+.option-drop-hint {
+  margin-top: 6px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.option-drop-hint::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.7);
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.6);
+}
+
+.option-field.drop-focus .option-drop-hint {
+  color: var(--text-primary);
+  position: relative;
+  z-index: 30;
+}
+
 .option-tooltip {
   position: absolute;
   bottom: 100%;
@@ -84,10 +161,10 @@
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
-.option-input.drop-target {
-  border-color: var(--accent-primary);
-  background: rgba(59, 130, 246, 0.06);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+@keyframes pulse-border {
+  0% { border-color: rgba(59, 130, 246, 0.4); }
+  50% { border-color: rgba(59, 130, 246, 0.8); }
+  100% { border-color: rgba(59, 130, 246, 0.4); }
 }
 
 .option-input.missing-required {
@@ -115,11 +192,13 @@
 .option-input::-webkit-outer-spin-button,
 .option-input::-webkit-inner-spin-button {
   -webkit-appearance: none;
+  appearance: none;
   margin: 0;
 }
 
 .option-input[type=number] {
   -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 .option-checkbox {

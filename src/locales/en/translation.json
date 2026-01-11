@@ -115,6 +115,7 @@
     "openDeploy": "Open Deploy",
     "openConfigFolder": "Open Config Folder",
     "openConfigFolderFailed": "Failed to open config folder: {{reason}}",
+    "ioDropHint": "Drag an IO DLL here",
     "trustWarningTitle": "Non-trusted segatools detected",
     "trustWarningMessage": "This appears to be a non-open-source trusted build of segatools. Please redeploy the trusted version.",
     "trustMissingTitle": "segatools missing",

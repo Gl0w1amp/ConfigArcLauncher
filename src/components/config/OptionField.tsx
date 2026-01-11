@@ -22,15 +22,19 @@ type Props = {
   onDropError?: (message: string) => void;
 };
 
+let activeDropId: string | null = null;
+
 function OptionField({ label, type, value, onChange, helper, description, required, options, commented, onUncomment, allowDrop, onDropError }: Props) {
   const { t } = useTranslation();
   const [isRecording, setIsRecording] = useState(false);
   const [showUncommentConfirm, setShowUncommentConfirm] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isWindowDrag, setIsWindowDrag] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const scaleFactorRef = useRef<number>(window.devicePixelRatio || 1);
 
   const canDrop = Boolean(allowDrop && type === 'text');
+  const dropHint = t('config.ioDropHint', { defaultValue: 'Drag an IO DLL here' });
 
   useEffect(() => {
     getCurrentWindow()
@@ -46,6 +50,7 @@ function OptionField({ label, type, value, onChange, helper, description, requir
   useEffect(() => {
     if (!canDrop) {
       setIsDragOver(false);
+      setIsWindowDrag(false);
       return;
     }
     let unlisten: (() => void) | null = null;
@@ -71,10 +76,17 @@ function OptionField({ label, type, value, onChange, helper, description, requir
       .onDragDropEvent((event) => {
         const wrapper = wrapperRef.current;
         if (!wrapper) return;
-        if (event.payload.type === 'leave') {
+        
+        if (event.payload.type === 'enter') {
+          setIsWindowDrag(true);
+          document.body.classList.add('io-drop-active');
+        } else if (event.payload.type === 'leave') {
           setIsDragOver(false);
+          setIsWindowDrag(false);
+          document.body.classList.remove('io-drop-active');
           return;
         }
+
         const rect = wrapper.getBoundingClientRect();
         const scale = scaleFactorRef.current || 1;
         const x = event.payload.position.x / scale;
@@ -83,10 +95,14 @@ function OptionField({ label, type, value, onChange, helper, description, requir
 
         if (event.payload.type === 'enter' || event.payload.type === 'over') {
           setIsDragOver(inside);
+          setIsWindowDrag(true);
+          document.body.classList.add('io-drop-active');
           return;
         }
         if (event.payload.type === 'drop') {
           setIsDragOver(false);
+          setIsWindowDrag(false);
+          document.body.classList.remove('io-drop-active');
           if (inside && event.payload.paths.length > 0) {
             void handleDrop(event.payload.paths[0]);
           }
@@ -98,6 +114,7 @@ function OptionField({ label, type, value, onChange, helper, description, requir
 
     return () => {
       if (unlisten) unlisten();
+      document.body.classList.remove('io-drop-active');
     };
   }, [canDrop, commented, onChange, onDropError, onUncomment]);
 
@@ -126,7 +143,7 @@ function OptionField({ label, type, value, onChange, helper, description, requir
 
   const renderInput = () => {
     const isMissing = required && (value === '' || value === null || value === undefined);
-    const inputClass = `option-input ${isMissing ? 'missing-required' : ''} ${commented ? 'commented' : ''} ${isDragOver ? 'drop-target' : ''}`;
+    const inputClass = `option-input ${isMissing ? 'missing-required' : ''} ${commented ? 'commented' : ''} ${isDragOver ? 'drop-target' : ''} ${canDrop && isWindowDrag && !isDragOver ? 'drop-hint' : ''}`;
     const commonProps = {
         className: inputClass,
         readOnly: commented,
@@ -224,8 +241,10 @@ function OptionField({ label, type, value, onChange, helper, description, requir
     );
   };
 
+  const globalDragClass = (canDrop && isWindowDrag) ? 'global-drag-target' : '';
+
   return (
-    <label className="option-field">
+    <label className={`option-field ${isDragOver ? 'drop-focus' : ''} ${globalDragClass}`}>
       <div className="option-header">
         <span className="option-label">
           {label}
@@ -242,6 +261,9 @@ function OptionField({ label, type, value, onChange, helper, description, requir
           <div className="option-tooltip">
             {description}
           </div>
+        )}
+        {canDrop && (
+          <div className="option-drop-hint">{dropHint}</div>
         )}
       </div>
       {showUncommentConfirm && (
