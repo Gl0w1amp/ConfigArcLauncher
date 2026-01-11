@@ -55,6 +55,15 @@
   animation: games-slide-in 0.4s ease;
 }
 
+.games-launch-progress.is-success {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: rgba(16, 185, 129, 0.5);
+}
+
+.games-launch-progress.is-exiting {
+  animation: games-slide-out 0.28s ease forwards;
+}
+
 .games-launch-message {
   margin-top: 4px;
   color: var(--text-muted);
@@ -604,6 +613,17 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes games-slide-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
   }
 }
 

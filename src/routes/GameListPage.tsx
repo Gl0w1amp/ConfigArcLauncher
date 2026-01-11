@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { listen } from '@tauri-apps/api/event';
 import GameEditorDialog from '../components/games/GameEditorDialog';
@@ -34,19 +34,19 @@ function GameListPage() {
   const [gameToDelete, setGameToDelete] = useState<string | null>(null);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [launchProgress, setLaunchProgress] = useState<LaunchProgress | null>(null);
+  const [launchProgressClosing, setLaunchProgressClosing] = useState(false);
   const [newsOpen, setNewsOpen] = useState(false);
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
   const [profiles, setProfiles] = useState<ConfigProfile[]>([]);
   const [profilesLoading, setProfilesLoading] = useState(false);
   const [profileId, setProfileId] = useState('');
+  const launchExitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const launchRemoveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     listen<LaunchProgress>('launch-progress', (event) => {
       setLaunchProgress(event.payload);
-      if (event.payload.stage === 'started' || event.payload.stage === 'error') {
-        setTimeout(() => setLaunchProgress(null), 1500);
-      }
     })
       .then((fn) => {
         unlisten = fn;
@@ -59,6 +59,46 @@ function GameListPage() {
       }
     };
   }, []);
+
+  const clearLaunchTimers = useCallback(() => {
+    if (launchExitTimerRef.current) {
+      clearTimeout(launchExitTimerRef.current);
+      launchExitTimerRef.current = null;
+    }
+    if (launchRemoveTimerRef.current) {
+      clearTimeout(launchRemoveTimerRef.current);
+      launchRemoveTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!launchProgress) {
+      clearLaunchTimers();
+      setLaunchProgressClosing(false);
+      return;
+    }
+
+    clearLaunchTimers();
+    setLaunchProgressClosing(false);
+
+    if (launchProgress.stage === 'started' || launchProgress.stage === 'error') {
+      const exitDelayMs = 1200;
+      const exitDurationMs = 280;
+      launchExitTimerRef.current = setTimeout(() => {
+        setLaunchProgressClosing(true);
+        launchRemoveTimerRef.current = setTimeout(() => {
+          setLaunchProgress(null);
+          setLaunchProgressClosing(false);
+        }, exitDurationMs);
+      }, exitDelayMs);
+    }
+  }, [launchProgress, clearLaunchTimers]);
+
+  useEffect(() => {
+    return () => {
+      clearLaunchTimers();
+    };
+  }, [clearLaunchTimers]);
 
   const sortedGames = useMemo(() => [...games].sort((a, b) => a.name.localeCompare(b.name)), [games]);
   const selectedGame = useMemo(
@@ -234,7 +274,13 @@ function GameListPage() {
       </header>
 
       {launchProgress && (
-        <div className="games-launch-progress">
+        <div
+          className={[
+            'games-launch-progress',
+            launchProgressClosing ? 'is-exiting' : '',
+            launchProgress.stage === 'started' ? 'is-success' : '',
+          ].filter(Boolean).join(' ')}
+        >
           <strong>{t('games.launchProgress.title', { name: launchingGame?.name ?? '' })}</strong>
           <div className="games-launch-message">{launchMessage}</div>
         </div>
