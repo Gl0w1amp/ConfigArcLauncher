@@ -219,7 +219,13 @@ function GameListPage() {
   })();
 
   const isVhd = (selectedGame?.launch_mode ?? 'folder') === 'vhd';
-  const detailItems = selectedGame ? [
+  const detailItems: {
+    key: string;
+    label: string;
+    value: string;
+    editable: boolean;
+    field?: 'execPath' | 'workdir' | 'launchArgs' | 'baseVhdPath' | 'patchVhdPath';
+  }[] = selectedGame ? [
     {
       key: 'mode',
       label: t('games.mode'),
@@ -339,11 +345,11 @@ function GameListPage() {
                           title={detail.value}
                           role="button"
                           tabIndex={0}
-                          onClick={() => handleEditDetail(detail.field)}
+                          onClick={() => handleEditDetail(detail.field!)}
                           onKeyDown={(event) => {
                             if (event.key === 'Enter' || event.key === ' ') {
                               event.preventDefault();
-                              handleEditDetail(detail.field);
+                              handleEditDetail(detail.field!);
                             }
                           }}
                         >
