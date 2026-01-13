@@ -11,6 +11,7 @@ use crate::config::{
 };
 use crate::games::{launcher::{launch_game, launch_game_child}, model::{Game, LaunchMode}, store};
 use crate::icf::{decode_icf, encrypt_icf, serialize_icf, IcfData};
+use crate::error::{ApiError, ApiResult};
 use crate::trusted::{
     deploy_segatoools_for_active, rollback_segatoools_for_active, verify_segatoools_for_active,
     DeployResult, RollbackResult, SegatoolsTrustStatus,
@@ -236,10 +237,10 @@ fn build_folder_game(detected: DetectedGameInfo) -> Game {
     }
 }
 
-fn scan_game_folder_logic(path: &str) -> Result<Game, String> {
+fn scan_game_folder_logic(path: &str) -> ApiResult<Game> {
     let dir = Path::new(path);
     if !dir.exists() || !dir.is_dir() {
-        return Err("Invalid directory".to_string());
+        return Err(("Invalid directory".to_string()).into());
     }
 
     let detected = detect_game_in_dir(dir)
@@ -248,7 +249,7 @@ fn scan_game_folder_logic(path: &str) -> Result<Game, String> {
     Ok(build_folder_game(detected))
 }
 
-fn detect_game_on_mount() -> Result<DetectedGameInfo, String> {
+fn detect_game_on_mount() -> ApiResult<DetectedGameInfo> {
     let candidates = [
         Path::new("X:\\"),
         Path::new("X:\\app"),
@@ -262,7 +263,7 @@ fn detect_game_on_mount() -> Result<DetectedGameInfo, String> {
             }
         }
     }
-    Err("No supported game executable found on mounted VHD".to_string())
+    Err("No supported game executable found on mounted VHD".to_string().into())
 }
 
 #[derive(Debug)]
@@ -336,7 +337,7 @@ fn dir_has_option(dir: &Path) -> bool {
     false
 }
 
-fn detect_vfs_paths_on_drive() -> Result<VfsResolved, String> {
+fn detect_vfs_paths_on_drive() -> ApiResult<VfsResolved> {
     let candidates = [
         PathBuf::from("X:\\"),
         PathBuf::from("X:\\app"),
@@ -393,7 +394,7 @@ fn ensure_vfs_keys_present(cfg: &mut SegatoolsConfig) {
     }
 }
 
-fn is_process_running(name: &str) -> Result<bool, String> {
+fn is_process_running(name: &str) -> ApiResult<bool> {
     let escaped = name.replace('\'', "''");
     let cmd = format!(
         "Get-Process -Name '{}' -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Id",
@@ -403,12 +404,12 @@ fn is_process_running(name: &str) -> Result<bool, String> {
         .args(&["-NoProfile", "-Command", &cmd])
         .creation_flags(0x08000000)
         .output()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| ApiError::from(e.to_string()))?;
     let stdout = String::from_utf8_lossy(&output.stdout);
     Ok(!stdout.trim().is_empty())
 }
 
-fn wait_for_process_start(name: &str, timeout: Duration) -> Result<bool, String> {
+fn wait_for_process_start(name: &str, timeout: Duration) -> ApiResult<bool> {
     let start = Instant::now();
     while start.elapsed() < timeout {
         if is_process_running(name)? {
@@ -419,7 +420,7 @@ fn wait_for_process_start(name: &str, timeout: Duration) -> Result<bool, String>
     Ok(false)
 }
 
-fn wait_for_process_exit(name: &str) -> Result<(), String> {
+fn wait_for_process_exit(name: &str) -> ApiResult<()> {
     loop {
         if !is_process_running(name)? {
             return Ok(());
@@ -428,20 +429,20 @@ fn wait_for_process_exit(name: &str) -> Result<(), String> {
     }
 }
 
-fn active_game() -> Result<Game, String> {
+fn active_game() -> ApiResult<Game> {
     let active_id = get_active_game_id()
-        .map_err(|e| e.to_string())?
+        .map_err(|e| ApiError::from(e.to_string()))?
         .ok_or_else(|| "No active game selected".to_string())?;
-    let games = store::list_games().map_err(|e| e.to_string())?;
+    let games = store::list_games().map_err(|e| ApiError::from(e.to_string()))?;
     games
         .into_iter()
         .find(|g| g.id == active_id)
-        .ok_or_else(|| "Active game not found".to_string())
+        .ok_or_else(|| ApiError::from("Active game not found".to_string()))
 }
 
-fn active_game_root_dir() -> Result<PathBuf, String> {
+fn active_game_root_dir() -> ApiResult<PathBuf> {
     let game = active_game()?;
-    store::game_root_dir(&game).ok_or_else(|| "Game path missing".to_string())
+    store::game_root_dir(&game).ok_or_else(|| ApiError::from("Game path missing".to_string()))
 }
 
 fn resolve_with_base(base: &Path, target: &str) -> PathBuf {
@@ -453,13 +454,13 @@ fn resolve_with_base(base: &Path, target: &str) -> PathBuf {
     }
 }
 
-fn load_active_seg_config() -> Result<(SegatoolsConfig, PathBuf), String> {
-    let base = active_game_dir().map_err(|e| e.to_string())?;
-    let seg_path = segatoools_path_for_active().map_err(|e| e.to_string())?;
+fn load_active_seg_config() -> ApiResult<(SegatoolsConfig, PathBuf)> {
+    let base = active_game_dir().map_err(|e| ApiError::from(e.to_string()))?;
+    let seg_path = segatoools_path_for_active().map_err(|e| ApiError::from(e.to_string()))?;
     if !seg_path.exists() {
-        return Err("segatools.ini not found. Please deploy first.".to_string());
+        return Err(("segatools.ini not found. Please deploy first.".to_string()).into());
     }
-    let cfg = load_segatoools_config(&seg_path).map_err(|e| e.to_string())?;
+    let cfg = load_segatoools_config(&seg_path).map_err(|e| ApiError::from(e.to_string()))?;
     Ok((cfg, base))
 }
 
@@ -572,7 +573,7 @@ fn build_path_info(base: &Path, raw: &str) -> Option<PathInfo> {
 }
 
 #[command]
-pub async fn pick_game_folder_cmd() -> Result<Game, String> {
+pub async fn pick_game_folder_cmd() -> ApiResult<Game> {
     tauri::async_runtime::spawn_blocking(|| {
         let ps_script = "Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.FolderBrowserDialog; if ($f.ShowDialog() -eq 'OK') { Write-Output $f.SelectedPath }";
 
@@ -580,22 +581,22 @@ pub async fn pick_game_folder_cmd() -> Result<Game, String> {
             .args(&["-NoProfile", "-Command", ps_script])
             .creation_flags(0x08000000)
             .output()
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| ApiError::from(e.to_string()))?;
 
         let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
 
         if path.is_empty() {
-            return Err("No folder selected".to_string());
+            return Err(("No folder selected".to_string()).into());
         }
 
         scan_game_folder_logic(&path)
     })
     .await
-    .map_err(|e| e.to_string())?
+    .map_err(|e| ApiError::from(e.to_string()))?
 }
 
 #[command]
-pub async fn pick_game_auto_cmd() -> Result<AutoDetectResult, String> {
+pub async fn pick_game_auto_cmd() -> ApiResult<AutoDetectResult> {
     tauri::async_runtime::spawn_blocking(|| {
         let ps_script = "Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.FolderBrowserDialog; if ($f.ShowDialog() -eq 'OK') { Write-Output $f.SelectedPath }";
 
@@ -603,23 +604,23 @@ pub async fn pick_game_auto_cmd() -> Result<AutoDetectResult, String> {
             .args(&["-NoProfile", "-Command", ps_script])
             .creation_flags(0x08000000)
             .output()
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| ApiError::from(e.to_string()))?;
 
         let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
 
         if path.is_empty() {
-            return Err("No folder selected".to_string());
+            return Err(("No folder selected".to_string()).into());
         }
 
         let dir = Path::new(&path);
         if !dir.exists() || !dir.is_dir() {
-            return Err("Invalid directory".to_string());
+            return Err(("Invalid directory".to_string()).into());
         }
 
         auto_detect_game_in_dir(dir)
     })
     .await
-    .map_err(|e| e.to_string())?
+    .map_err(|e| ApiError::from(e.to_string()))?
 }
 
 #[derive(Serialize, Clone)]
@@ -658,9 +659,9 @@ pub struct AutoDetectResult {
     pub vhd: Option<VhdConfig>,
 }
 
-fn detect_vhd_files_in_dir(dir: &Path) -> Result<VhdConfig, String> {
+fn detect_vhd_files_in_dir(dir: &Path) -> ApiResult<VhdConfig> {
     let mut vhds: Vec<PathBuf> = fs::read_dir(dir)
-        .map_err(|e| e.to_string())?
+        .map_err(|e| ApiError::from(e.to_string()))?
         .filter_map(|entry| entry.ok().map(|e| e.path()))
         .filter(|path| {
             path.is_file()
@@ -670,7 +671,7 @@ fn detect_vhd_files_in_dir(dir: &Path) -> Result<VhdConfig, String> {
         .collect();
 
     if vhds.is_empty() {
-        return Err("No VHD files found in the selected folder.".to_string());
+        return Err(("No VHD files found in the selected folder.".to_string()).into());
     }
 
     vhds.sort_by_key(|p| fs::metadata(p).map(|m| m.len()).unwrap_or(0));
@@ -719,7 +720,7 @@ fn build_vhd_game(dir: &Path, vhd: &VhdConfig) -> Game {
     }
 }
 
-fn auto_detect_game_in_dir(dir: &Path) -> Result<AutoDetectResult, String> {
+fn auto_detect_game_in_dir(dir: &Path) -> ApiResult<AutoDetectResult> {
     if let Some(detected) = detect_game_with_fallback(dir) {
         return Ok(AutoDetectResult {
             game: build_folder_game(detected),
@@ -737,7 +738,7 @@ fn auto_detect_game_in_dir(dir: &Path) -> Result<AutoDetectResult, String> {
 }
 
 #[command]
-pub async fn pick_vhd_game_cmd() -> Result<VhdDetectResult, String> {
+pub async fn pick_vhd_game_cmd() -> ApiResult<VhdDetectResult> {
     tauri::async_runtime::spawn_blocking(|| {
         let ps_script = "Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.FolderBrowserDialog; if ($f.ShowDialog() -eq 'OK') { Write-Output $f.SelectedPath }";
 
@@ -745,17 +746,17 @@ pub async fn pick_vhd_game_cmd() -> Result<VhdDetectResult, String> {
             .args(&["-NoProfile", "-Command", ps_script])
             .creation_flags(0x08000000)
             .output()
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| ApiError::from(e.to_string()))?;
 
         let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
 
         if path.is_empty() {
-            return Err("No folder selected".to_string());
+            return Err(("No folder selected".to_string()).into());
         }
 
         let dir = Path::new(&path);
         if !dir.exists() || !dir.is_dir() {
-            return Err("Invalid directory".to_string());
+            return Err(("Invalid directory".to_string()).into());
         }
 
         let vhd = detect_vhd_files_in_dir(dir)?;
@@ -764,11 +765,11 @@ pub async fn pick_vhd_game_cmd() -> Result<VhdDetectResult, String> {
         Ok(VhdDetectResult { game, vhd })
     })
     .await
-    .map_err(|e| e.to_string())?
+    .map_err(|e| ApiError::from(e.to_string()))?
 }
 
 #[command]
-pub async fn pick_decrypt_files_cmd() -> Result<Vec<String>, String> {
+pub async fn pick_decrypt_files_cmd() -> ApiResult<Vec<String>> {
     tauri::async_runtime::spawn_blocking(|| {
         let ps_script = "Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.OpenFileDialog; $f.Multiselect = $true; $f.Filter = 'Container files (*.app;*.opt;*.pack)|*.app;*.opt;*.pack|All files (*.*)|*.*'; if ($f.ShowDialog() -eq 'OK') { $f.FileNames }";
 
@@ -776,7 +777,7 @@ pub async fn pick_decrypt_files_cmd() -> Result<Vec<String>, String> {
             .args(&["-NoProfile", "-Command", ps_script])
             .creation_flags(0x08000000)
             .output()
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| ApiError::from(e.to_string()))?;
 
         let raw = String::from_utf8_lossy(&output.stdout);
         let files: Vec<String> = raw
@@ -786,80 +787,80 @@ pub async fn pick_decrypt_files_cmd() -> Result<Vec<String>, String> {
             .collect();
 
         if files.is_empty() {
-            return Err("No files selected".to_string());
+            return Err(("No files selected".to_string()).into());
         }
 
         Ok(files)
     })
     .await
-    .map_err(|e| e.to_string())?
+    .map_err(|e| ApiError::from(e.to_string()))?
 }
 
 #[command]
-pub fn get_segatoools_config() -> Result<SegatoolsConfig, String> {
-    ensure_default_segatoools_exists().map_err(|e| e.to_string())?;
-    let path = segatoools_path_for_active().map_err(|e| e.to_string())?;
+pub fn get_segatoools_config() -> ApiResult<SegatoolsConfig> {
+    ensure_default_segatoools_exists().map_err(|e| ApiError::from(e.to_string()))?;
+    let path = segatoools_path_for_active().map_err(|e| ApiError::from(e.to_string()))?;
     let game_name = active_game().ok().map(|g| g.name);
-    let cfg = load_segatoools_config(&path).map_err(|e| e.to_string())?;
+    let cfg = load_segatoools_config(&path).map_err(|e| ApiError::from(e.to_string()))?;
     Ok(sanitize_segatoools_for_game(cfg, game_name.as_deref()))
 }
 
 #[command]
-pub fn get_game_dir_segatoools_config() -> Result<SegatoolsConfig, String> {
+pub fn get_game_dir_segatoools_config() -> ApiResult<SegatoolsConfig> {
     let game = active_game()?;
     let root = store::game_root_dir(&game).ok_or_else(|| "Game path missing".to_string())?;
     let path = root.join("segatools.ini");
     if !path.exists() {
-        return Err("segatools.ini not found in game directory.".to_string());
+        return Err(("segatools.ini not found in game directory.".to_string()).into());
     }
-    let cfg = load_segatoools_config(&path).map_err(|e| e.to_string())?;
+    let cfg = load_segatoools_config(&path).map_err(|e| ApiError::from(e.to_string()))?;
     Ok(sanitize_segatoools_for_game(cfg, Some(game.name.as_str())))
 }
 
 #[command]
-pub fn save_segatoools_config(config: SegatoolsConfig) -> Result<(), String> {
-    let path = segatoools_path_for_active().map_err(|e| e.to_string())?;
+pub fn save_segatoools_config(config: SegatoolsConfig) -> ApiResult<()> {
+    let path = segatoools_path_for_active().map_err(|e| ApiError::from(e.to_string()))?;
     if !path.exists() {
-        return Err("segatools.ini not found. Please deploy first.".to_string());
+        return Err(("segatools.ini not found. Please deploy first.".to_string()).into());
     }
     let game_name = active_game().ok().map(|g| g.name);
     let sanitized = sanitize_segatoools_for_game(config, game_name.as_deref());
-    persist_segatoools_config(&path, &sanitized).map_err(|e| e.to_string())
+    persist_segatoools_config(&path, &sanitized).map_err(|e| ApiError::from(e.to_string()))
 }
 
 #[command]
-pub fn export_segatoools_config_cmd() -> Result<String, String> {
-    ensure_default_segatoools_exists().map_err(|e| e.to_string())?;
-    let path = segatoools_path_for_active().map_err(|e| e.to_string())?;
-    let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+pub fn export_segatoools_config_cmd() -> ApiResult<String> {
+    ensure_default_segatoools_exists().map_err(|e| ApiError::from(e.to_string()))?;
+    let path = segatoools_path_for_active().map_err(|e| ApiError::from(e.to_string()))?;
+    let content = fs::read_to_string(&path).map_err(|e| ApiError::from(e.to_string()))?;
     let game_name = active_game().ok().map(|g| g.name);
-    let mut cfg = load_segatoools_config_from_string(&content).map_err(|e| e.to_string())?;
+    let mut cfg = load_segatoools_config_from_string(&content).map_err(|e| ApiError::from(e.to_string()))?;
     cfg.keychip.id.clear();
     let sanitized = sanitize_segatoools_for_game(cfg, game_name.as_deref());
-    let rendered = render_segatoools_config(&sanitized, Some(&content)).map_err(|e| e.to_string())?;
+    let rendered = render_segatoools_config(&sanitized, Some(&content)).map_err(|e| ApiError::from(e.to_string()))?;
     Ok(redact_keychip_id(&rendered))
 }
 
 #[command]
-pub fn import_segatoools_config_cmd(content: String) -> Result<SegatoolsConfig, String> {
+pub fn import_segatoools_config_cmd(content: String) -> ApiResult<SegatoolsConfig> {
     let game_name = active_game().ok().map(|g| g.name);
-    let cfg = load_segatoools_config_from_string(&content).map_err(|e| e.to_string())?;
+    let cfg = load_segatoools_config_from_string(&content).map_err(|e| ApiError::from(e.to_string()))?;
     Ok(sanitize_segatoools_for_game(cfg, game_name.as_deref()))
 }
 
 #[command]
-pub fn export_profile_cmd(profile_id: Option<String>) -> Result<String, String> {
-    ensure_default_segatoools_exists().map_err(|e| e.to_string())?;
+pub fn export_profile_cmd(profile_id: Option<String>) -> ApiResult<String> {
+    ensure_default_segatoools_exists().map_err(|e| ApiError::from(e.to_string()))?;
     let game = active_game()?;
     let game_name = game.name.clone();
     let allowed = allowed_sections_for_game(&game.name);
 
     let (name, description, mut cfg) = if let Some(id) = profile_id {
-        let profile = load_profile(&id, None).map_err(|e| e.to_string())?;
+        let profile = load_profile(&id, None).map_err(|e| ApiError::from(e.to_string()))?;
         (profile.name, profile.description, profile.segatools)
     } else {
-        let path = segatoools_path_for_active().map_err(|e| e.to_string())?;
-        let cfg = load_segatoools_config(&path).map_err(|e| e.to_string())?;
+        let path = segatoools_path_for_active().map_err(|e| ApiError::from(e.to_string()))?;
+        let cfg = load_segatoools_config(&path).map_err(|e| ApiError::from(e.to_string()))?;
         ("Shared Profile".to_string(), None, cfg)
     };
 
@@ -870,7 +871,7 @@ pub fn export_profile_cmd(profile_id: Option<String>) -> Result<String, String> 
         "name": name,
         "description": description,
         "segatools": cfg,
-    })).map_err(|e| e.to_string())?;
+    })).map_err(|e| ApiError::from(e.to_string()))?;
 
     if let Some(seg) = payload.get_mut("segatools").and_then(|v| v.as_object_mut()) {
         let keys: Vec<String> = seg.keys().cloned().collect();
@@ -905,12 +906,12 @@ pub fn export_profile_cmd(profile_id: Option<String>) -> Result<String, String> 
         }
     }
 
-    serde_json::to_string_pretty(&payload).map_err(|e| e.to_string())
+    serde_json::to_string_pretty(&payload).map_err(|e| ApiError::from(e.to_string()))
 }
 
 #[command]
-pub fn import_profile_cmd(content: String) -> Result<ConfigProfile, String> {
-    let mut payload: ImportProfilePayload = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+pub fn import_profile_cmd(content: String) -> ApiResult<ConfigProfile> {
+    let mut payload: ImportProfilePayload = serde_json::from_str(&content).map_err(|e| ApiError::from(e.to_string()))?;
     payload.segatools.keychip.id.clear();
 
     let game_name = active_game().ok().map(|g| g.name);
@@ -924,65 +925,65 @@ pub fn import_profile_cmd(content: String) -> Result<ConfigProfile, String> {
         updated_at: now,
     };
     profile.segatools = sanitize_segatoools_for_game(profile.segatools, game_name.as_deref());
-    save_profile(&profile).map_err(|e| e.to_string())?;
+    save_profile(&profile).map_err(|e| ApiError::from(e.to_string()))?;
     Ok(profile)
 }
 
 #[command]
-pub fn list_profiles_cmd(game_id: Option<String>) -> Result<Vec<ConfigProfile>, String> {
-    list_profiles(game_id.as_deref()).map_err(|e| e.to_string())
+pub fn list_profiles_cmd(game_id: Option<String>) -> ApiResult<Vec<ConfigProfile>> {
+    list_profiles(game_id.as_deref()).map_err(|e| ApiError::from(e.to_string()))
 }
 
 #[command]
-pub fn load_profile_cmd(id: String) -> Result<ConfigProfile, String> {
+pub fn load_profile_cmd(id: String) -> ApiResult<ConfigProfile> {
     let game_name = active_game().ok().map(|g| g.name);
-    let mut profile = load_profile(&id, None).map_err(|e| e.to_string())?;
+    let mut profile = load_profile(&id, None).map_err(|e| ApiError::from(e.to_string()))?;
     profile.segatools = sanitize_segatoools_for_game(profile.segatools, game_name.as_deref());
     Ok(profile)
 }
 
 #[command]
-pub fn save_profile_cmd(profile: ConfigProfile) -> Result<(), String> {
+pub fn save_profile_cmd(profile: ConfigProfile) -> ApiResult<()> {
     let game_name = active_game().ok().map(|g| g.name);
     let mut profile = profile;
     profile.segatools = sanitize_segatoools_for_game(profile.segatools, game_name.as_deref());
-    save_profile(&profile).map_err(|e| e.to_string())
+    save_profile(&profile).map_err(|e| ApiError::from(e.to_string()))
 }
 
 #[command]
-pub fn delete_profile_cmd(id: String) -> Result<(), String> {
-    delete_profile(&id).map_err(|e| e.to_string())
+pub fn delete_profile_cmd(id: String) -> ApiResult<()> {
+    delete_profile(&id).map_err(|e| ApiError::from(e.to_string()))
 }
 
 #[command]
-pub fn list_games_cmd() -> Result<Vec<Game>, String> {
-    store::list_games().map_err(|e| e.to_string())
+pub fn list_games_cmd() -> ApiResult<Vec<Game>> {
+    store::list_games().map_err(|e| ApiError::from(e.to_string()))
 }
 
 #[command]
-pub fn save_game_cmd(game: Game) -> Result<(), String> {
-    store::save_game(game).map_err(|e| e.to_string())
+pub fn save_game_cmd(game: Game) -> ApiResult<()> {
+    store::save_game(game).map_err(|e| ApiError::from(e.to_string()))
 }
 
 #[command]
-pub fn load_vhd_config_cmd(game_id: String) -> Result<VhdConfig, String> {
-    load_vhd_config(&game_id).map_err(|e| e.to_string())
+pub fn load_vhd_config_cmd(game_id: String) -> ApiResult<VhdConfig> {
+    load_vhd_config(&game_id).map_err(|e| ApiError::from(e.to_string()))
 }
 
 #[command]
-pub fn save_vhd_config_cmd(game_id: String, config: VhdConfig) -> Result<(), String> {
-    save_vhd_config(&game_id, &config).map_err(|e| e.to_string())
+pub fn save_vhd_config_cmd(game_id: String, config: VhdConfig) -> ApiResult<()> {
+    save_vhd_config(&game_id, &config).map_err(|e| ApiError::from(e.to_string()))
 }
 
 #[command]
-pub fn delete_game_cmd(id: String) -> Result<(), String> {
-    store::delete_game(&id).map_err(|e| e.to_string())
+pub fn delete_game_cmd(id: String) -> ApiResult<()> {
+    store::delete_game(&id).map_err(|e| ApiError::from(e.to_string()))
 }
 
 #[command]
-pub async fn launch_game_cmd(window: Window, id: String, profile_id: Option<String>) -> Result<(), String> {
+pub async fn launch_game_cmd(window: Window, id: String, profile_id: Option<String>) -> ApiResult<()> {
     tauri::async_runtime::spawn_blocking(move || {
-        let games = store::list_games().map_err(|e| e.to_string())?;
+        let games = store::list_games().map_err(|e| ApiError::from(e.to_string()))?;
         let game = games
             .into_iter()
             .find(|g| g.id == id)
@@ -994,18 +995,18 @@ pub async fn launch_game_cmd(window: Window, id: String, profile_id: Option<Stri
         let _ = store::game_root_dir(&game).ok_or_else(|| "Game path missing".to_string())?;
 
         let config_to_validate = if let Some(pid) = profile_id.filter(|s| !s.is_empty()) {
-            let profile = load_profile(&pid, Some(&id)).map_err(|e| e.to_string())?;
-            let seg_path = segatoools_path_for_game_id(&id).map_err(|e| e.to_string())?;
+            let profile = load_profile(&pid, Some(&id)).map_err(|e| ApiError::from(e.to_string()))?;
+            let seg_path = segatoools_path_for_game_id(&id).map_err(|e| ApiError::from(e.to_string()))?;
             let sanitized = sanitize_segatoools_for_game(profile.segatools, Some(game_name.as_str()));
-            persist_segatoools_config(&seg_path, &sanitized).map_err(|e| e.to_string())?;
+            persist_segatoools_config(&seg_path, &sanitized).map_err(|e| ApiError::from(e.to_string()))?;
             sanitized
         } else {
-            let seg_path = segatoools_path_for_game_id(&id).map_err(|e| e.to_string())?;
+            let seg_path = segatoools_path_for_game_id(&id).map_err(|e| ApiError::from(e.to_string()))?;
             if seg_path.exists() {
-                let cfg = load_segatoools_config(&seg_path).map_err(|e| e.to_string())?;
+                let cfg = load_segatoools_config(&seg_path).map_err(|e| ApiError::from(e.to_string()))?;
                 sanitize_segatoools_for_game(cfg, Some(game_name.as_str()))
             } else {
-                return Err("segatools.ini not found. Please configure the game.".to_string());
+                return Err(("segatools.ini not found. Please configure the game.".to_string()).into());
             }
         };
 
@@ -1016,49 +1017,49 @@ pub async fn launch_game_cmd(window: Window, id: String, profile_id: Option<Stri
         if config_to_validate.vfs.option.is_empty() { missing.push("OPTION Path"); }
 
         if !missing.is_empty() {
-            return Err(format!("Missing required fields: {}. Please configure them in settings.", missing.join(", ")));
+            return Err((format!("Missing required fields: {}. Please configure them in settings.", missing.join(", "))).into());
         }
 
-        launch_game(&game).map_err(|e| e.to_string())
+        launch_game(&game).map_err(|e| ApiError::from(e.to_string()))
     })
     .await
-    .map_err(|e| e.to_string())?
+    .map_err(|e| ApiError::from(e.to_string()))?
 }
 
-fn load_launch_config(game: &Game, profile_id: Option<String>, game_name: &str) -> Result<(SegatoolsConfig, PathBuf), String> {
-    let seg_path = segatoools_path_for_game_id(&game.id).map_err(|e| e.to_string())?;
+fn load_launch_config(game: &Game, profile_id: Option<String>, game_name: &str) -> ApiResult<(SegatoolsConfig, PathBuf)> {
+    let seg_path = segatoools_path_for_game_id(&game.id).map_err(|e| ApiError::from(e.to_string()))?;
     let cfg = if let Some(pid) = profile_id.filter(|s| !s.is_empty()) {
-        let profile = load_profile(&pid, Some(&game.id)).map_err(|e| e.to_string())?;
+        let profile = load_profile(&pid, Some(&game.id)).map_err(|e| ApiError::from(e.to_string()))?;
         let sanitized = sanitize_segatoools_for_game(profile.segatools, Some(game_name));
-        persist_segatoools_config(&seg_path, &sanitized).map_err(|e| e.to_string())?;
+        persist_segatoools_config(&seg_path, &sanitized).map_err(|e| ApiError::from(e.to_string()))?;
         sanitized
     } else {
         if !seg_path.exists() {
-            return Err("segatools.ini not found. Please configure the game.".to_string());
+            return Err(("segatools.ini not found. Please configure the game.".to_string()).into());
         }
-        let cfg = load_segatoools_config(&seg_path).map_err(|e| e.to_string())?;
+        let cfg = load_segatoools_config(&seg_path).map_err(|e| ApiError::from(e.to_string()))?;
         sanitize_segatoools_for_game(cfg, Some(game_name))
     };
     Ok((cfg, seg_path))
 }
 
-fn launch_vhd_game(game: &Game, profile_id: Option<String>, window: &Window) -> Result<(), String> {
+fn launch_vhd_game(game: &Game, profile_id: Option<String>, window: &Window) -> ApiResult<()> {
     if !game.enabled {
         emit_launch_progress(window, &game.id, "error");
-        return Err("Game is disabled".to_string());
+        return Err(("Game is disabled".to_string()).into());
     }
-    let vhd_cfg = load_vhd_config(&game.id).map_err(|e| e.to_string())?;
+    let vhd_cfg = load_vhd_config(&game.id).map_err(|e| ApiError::from(e.to_string()))?;
     let resolved = resolve_vhd_config(&game.id, &vhd_cfg)?;
     emit_launch_progress(window, &game.id, "mounting");
     let mounted = match mount_vhd_with_elevation(&resolved) {
         Ok(mounted) => mounted,
         Err(err) => {
             emit_launch_progress(window, &game.id, "error");
-            return Err(err);
+            return Err((err).into());
         }
     };
 
-    let result = (|| -> Result<(), String> {
+    let result = (|| -> ApiResult<()> {
         emit_launch_progress(window, &game.id, "detecting");
         let detected = detect_game_on_mount()?;
         let (mut cfg, seg_path) = load_launch_config(game, profile_id, &detected.name)?;
@@ -1070,10 +1071,10 @@ fn launch_vhd_game(game: &Game, profile_id: Option<String>, window: &Window) -> 
         cfg.vfs.appdata = vfs.appdata;
         cfg.vfs.option = vfs.option;
         ensure_vfs_keys_present(&mut cfg);
-        persist_segatoools_config(&seg_path, &cfg).map_err(|e| e.to_string())?;
+        persist_segatoools_config(&seg_path, &cfg).map_err(|e| ApiError::from(e.to_string()))?;
 
         if cfg.keychip.id.is_empty() {
-            return Err("Missing required fields: Keychip ID. Please configure it in settings.".to_string());
+            return Err(("Missing required fields: Keychip ID. Please configure it in settings.".to_string()).into());
         }
 
         emit_launch_progress(window, &game.id, "launching");
@@ -1093,7 +1094,7 @@ fn launch_vhd_game(game: &Game, profile_id: Option<String>, window: &Window) -> 
             .and_then(|s| s.to_str())
             .unwrap_or("")
             .to_string();
-        let mut child = launch_game_child(&launch_game).map_err(|e| e.to_string())?;
+        let mut child = launch_game_child(&launch_game).map_err(|e| ApiError::from(e.to_string()))?;
         let mounted_for_thread = mounted.clone();
         std::thread::spawn(move || {
             let started = if process_name.is_empty() {
@@ -1121,7 +1122,7 @@ fn launch_vhd_game(game: &Game, profile_id: Option<String>, window: &Window) -> 
 }
 
 #[command]
-pub fn default_segatoools_config_cmd() -> Result<SegatoolsConfig, String> {
+pub fn default_segatoools_config_cmd() -> ApiResult<SegatoolsConfig> {
     // Try to load game-specific default if an active game is selected
     let active = if let Ok(Some(id)) = get_active_game_id() {
         if let Ok(games) = store::list_games() {
@@ -1143,7 +1144,7 @@ pub fn default_segatoools_config_cmd() -> Result<SegatoolsConfig, String> {
         };
 
         if let Some(ini_content) = content {
-            let cfg = load_segatoools_config_from_string(ini_content).map_err(|e| e.to_string())?;
+            let cfg = load_segatoools_config_from_string(ini_content).map_err(|e| ApiError::from(e.to_string()))?;
             return Ok(sanitize_segatoools_for_game(cfg, Some(key.as_str())));
         }
 
@@ -1154,32 +1155,32 @@ pub fn default_segatoools_config_cmd() -> Result<SegatoolsConfig, String> {
 }
 
 #[command]
-pub fn segatoools_path_cmd() -> Result<String, String> {
+pub fn segatoools_path_cmd() -> ApiResult<String> {
     Ok(segatoools_path_for_active()
-        .map_err(|e| e.to_string())?
+        .map_err(|e| ApiError::from(e.to_string()))?
         .to_str()
         .unwrap_or("./segatools.ini")
         .to_string())
 }
 
 #[command]
-pub fn open_segatoools_folder_cmd() -> Result<(), String> {
-    let ini_path = segatoools_path_for_active().map_err(|e| e.to_string())?;
+pub fn open_segatoools_folder_cmd() -> ApiResult<()> {
+    let ini_path = segatoools_path_for_active().map_err(|e| ApiError::from(e.to_string()))?;
     let dir = ini_path
         .parent()
         .ok_or_else(|| "Config folder not found".to_string())?;
     if !dir.exists() {
-        return Err("Config folder not found".to_string());
+        return Err(("Config folder not found".to_string()).into());
     }
     Command::new("explorer")
         .arg(dir)
         .spawn()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| ApiError::from(e.to_string()))?;
     Ok(())
 }
 
 #[command]
-pub fn get_data_paths_cmd() -> Result<DataPaths, String> {
+pub fn get_data_paths_cmd() -> ApiResult<DataPaths> {
     let (cfg, base) = load_active_seg_config()?;
     Ok(DataPaths {
         game_root: base.to_string_lossy().into_owned(),
@@ -1189,28 +1190,28 @@ pub fn get_data_paths_cmd() -> Result<DataPaths, String> {
     })
 }
 
-fn amfs_path() -> Result<PathBuf, String> {
+fn amfs_path() -> ApiResult<PathBuf> {
     let (cfg, base) = load_active_seg_config()?;
     let trimmed = cfg.vfs.amfs.trim();
     if trimmed.is_empty() {
-        return Err("AMFS path is empty in segatools.ini".to_string());
+        return Err(("AMFS path is empty in segatools.ini".to_string()).into());
     }
     Ok(resolve_with_base(&base, trimmed))
 }
 
-fn option_dir() -> Result<PathBuf, String> {
+fn option_dir() -> ApiResult<PathBuf> {
     let (cfg, base) = load_active_seg_config()?;
     let trimmed = cfg.vfs.option.trim();
     if trimmed.is_empty() {
-        return Err("OPTION path is empty in segatools.ini".to_string());
+        return Err(("OPTION path is empty in segatools.ini".to_string()).into());
     }
     Ok(resolve_with_base(&base, trimmed))
 }
 
-fn icf_path(kind: &str) -> Result<PathBuf, String> {
+fn icf_path(kind: &str) -> ApiResult<PathBuf> {
     let icf_name = kind.trim().to_uppercase();
     if icf_name.is_empty() {
-        return Err("ICF name missing".to_string());
+        return Err(("ICF name missing".to_string()).into());
     }
     let mut path = amfs_path()?;
     path.push(icf_name);
@@ -1309,14 +1310,14 @@ fn detect_melonloader(base: &Path) -> bool {
         || base.join("mods").join("version.dll").exists()
 }
 
-fn list_mods(dir: &Path) -> Result<Vec<ModEntry>, String> {
+fn list_mods(dir: &Path) -> ApiResult<Vec<ModEntry>> {
     if !dir.exists() {
         return Ok(vec![]);
     }
     let mut mods = Vec::new();
-    for entry in fs::read_dir(dir).map_err(|e| e.to_string())? {
-        let entry = entry.map_err(|e| e.to_string())?;
-        let meta = entry.metadata().map_err(|e| e.to_string())?;
+    for entry in fs::read_dir(dir).map_err(|e| ApiError::from(e.to_string()))? {
+        let entry = entry.map_err(|e| ApiError::from(e.to_string()))?;
+        let meta = entry.metadata().map_err(|e| ApiError::from(e.to_string()))?;
         if meta.is_file() {
             mods.push(ModEntry {
                 name: entry.file_name().to_string_lossy().into_owned(),
@@ -1333,33 +1334,33 @@ fn aime_store_path() -> PathBuf {
     Path::new(".").join("configarc_aime.json")
 }
 
-fn load_aimes() -> Result<Vec<AimeEntry>, String> {
+fn load_aimes() -> ApiResult<Vec<AimeEntry>> {
     let path = aime_store_path();
     if !path.exists() {
         return Ok(vec![]);
     }
-    let data = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let data = fs::read_to_string(&path).map_err(|e| ApiError::from(e.to_string()))?;
     if data.trim().is_empty() {
         return Ok(vec![]);
     }
-    serde_json::from_str(&data).map_err(|e| e.to_string())
+    serde_json::from_str(&data).map_err(|e| ApiError::from(e.to_string()))
 }
 
-fn save_aimes(entries: &[AimeEntry]) -> Result<(), String> {
+fn save_aimes(entries: &[AimeEntry]) -> ApiResult<()> {
     let path = aime_store_path();
-    let json = serde_json::to_string_pretty(entries).map_err(|e| e.to_string())?;
-    fs::write(path, json).map_err(|e| e.to_string())
+    let json = serde_json::to_string_pretty(entries).map_err(|e| ApiError::from(e.to_string()))?;
+    fs::write(path, json).map_err(|e| ApiError::from(e.to_string()))
 }
 
-fn normalize_aime_number(raw: &str) -> Result<String, String> {
+fn normalize_aime_number(raw: &str) -> ApiResult<String> {
     let cleaned: String = raw.chars().filter(|c| !c.is_whitespace()).collect();
     if cleaned.len() != 20 || !cleaned.chars().all(|c| c.is_ascii_digit()) {
-        return Err("Aime number must be exactly 20 digits".to_string());
+        return Err(("Aime number must be exactly 20 digits".to_string()).into());
     }
     Ok(cleaned)
 }
 
-fn unique_copy_destination(dir: &Path, src: &Path) -> Result<PathBuf, String> {
+fn unique_copy_destination(dir: &Path, src: &Path) -> ApiResult<PathBuf> {
     let name = src.file_name().ok_or_else(|| "Invalid file name".to_string())?;
     let mut dest = dir.join(name);
     if !dest.exists() {
@@ -1421,8 +1422,8 @@ pub struct VfsScanResult {
 }
 
 #[command]
-pub fn scan_game_vfs_folders_cmd() -> Result<VfsScanResult, String> {
-    let game_dir = active_game_dir().map_err(|e| e.to_string())?;
+pub fn scan_game_vfs_folders_cmd() -> ApiResult<VfsScanResult> {
+    let game_dir = active_game_dir().map_err(|e| ApiError::from(e.to_string()))?;
     
     let mut result = VfsScanResult {
         amfs: None,
@@ -1430,10 +1431,10 @@ pub fn scan_game_vfs_folders_cmd() -> Result<VfsScanResult, String> {
         option: None,
     };
 
-    let read_dir = fs::read_dir(&game_dir).map_err(|e| e.to_string())?;
+    let read_dir = fs::read_dir(&game_dir).map_err(|e| ApiError::from(e.to_string()))?;
 
     for entry in read_dir {
-        let entry = entry.map_err(|e| e.to_string())?;
+        let entry = entry.map_err(|e| ApiError::from(e.to_string()))?;
         let path = entry.path();
         if !path.is_dir() {
             continue;
@@ -1499,13 +1500,13 @@ pub fn scan_game_vfs_folders_cmd() -> Result<VfsScanResult, String> {
 }
 
 #[command]
-pub fn get_active_game_cmd() -> Result<Option<String>, String> {
-    get_active_game_id().map_err(|e| e.to_string())
+pub fn get_active_game_cmd() -> ApiResult<Option<String>> {
+    get_active_game_id().map_err(|e| ApiError::from(e.to_string()))
 }
 
 #[command]
-pub fn set_active_game_cmd(id: String, profile_id: Option<String>) -> Result<(), String> {
-    set_active_game_id(&id).map_err(|e| e.to_string())?;
+pub fn set_active_game_cmd(id: String, profile_id: Option<String>) -> ApiResult<()> {
+    set_active_game_id(&id).map_err(|e| ApiError::from(e.to_string()))?;
 
     let game_opt = store::list_games()
         .ok()
@@ -1539,88 +1540,88 @@ pub fn set_active_game_cmd(id: String, profile_id: Option<String>) -> Result<(),
     // If a profile is supplied when activating a game, apply it immediately (so switching config does not require launch)
     if let Some(pid) = profile_id.filter(|s| !s.is_empty()) {
         let game = game_opt.ok_or_else(|| "Game not found".to_string())?;
-        let seg_path = segatoools_path_for_active().map_err(|e| e.to_string())?;
+        let seg_path = segatoools_path_for_active().map_err(|e| ApiError::from(e.to_string()))?;
         if !seg_path.exists() {
-            return Err("segatools.ini not found. Please deploy first.".to_string());
+            return Err(("segatools.ini not found. Please deploy first.".to_string()).into());
         }
-        let profile = load_profile(&pid, Some(&id)).map_err(|e| e.to_string())?;
+        let profile = load_profile(&pid, Some(&id)).map_err(|e| ApiError::from(e.to_string()))?;
         let sanitized = sanitize_segatoools_for_game(profile.segatools, Some(game.name.as_str()));
-        persist_segatoools_config(&seg_path, &sanitized).map_err(|e| e.to_string())?;
+        persist_segatoools_config(&seg_path, &sanitized).map_err(|e| ApiError::from(e.to_string()))?;
     }
 
     Ok(())
 }
 
 #[command]
-pub fn apply_profile_to_game_cmd(game_id: String, profile_id: String) -> Result<(), String> {
-    let games = store::list_games().map_err(|e| e.to_string())?;
+pub fn apply_profile_to_game_cmd(game_id: String, profile_id: String) -> ApiResult<()> {
+    let games = store::list_games().map_err(|e| ApiError::from(e.to_string()))?;
     let game = games
         .into_iter()
         .find(|g| g.id == game_id)
         .ok_or_else(|| "Game not found".to_string())?;
-    let seg_path = segatoools_path_for_game_id(&game_id).map_err(|e| e.to_string())?;
+    let seg_path = segatoools_path_for_game_id(&game_id).map_err(|e| ApiError::from(e.to_string()))?;
     if !seg_path.exists() {
-        return Err("segatools.ini not found. Please deploy first.".to_string());
+        return Err(("segatools.ini not found. Please deploy first.".to_string()).into());
     }
-    let profile = load_profile(&profile_id, Some(&game_id)).map_err(|e| e.to_string())?;
+    let profile = load_profile(&profile_id, Some(&game_id)).map_err(|e| ApiError::from(e.to_string()))?;
     let sanitized = sanitize_segatoools_for_game(profile.segatools, Some(game.name.as_str()));
-    persist_segatoools_config(&seg_path, &sanitized).map_err(|e| e.to_string())
+    persist_segatoools_config(&seg_path, &sanitized).map_err(|e| ApiError::from(e.to_string()))
 }
 
 #[command]
-pub fn list_json_configs_cmd() -> Result<Vec<JsonConfigFile>, String> {
-    list_json_configs_for_active().map_err(|e| e.to_string())
+pub fn list_json_configs_cmd() -> ApiResult<Vec<JsonConfigFile>> {
+    list_json_configs_for_active().map_err(|e| ApiError::from(e.to_string()))
 }
 
 #[command]
-pub fn load_json_config_cmd(name: String) -> Result<Value, String> {
-    load_json_config_for_active(&name).map_err(|e| e.to_string())
+pub fn load_json_config_cmd(name: String) -> ApiResult<Value> {
+    load_json_config_for_active(&name).map_err(|e| ApiError::from(e.to_string()))
 }
 
 #[command]
-pub fn save_json_config_cmd(name: String, content: Value) -> Result<(), String> {
-    save_json_config_for_active(&name, &content).map_err(|e| e.to_string())
+pub fn save_json_config_cmd(name: String, content: Value) -> ApiResult<()> {
+    save_json_config_for_active(&name, &content).map_err(|e| ApiError::from(e.to_string()))
 }
 
 #[command]
-pub fn load_icf_cmd(kind: String) -> Result<Vec<IcfData>, String> {
+pub fn load_icf_cmd(kind: String) -> ApiResult<Vec<IcfData>> {
     let path = icf_path(&kind)?;
     let kind_upper = kind.trim().to_uppercase();
     if !path.exists() {
         if kind_upper == "ICF2" {
             return Ok(vec![]);
         }
-        return Err(format!("{} not found", kind_upper));
+        return Err((format!("{} not found", kind_upper)).into());
     }
-    let mut buf = fs::read(path).map_err(|e| e.to_string())?;
-    decode_icf(&mut buf).map_err(|e| e.to_string())
+    let mut buf = fs::read(path).map_err(|e| ApiError::from(e.to_string()))?;
+    decode_icf(&mut buf).map_err(|e| ApiError::from(e.to_string()))
 }
 
 #[command]
-pub fn save_icf_cmd(kind: String, entries: Vec<IcfData>) -> Result<(), String> {
+pub fn save_icf_cmd(kind: String, entries: Vec<IcfData>) -> ApiResult<()> {
     let path = icf_path(&kind)?;
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        fs::create_dir_all(parent).map_err(|e| ApiError::from(e.to_string()))?;
     }
-    let serialized = serialize_icf(&entries).map_err(|e| e.to_string())?;
-    let encrypted = encrypt_icf(&serialized, crate::icf::ICF_KEY, crate::icf::ICF_IV).map_err(|e| e.to_string())?;
+    let serialized = serialize_icf(&entries).map_err(|e| ApiError::from(e.to_string()))?;
+    let encrypted = encrypt_icf(&serialized, crate::icf::ICF_KEY, crate::icf::ICF_IV).map_err(|e| ApiError::from(e.to_string()))?;
     if path.exists() {
         let backup = path.with_extension("bak");
         let _ = fs::copy(&path, &backup);
     }
-    fs::write(path, encrypted).map_err(|e| e.to_string())
+    fs::write(path, encrypted).map_err(|e| ApiError::from(e.to_string()))
 }
 
 #[command]
-pub fn list_option_files_cmd() -> Result<Vec<OptionEntry>, String> {
+pub fn list_option_files_cmd() -> ApiResult<Vec<OptionEntry>> {
     let dir = option_dir()?;
     if !dir.exists() {
         return Ok(vec![]);
     }
     let mut entries = Vec::new();
-    for entry in fs::read_dir(&dir).map_err(|e| e.to_string())? {
-        let entry = entry.map_err(|e| e.to_string())?;
-        let meta = entry.metadata().map_err(|e| e.to_string())?;
+    for entry in fs::read_dir(&dir).map_err(|e| ApiError::from(e.to_string()))? {
+        let entry = entry.map_err(|e| ApiError::from(e.to_string()))?;
+        let meta = entry.metadata().map_err(|e| ApiError::from(e.to_string()))?;
         if !meta.is_dir() {
             continue;
         }
@@ -1642,7 +1643,7 @@ pub fn list_option_files_cmd() -> Result<Vec<OptionEntry>, String> {
 }
 
 #[command]
-pub fn get_mods_status_cmd() -> Result<ModsStatus, String> {
+pub fn get_mods_status_cmd() -> ApiResult<ModsStatus> {
     let game = active_game()?;
     let root = active_game_root_dir()?;
     let supported = game.name.eq_ignore_ascii_case("sinmai");
@@ -1674,15 +1675,15 @@ pub fn get_mods_status_cmd() -> Result<ModsStatus, String> {
 }
 
 #[command]
-pub fn list_aimes_cmd() -> Result<Vec<AimeEntry>, String> {
+pub fn list_aimes_cmd() -> ApiResult<Vec<AimeEntry>> {
     load_aimes()
 }
 
 #[command]
-pub fn save_aime_cmd(name: String, number: String) -> Result<AimeEntry, String> {
+pub fn save_aime_cmd(name: String, number: String) -> ApiResult<AimeEntry> {
     let trimmed_name = name.trim().to_string();
     if trimmed_name.is_empty() {
-        return Err("Name is required".to_string());
+        return Err(("Name is required".to_string()).into());
     }
     let cleaned_number = normalize_aime_number(&number)?;
     let mut entries = load_aimes()?;
@@ -1698,10 +1699,10 @@ pub fn save_aime_cmd(name: String, number: String) -> Result<AimeEntry, String> 
 }
 
 #[command]
-pub fn update_aime_cmd(id: String, name: String, number: String) -> Result<AimeEntry, String> {
+pub fn update_aime_cmd(id: String, name: String, number: String) -> ApiResult<AimeEntry> {
     let trimmed_name = name.trim().to_string();
     if trimmed_name.is_empty() {
-        return Err("Name is required".to_string());
+        return Err(("Name is required".to_string()).into());
     }
     let cleaned_number = normalize_aime_number(&number)?;
     let mut entries = load_aimes()?;
@@ -1713,23 +1714,23 @@ pub fn update_aime_cmd(id: String, name: String, number: String) -> Result<AimeE
         save_aimes(&entries)?;
         Ok(result)
     } else {
-        Err("Aime not found".to_string())
+        Err("Aime not found".to_string().into())
     }
 }
 
 #[command]
-pub fn delete_aime_cmd(id: String) -> Result<(), String> {
+pub fn delete_aime_cmd(id: String) -> ApiResult<()> {
     let mut entries = load_aimes()?;
     let before = entries.len();
     entries.retain(|e| e.id != id);
     if entries.len() == before {
-        return Err("Aime not found".to_string());
+        return Err(("Aime not found".to_string()).into());
     }
     save_aimes(&entries)
 }
 
 #[command]
-pub fn apply_aime_to_active_cmd(id: String) -> Result<(), String> {
+pub fn apply_aime_to_active_cmd(id: String) -> ApiResult<()> {
     let entries = load_aimes()?;
     let entry = entries
         .into_iter()
@@ -1738,17 +1739,17 @@ pub fn apply_aime_to_active_cmd(id: String) -> Result<(), String> {
     let (cfg, base) = load_active_seg_config()?;
     let raw_path = cfg.aime.aime_path.trim();
     if raw_path.is_empty() {
-        return Err("aimePath is empty in segatools.ini".to_string());
+        return Err(("aimePath is empty in segatools.ini".to_string()).into());
     }
     let target = resolve_with_base(&base, raw_path);
     if let Some(parent) = target.parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        fs::create_dir_all(parent).map_err(|e| ApiError::from(e.to_string()))?;
     }
-    fs::write(target, entry.number).map_err(|e| e.to_string())
+    fs::write(target, entry.number).map_err(|e| ApiError::from(e.to_string()))
 }
 
 #[command]
-pub fn get_active_aime_cmd() -> Result<Option<String>, String> {
+pub fn get_active_aime_cmd() -> ApiResult<Option<String>> {
     let (cfg, base) = match load_active_seg_config() {
         Ok(res) => res,
         Err(err) => return Err(err),
@@ -1761,7 +1762,7 @@ pub fn get_active_aime_cmd() -> Result<Option<String>, String> {
     if !target.exists() {
         return Ok(None);
     }
-    let content = fs::read_to_string(target).map_err(|e| e.to_string())?;
+    let content = fs::read_to_string(target).map_err(|e| ApiError::from(e.to_string()))?;
     let trimmed = content.trim();
     if trimmed.is_empty() {
         return Ok(None);
@@ -1770,80 +1771,80 @@ pub fn get_active_aime_cmd() -> Result<Option<String>, String> {
 }
 
 #[command]
-pub fn store_io_dll_cmd(path: String) -> Result<String, String> {
+pub fn store_io_dll_cmd(path: String) -> ApiResult<String> {
     let trimmed = path.trim();
     if trimmed.is_empty() {
-        return Err("Path is empty".to_string());
+        return Err(("Path is empty".to_string()).into());
     }
     let src = PathBuf::from(trimmed);
     if !src.exists() || !src.is_file() {
-        return Err(format!("File not found: {}", trimmed));
+        return Err((format!("File not found: {}", trimmed)).into());
     }
-    let seg_path = segatoools_path_for_active().map_err(|e| e.to_string())?;
+    let seg_path = segatoools_path_for_active().map_err(|e| ApiError::from(e.to_string()))?;
     if !seg_path.exists() {
-        return Err("segatools.ini not found. Please deploy first.".to_string());
+        return Err(("segatools.ini not found. Please deploy first.".to_string()).into());
     }
     let base = seg_path.parent().ok_or_else(|| "Invalid segatools.ini path".to_string())?;
     let io_dir = base.join("IO");
-    fs::create_dir_all(&io_dir).map_err(|e| e.to_string())?;
+    fs::create_dir_all(&io_dir).map_err(|e| ApiError::from(e.to_string()))?;
     let dest = unique_copy_destination(&io_dir, &src)?;
-    fs::copy(&src, &dest).map_err(|e| e.to_string())?;
+    fs::copy(&src, &dest).map_err(|e| ApiError::from(e.to_string()))?;
     let relative = dest.strip_prefix(base).unwrap_or(&dest);
     Ok(relative.to_string_lossy().into_owned())
 }
 
 #[command]
-pub fn load_changelog_cmd() -> Result<String, String> {
+pub fn load_changelog_cmd() -> ApiResult<String> {
     let path = changelog_path();
-    fs::read_to_string(&path).map_err(|e| format!("Failed to read changelog: {}", e))
+    fs::read_to_string(&path).map_err(|e| ApiError::from(format!("Failed to read changelog: {}", e)))
 }
 
 #[command]
-pub fn add_mods_cmd(paths: Vec<String>) -> Result<Vec<ModEntry>, String> {
+pub fn add_mods_cmd(paths: Vec<String>) -> ApiResult<Vec<ModEntry>> {
     let game = active_game()?;
     if !game.name.eq_ignore_ascii_case("sinmai") {
-        return Err("Mods are only supported for Sinmai".to_string());
+        return Err(("Mods are only supported for Sinmai".to_string()).into());
     }
     let mods_dir = active_game_root_dir()?.join("Mods");
-    fs::create_dir_all(&mods_dir).map_err(|e| e.to_string())?;
+    fs::create_dir_all(&mods_dir).map_err(|e| ApiError::from(e.to_string()))?;
 
     for src in paths {
         let src_path = PathBuf::from(&src);
         if !src_path.exists() || !src_path.is_file() {
-            return Err(format!("Mod file not found: {}", src));
+            return Err((format!("Mod file not found: {}", src)).into());
         }
         let Some(name) = src_path.file_name() else {
-            return Err("Invalid mod file name".to_string());
+            return Err(("Invalid mod file name".to_string()).into());
         };
         let dest = mods_dir.join(name);
-        fs::copy(&src_path, &dest).map_err(|e| e.to_string())?;
+        fs::copy(&src_path, &dest).map_err(|e| ApiError::from(e.to_string()))?;
     }
 
     list_mods(&mods_dir)
 }
 
 #[command]
-pub fn delete_mod_cmd(name: String) -> Result<Vec<ModEntry>, String> {
+pub fn delete_mod_cmd(name: String) -> ApiResult<Vec<ModEntry>> {
     let game = active_game()?;
     if !game.name.eq_ignore_ascii_case("sinmai") {
-        return Err("Mods are only supported for Sinmai".to_string());
+        return Err(("Mods are only supported for Sinmai".to_string()).into());
     }
     let mods_dir = active_game_root_dir()?.join("Mods");
     let sanitized = PathBuf::from(&name);
     let Some(fname) = sanitized.file_name() else {
-        return Err("Invalid mod name".to_string());
+        return Err(("Invalid mod name".to_string()).into());
     };
     let target = mods_dir.join(fname);
     if target.exists() {
-        fs::remove_file(&target).map_err(|e| e.to_string())?;
+        fs::remove_file(&target).map_err(|e| ApiError::from(e.to_string()))?;
     } else {
-        return Err("Mod not found".to_string());
+        return Err(("Mod not found".to_string()).into());
     }
     list_mods(&mods_dir)
 }
 
 #[command]
-pub async fn load_fsdecrypt_keys_cmd(key_url: Option<String>) -> Result<fsdecrypt::KeyStatus, String> {
+pub async fn load_fsdecrypt_keys_cmd(key_url: Option<String>) -> ApiResult<fsdecrypt::KeyStatus> {
     let key_url = key_url.and_then(|url| {
         let trimmed = url.trim().to_string();
         if trimmed.is_empty() {
@@ -1854,8 +1855,8 @@ pub async fn load_fsdecrypt_keys_cmd(key_url: Option<String>) -> Result<fsdecryp
     });
     tauri::async_runtime::spawn_blocking(move || fsdecrypt::load_key_status(key_url))
         .await
-        .map_err(|e| e.to_string())?
-        .map_err(|e| e.to_string())
+        .map_err(|e| ApiError::from(e.to_string()))?
+        .map_err(|e| ApiError::from(e.to_string()))
 }
 
 #[command]
@@ -1864,9 +1865,9 @@ pub async fn decrypt_game_files_cmd(
     files: Vec<String>,
     no_extract: bool,
     key_url: Option<String>,
-) -> Result<fsdecrypt::DecryptSummary, String> {
+) -> ApiResult<fsdecrypt::DecryptSummary> {
     if files.is_empty() {
-        return Err("No files provided".to_string());
+        return Err(("No files provided".to_string()).into());
     }
     let paths: Vec<PathBuf> = files.into_iter().map(PathBuf::from).collect();
     let key_url = key_url.and_then(|url| {
@@ -1894,8 +1895,8 @@ pub async fn decrypt_game_files_cmd(
         )
     })
     .await
-    .map_err(|e| e.to_string())?
-    .map_err(|e| e.to_string())
+    .map_err(|e| ApiError::from(e.to_string()))?
+    .map_err(|e| ApiError::from(e.to_string()))
 }
 
 #[derive(Deserialize)]
@@ -1991,34 +1992,34 @@ fn unique_filename(base: &str, used: &mut HashSet<String>, dir: &Path) -> String
 }
 
 #[command]
-pub async fn download_order_fetch_text_cmd(url: String) -> Result<String, String> {
+pub async fn download_order_fetch_text_cmd(url: String) -> ApiResult<String> {
     tauri::async_runtime::spawn_blocking(move || {
         let trimmed = url.trim();
         if trimmed.is_empty() {
-            return Err("URL is required".to_string());
+            return Err(("URL is required".to_string()).into());
         }
         let client = Client::builder()
             .timeout(Duration::from_secs(30))
             .connect_timeout(Duration::from_secs(10))
             .no_proxy()
             .build()
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| ApiError::from(e.to_string()))?;
         let mut resp = client
             .get(trimmed)
             .send()
-            .map_err(|e| e.to_string())?
+            .map_err(|e| ApiError::from(e.to_string()))?
             .error_for_status()
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| ApiError::from(e.to_string()))?;
         let mut buffer = Vec::new();
-        resp.read_to_end(&mut buffer).map_err(|e| e.to_string())?;
+        resp.read_to_end(&mut buffer).map_err(|e| ApiError::from(e.to_string()))?;
         Ok(String::from_utf8_lossy(&buffer).to_string())
     })
     .await
-    .map_err(|e| e.to_string())?
+    .map_err(|e| ApiError::from(e.to_string()))?
 }
 
 #[command]
-pub fn download_order_cancel_cmd() -> Result<(), String> {
+pub fn download_order_cancel_cmd() -> ApiResult<()> {
     DOWNLOAD_ORDER_CANCELLED.store(true, Ordering::SeqCst);
     Ok(())
 }
@@ -2027,18 +2028,18 @@ pub fn download_order_cancel_cmd() -> Result<(), String> {
 pub async fn download_order_download_files_cmd(
     app: AppHandle,
     items: Vec<DownloadOrderDownloadItem>,
-) -> Result<Vec<DownloadOrderDownloadResult>, String> {
-    tauri::async_runtime::spawn_blocking(move || {
+) -> ApiResult<Vec<DownloadOrderDownloadResult>> {
+    tauri::async_runtime::spawn_blocking(move || -> ApiResult<Vec<DownloadOrderDownloadResult>> {
         if items.is_empty() {
-            return Err("No files selected".to_string());
+            return Err(("No files selected".to_string()).into());
         }
         DOWNLOAD_ORDER_CANCELLED.store(false, Ordering::SeqCst);
         let download_dir = app
             .path()
             .download_dir()
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| ApiError::from(e.to_string()))?;
         if !download_dir.exists() {
-            fs::create_dir_all(&download_dir).map_err(|e| e.to_string())?;
+            fs::create_dir_all(&download_dir).map_err(|e| ApiError::from(e.to_string()))?;
         }
 
         let client = Client::builder()
@@ -2046,7 +2047,7 @@ pub async fn download_order_download_files_cmd(
             .connect_timeout(Duration::from_secs(10))
             .no_proxy()
             .build()
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| ApiError::from(e.to_string()))?;
         let mut used_names = HashSet::new();
         let mut results = Vec::with_capacity(items.len());
         let total_files = items.len();
@@ -2054,11 +2055,11 @@ pub async fn download_order_download_files_cmd(
 
         for (index, item) in items.into_iter().enumerate() {
             if is_cancelled() {
-                return Err("Download cancelled".to_string());
+                return Err(("Download cancelled".to_string()).into());
             }
             let url = item.url.trim().to_string();
             if url.is_empty() {
-                return Err("URL is required".to_string());
+                return Err(("URL is required".to_string()).into());
             }
             let mut name = item
                 .filename
@@ -2083,11 +2084,11 @@ pub async fn download_order_download_files_cmd(
             let mut resp = client
                 .get(&url)
                 .send()
-                .map_err(|e| e.to_string())?
+                .map_err(|e| ApiError::from(e.to_string()))?
                 .error_for_status()
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| ApiError::from(e.to_string()))?;
             let total = resp.content_length();
-            let mut file = fs::File::create(&path).map_err(|e| e.to_string())?;
+            let mut file = fs::File::create(&path).map_err(|e| ApiError::from(e.to_string()))?;
             let mut downloaded: u64 = 0;
             let mut buffer = [0u8; 64 * 1024];
             let mut last_emit = Instant::now();
@@ -2119,16 +2120,16 @@ pub async fn download_order_download_files_cmd(
             emit_progress(false, downloaded, total, &name, current_file);
 
             loop {
-                let read = resp.read(&mut buffer).map_err(|e| e.to_string())?;
+                let read = resp.read(&mut buffer).map_err(|e| ApiError::from(e.to_string()))?;
                 if read == 0 {
                     break;
                 }
-                file.write_all(&buffer[..read]).map_err(|e| e.to_string())?;
+                file.write_all(&buffer[..read]).map_err(|e| ApiError::from(e.to_string()))?;
                 downloaded = downloaded.saturating_add(read as u64);
                 if is_cancelled() {
                     drop(file);
                     let _ = fs::remove_file(&path);
-                    return Err("Download cancelled".to_string());
+                    return Err(("Download cancelled".to_string()).into());
                 }
                 if last_emit.elapsed() >= Duration::from_millis(120) {
                     emit_progress(false, downloaded, total, &name, current_file);
@@ -2147,29 +2148,29 @@ pub async fn download_order_download_files_cmd(
         Ok(results)
     })
     .await
-    .map_err(|e| e.to_string())?
+    .map_err(|e| ApiError::from(e.to_string()))?
 }
 
 #[command]
-pub async fn download_order_cmd(payload: DownloadOrderRequest) -> Result<DownloadOrderResponse, String> {
+pub async fn download_order_cmd(payload: DownloadOrderRequest) -> ApiResult<DownloadOrderResponse> {
     tauri::async_runtime::spawn_blocking(move || {
         let debug_logs = cfg!(debug_assertions)
             || std::env::var_os("CONFIGARC_DEBUG_DOWNLOAD_ORDER").is_some();
         let url = payload.url.trim().to_string();
         if url.is_empty() {
-            return Err("URL is required".to_string());
+            return Err(("URL is required".to_string()).into());
         }
         let game_id = payload.game_id.trim().to_string();
         if game_id.is_empty() {
-            return Err("gameId is required".to_string());
+            return Err(("gameId is required".to_string()).into());
         }
         let ver = payload.ver.trim().to_string();
         if ver.is_empty() {
-            return Err("ver is required".to_string());
+            return Err(("ver is required".to_string()).into());
         }
         let serial = payload.serial.trim().to_string();
         if serial.is_empty() {
-            return Err("serial is required".to_string());
+            return Err(("serial is required".to_string()).into());
         }
 
         let encode_request = payload.encode_request.unwrap_or(true);
@@ -2197,16 +2198,16 @@ pub async fn download_order_cmd(payload: DownloadOrderRequest) -> Result<Downloa
 
         let query = format!("game_id={}&ver={}&serial={}", game_id, ver, serial);
         let compression_level = Compression::new(6);
-        let encode_zlib = |input: &str| -> Result<String, String> {
+        let encode_zlib = |input: &str| -> ApiResult<String> {
             let mut encoder = ZlibEncoder::new(Vec::new(), compression_level);
-            encoder.write_all(input.as_bytes()).map_err(|e| e.to_string())?;
-            let compressed = encoder.finish().map_err(|e| e.to_string())?;
+            encoder.write_all(input.as_bytes()).map_err(|e| ApiError::from(e.to_string()))?;
+            let compressed = encoder.finish().map_err(|e| ApiError::from(e.to_string()))?;
             Ok(general_purpose::STANDARD.encode(compressed))
         };
-        let encode_deflate = |input: &str| -> Result<String, String> {
+        let encode_deflate = |input: &str| -> ApiResult<String> {
             let mut encoder = DeflateEncoder::new(Vec::new(), compression_level);
-            encoder.write_all(input.as_bytes()).map_err(|e| e.to_string())?;
-            let compressed = encoder.finish().map_err(|e| e.to_string())?;
+            encoder.write_all(input.as_bytes()).map_err(|e| ApiError::from(e.to_string()))?;
+            let compressed = encoder.finish().map_err(|e| ApiError::from(e.to_string()))?;
             Ok(general_purpose::STANDARD.encode(compressed))
         };
         let (primary_body, primary_label) = if encode_request {
@@ -2221,9 +2222,9 @@ pub async fn download_order_cmd(payload: DownloadOrderRequest) -> Result<Downloa
             .connect_timeout(Duration::from_secs(10))
             .no_proxy();
         if let Some(proxy) = proxy.as_deref() {
-            builder = builder.proxy(Proxy::all(proxy).map_err(|e| e.to_string())?);
+            builder = builder.proxy(Proxy::all(proxy).map_err(|e| ApiError::from(e.to_string()))?);
         }
-        let client = builder.build().map_err(|e| e.to_string())?;
+        let client = builder.build().map_err(|e| ApiError::from(e.to_string()))?;
 
         let mut headers = HeaderMap::new();
         let mut has_content_type = false;
@@ -2239,10 +2240,10 @@ pub async fn download_order_cmd(payload: DownloadOrderRequest) -> Result<Downloa
             let name = name.trim();
             let value = value.trim();
             if name.is_empty() || value.is_empty() {
-                return Err(format!("Invalid header: {}", line));
+                return Err((format!("Invalid header: {}", line)).into());
             }
-            let header_name = HeaderName::from_bytes(name.as_bytes()).map_err(|e| e.to_string())?;
-            let header_value = HeaderValue::from_str(value).map_err(|e| e.to_string())?;
+            let header_name = HeaderName::from_bytes(name.as_bytes()).map_err(|e| ApiError::from(e.to_string()))?;
+            let header_value = HeaderValue::from_str(value).map_err(|e| ApiError::from(e.to_string()))?;
             if header_name == CONTENT_TYPE {
                 has_content_type = true;
             }
@@ -2272,7 +2273,7 @@ pub async fn download_order_cmd(payload: DownloadOrderRequest) -> Result<Downloa
             eprintln!("[download_order] headers {}", header_dump);
         }
 
-        let send_request = |body: &str, label: &str| -> Result<(u16, String, Option<u64>, String), String> {
+        let send_request = |body: &str, label: &str| -> ApiResult<(u16, String, Option<u64>, String)> {
             if debug_logs {
                 let body_head = body.chars().take(80).collect::<String>();
                 eprintln!(
@@ -2288,7 +2289,7 @@ pub async fn download_order_cmd(payload: DownloadOrderRequest) -> Result<Downloa
                 use std::net::TcpStream;
                 use std::io::{Read, Write};
                 
-                let parsed_url = reqwest::Url::parse(&url).map_err(|e| e.to_string())?;
+                let parsed_url = reqwest::Url::parse(&url).map_err(|e| ApiError::from(e.to_string()))?;
                 let host = parsed_url.host_str().ok_or("Invalid host")?;
                 let port = parsed_url.port_or_known_default().unwrap_or(80);
                 let path = parsed_url.path();
@@ -2311,10 +2312,10 @@ pub async fn download_order_cmd(payload: DownloadOrderRequest) -> Result<Downloa
                     path, host, body.len(), body
                 );
                 
-                stream.write_all(request.as_bytes()).map_err(|e| e.to_string())?;
+                stream.write_all(request.as_bytes()).map_err(|e| ApiError::from(e.to_string()))?;
                 
                 let mut response_bytes = Vec::new();
-                stream.read_to_end(&mut response_bytes).map_err(|e| e.to_string())?;
+                stream.read_to_end(&mut response_bytes).map_err(|e| ApiError::from(e.to_string()))?;
                 
                 let response_str = String::from_utf8_lossy(&response_bytes);
                 let mut parts = response_str.splitn(2, "\r\n\r\n");
@@ -2344,7 +2345,7 @@ pub async fn download_order_cmd(payload: DownloadOrderRequest) -> Result<Downloa
                     .headers(headers.clone())
                     .body(body.to_string())
                     .send()
-                    .map_err(|e| e.to_string())?;
+                    .map_err(|e| ApiError::from(e.to_string()))?;
                 let status = response.status();
                 let status_code = status.as_u16();
                 let status_text = status.canonical_reason().unwrap_or("").to_string();
@@ -2369,7 +2370,7 @@ pub async fn download_order_cmd(payload: DownloadOrderRequest) -> Result<Downloa
                         header_dump
                     );
                 }
-                let text = response.text().map_err(|e| e.to_string())?;
+                let text = response.text().map_err(|e| ApiError::from(e.to_string()))?;
                 Ok((status_code, status_text, content_length, text))
             }
         };
@@ -2440,24 +2441,24 @@ pub async fn download_order_cmd(payload: DownloadOrderRequest) -> Result<Downloa
         })
     })
     .await
-    .map_err(|e| e.to_string())?
+    .map_err(|e| ApiError::from(e.to_string()))?
 }
 
 #[command]
-pub async fn segatools_trust_status_cmd() -> Result<SegatoolsTrustStatus, String> {
+pub async fn segatools_trust_status_cmd() -> ApiResult<SegatoolsTrustStatus> {
     tauri::async_runtime::spawn_blocking(|| {
-        verify_segatoools_for_active().map_err(|e| e.to_string())
+        verify_segatoools_for_active().map_err(|e| ApiError::from(e.to_string()))
     })
     .await
-    .map_err(|e| e.to_string())?
+    .map_err(|e| ApiError::from(e.to_string()))?
 }
 
 #[command]
-pub fn deploy_segatoools_cmd(force: bool) -> Result<DeployResult, String> {
-    deploy_segatoools_for_active(force).map_err(|e| e.to_string())
+pub fn deploy_segatoools_cmd(force: bool) -> ApiResult<DeployResult> {
+    deploy_segatoools_for_active(force).map_err(|e| ApiError::from(e.to_string()))
 }
 
 #[command]
-pub fn rollback_segatoools_cmd() -> Result<RollbackResult, String> {
-    rollback_segatoools_for_active().map_err(|e| e.to_string())
+pub fn rollback_segatoools_cmd() -> ApiResult<RollbackResult> {
+    rollback_segatoools_for_active().map_err(|e| ApiError::from(e.to_string()))
 }

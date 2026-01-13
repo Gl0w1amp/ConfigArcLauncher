@@ -17,6 +17,12 @@
     "name": "名前",
     "error": "エラー"
   },
+  "errorBoundary": {
+    "title": "エラーが発生しました",
+    "message": "アプリで問題が発生したため続行できません。",
+    "details": "詳細: {{error}}",
+    "reload": "再読み込み"
+  },
   "nav": {
     "games": "ゲーム",
     "editor": "エディタ",

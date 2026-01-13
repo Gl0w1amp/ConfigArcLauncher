@@ -4,6 +4,7 @@ import { listJsonConfigs, loadJsonConfig, saveJsonConfig } from '../api/jsonConf
 import { CommonConfigEditable, JsonConfigData, JsonConfigFileEntry } from '../types/jsonConfig';
 import { useGamesState } from '../state/gamesStore';
 import { useToast, ToastContainer } from '../components/common/Toast';
+import { formatError } from '../errors';
 import './json-editor.css';
 
 type PathKey = string | number;
@@ -82,12 +83,13 @@ function JsonEditorPage() {
       }
       setError(null);
     } catch (err) {
-      setError(String(err));
-      showToast(String(err), 'error');
+      const message = formatError(t, err);
+      setError(message);
+      showToast(message, 'error');
     } finally {
       setListLoading(false);
     }
-  }, [activeGameId]);
+  }, [activeGameId, t, showToast]);
 
   const loadFile = useCallback(async (name: string) => {
     if (!name || !activeGameId) return;
@@ -98,14 +100,15 @@ function JsonEditorPage() {
       setRawText(JSON.stringify(data, null, 2));
       setError(null);
     } catch (err) {
+      const message = formatError(t, err);
       setJsonData(null);
       setRawText('');
-      setError(String(err));
-      showToast(String(err), 'error');
+      setError(message);
+      showToast(message, 'error');
     } finally {
       setFileLoading(false);
     }
-  }, [activeGameId]);
+  }, [activeGameId, t, showToast]);
 
   useEffect(() => {
     refreshFiles();
@@ -132,7 +135,7 @@ function JsonEditorPage() {
       showToast(t('json.saved'), 'success');
       setError(null);
     } catch (err: any) {
-      const message = err?.message || String(err);
+      const message = formatError(t, err);
       setError(message);
       showToast(t('json.invalidJson', { error: message }), 'error');
     } finally {

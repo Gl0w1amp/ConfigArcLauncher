@@ -4,6 +4,7 @@ import { useGamesState } from '../state/gamesStore';
 import { AimeEntry } from '../types/manage';
 import { applyAimeToActive, deleteAime, getActiveAime, listAimes, saveAime, updateAime } from '../api/manageApi';
 import { useToast, ToastContainer } from '../components/common/Toast';
+import { formatError } from '../errors';
 import './ManageAimePage.css';
 
 const normalizeAime = (value: string) => value.replace(/\s+/g, '');
@@ -55,7 +56,7 @@ function ManageAimePage() {
       const list = await listAimes();
       setEntries(list);
     } catch (err) {
-      showToast(t('manage.aime.loadError', { error: String(err) }), 'error');
+      showToast(t('manage.aime.loadError', { error: formatError(t, err) }), 'error');
     } finally {
       setLoading(false);
     }
@@ -74,7 +75,7 @@ function ManageAimePage() {
       const current = await getActiveAime();
       setActiveAimeNumber(current);
     } catch (err) {
-      showToast(t('manage.aime.activeLoadError', { error: String(err) }), 'error');
+      showToast(t('manage.aime.activeLoadError', { error: formatError(t, err) }), 'error');
       setActiveAimeNumber(null);
     }
   };
@@ -101,7 +102,7 @@ function ManageAimePage() {
       await loadEntries();
       showToast(t('manage.aime.addOk'), 'success');
     } catch (err) {
-      showToast(t('manage.aime.addError', { error: String(err) }), 'error');
+      showToast(t('manage.aime.addError', { error: formatError(t, err) }), 'error');
     }
   };
 
@@ -111,7 +112,7 @@ function ManageAimePage() {
       await loadEntries();
       showToast(t('manage.aime.deleteOk'), 'success');
     } catch (err) {
-      showToast(t('manage.aime.deleteError', { error: String(err) }), 'error');
+      showToast(t('manage.aime.deleteError', { error: formatError(t, err) }), 'error');
     }
   };
 
@@ -125,7 +126,7 @@ function ManageAimePage() {
       await loadActiveAime();
       showToast(t('manage.aime.applyOk'), 'success');
     } catch (err) {
-      showToast(t('manage.aime.applyError', { error: String(err) }), 'error');
+      showToast(t('manage.aime.applyError', { error: formatError(t, err) }), 'error');
     }
   };
 
@@ -142,7 +143,7 @@ function ManageAimePage() {
       await loadEntries();
       showToast(t('manage.aime.addOk'), 'success');
     } catch (err) {
-      showToast(t('manage.aime.addError', { error: String(err) }), 'error');
+      showToast(t('manage.aime.addError', { error: formatError(t, err) }), 'error');
     }
   };
 
@@ -180,7 +181,7 @@ function ManageAimePage() {
       await loadEntries();
       showToast(t('manage.aime.addOk'), 'success');
     } catch (err) {
-      showToast(t('manage.aime.addError', { error: String(err) }), 'error');
+      showToast(t('manage.aime.addError', { error: formatError(t, err) }), 'error');
     }
   };
 

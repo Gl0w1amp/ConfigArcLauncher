@@ -15,6 +15,7 @@ import { UpdateDialog } from './components/common/UpdateDialog';
 import { useUpdate } from './context/UpdateContext';
 import { ExtensionsProvider, useExtensions } from './context/ExtensionsContext';
 import ExtensionRoute from './components/extensions/ExtensionRoute';
+import { formatError } from './errors';
 
 function AppRoutes() {
   const { extensions } = useExtensions();
@@ -56,6 +57,7 @@ function App() {
     closeUpdatePrompt, 
     clearError 
   } = useUpdate();
+  const updateErrorMessage = updateError ? formatError(t, updateError) : '';
 
   return (
     <>
@@ -77,7 +79,7 @@ function App() {
       {updateError && (
         <AlertDialog
           title={t('updater.errorTitle')}
-          message={t('updater.errorMessage', { error: updateError })}
+          message={t('updater.errorMessage', { error: updateErrorMessage })}
           onClose={clearError}
         />
       )}

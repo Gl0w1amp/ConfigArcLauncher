@@ -6,6 +6,7 @@ import { useGamesState } from '../state/gamesStore';
 import { ModsStatus } from '../types/manage';
 import { addMods, deleteMod, getModsStatus } from '../api/manageApi';
 import { useToast, ToastContainer } from '../components/common/Toast';
+import { formatError } from '../errors';
 
 const RefreshIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>;
 
@@ -38,7 +39,7 @@ function ManageModsPage() {
       const res = await getModsStatus();
       setStatus(res);
     } catch (err) {
-      showToast(t('manage.mods.statusError', { error: String(err) }), 'error');
+      showToast(t('manage.mods.statusError', { error: formatError(t, err) }), 'error');
     } finally {
       setLoading(false);
     }
@@ -66,7 +67,7 @@ function ManageModsPage() {
       setStatus((prev) => (prev ? { ...prev, mods } : prev));
       showToast(t('manage.mods.addOk'), 'success');
     } catch (err) {
-      showToast(t('manage.mods.addError', { error: String(err) }), 'error');
+      showToast(t('manage.mods.addError', { error: formatError(t, err) }), 'error');
     }
   }, [showToast, t]);
 
@@ -86,7 +87,7 @@ function ManageModsPage() {
       setStatus((prev) => (prev ? { ...prev, mods } : prev));
       showToast(t('manage.mods.deleteOk'), 'success');
     } catch (err) {
-      showToast(t('manage.mods.deleteError', { error: String(err) }), 'error');
+      showToast(t('manage.mods.deleteError', { error: formatError(t, err) }), 'error');
     }
   };
 

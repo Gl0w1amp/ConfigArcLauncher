@@ -4,6 +4,7 @@ import { useGamesState } from '../state/gamesStore';
 import { DataPaths, IcfEntry, OptionEntry } from '../types/manage';
 import { getDataPaths, loadIcf, saveIcf, listOptionFiles } from '../api/manageApi';
 import { useToast, ToastContainer } from '../components/common/Toast';
+import { formatError } from '../errors';
 
 const RefreshIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>;
 
@@ -31,7 +32,7 @@ function ManageDataPage() {
       setPaths(res);
       return res;
     } catch (err) {
-      showToast(t('manage.data.pathsError', { error: String(err) }), 'error');
+      showToast(t('manage.data.pathsError', { error: formatError(t, err) }), 'error');
       return null;
     } finally {
       setPathsLoading(false);
@@ -49,7 +50,7 @@ function ManageDataPage() {
         setIcf2Raw(json);
       }
     } catch (err) {
-      showToast(t('manage.data.icfLoadError', { kind, error: String(err) }), 'error');
+      showToast(t('manage.data.icfLoadError', { kind, error: formatError(t, err) }), 'error');
     } finally {
       setIcfLoading(false);
     }
@@ -65,7 +66,7 @@ function ManageDataPage() {
       const files = await listOptionFiles();
       setOptionFiles(files);
     } catch (err) {
-      showToast(t('manage.data.optionLoadError', { error: String(err) }), 'error');
+      showToast(t('manage.data.optionLoadError', { error: formatError(t, err) }), 'error');
     }
   };
 
@@ -92,7 +93,7 @@ function ManageDataPage() {
       showToast(t('manage.data.icfSaveOk', { kind }), 'success');
       await loadIcfContent(kind);
     } catch (err) {
-      showToast(t('manage.data.icfSaveError', { kind, error: String(err) }), 'error');
+      showToast(t('manage.data.icfSaveError', { kind, error: formatError(t, err) }), 'error');
     }
   };
 

@@ -13,6 +13,7 @@ import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { Link } from 'react-router-dom';
 import { exportProfile, importProfile, loadDefaultSegatoolsConfig, loadGameDirSegatoolsConfig, openSegatoolsFolder, scanGameVfsFolders } from '../api/configApi';
 import '../components/config/config.css';
+import { formatError } from '../errors';
 import { 
   IconPlus, IconSave, IconTrash, IconRefresh, IconRocket, 
   IconFolderOpen, IconWand, IconUndo, IconDownload, IconUpload, 
@@ -58,7 +59,8 @@ function ConfigEditorPage() {
         showToast(t('config.vfsNoPathsFound', { defaultValue: 'No VFS folders found' }), 'info');
       }
     } catch (err) {
-      showToast(t('config.vfsScanFailed', { reason: String(err), defaultValue: `Scan failed: ${String(err)}` }), 'error');
+      const message = formatError(t, err);
+      showToast(t('config.vfsScanFailed', { reason: message, defaultValue: `Scan failed: ${message}` }), 'error');
     }
   };
 
@@ -198,10 +200,11 @@ function ConfigEditorPage() {
       );
       setShowImportCurrentDialog(false);
     } catch (err) {
+      const message = formatError(t, err);
       showToast(
         t('config.importFromCurrentIniFailed', {
-          reason: String(err),
-          defaultValue: `Failed to import game INI: ${String(err)}`
+          reason: message,
+          defaultValue: `Failed to import game INI: ${message}`
         }),
         'error'
       );
@@ -239,7 +242,8 @@ function ConfigEditorPage() {
       URL.revokeObjectURL(url);
       showToast(t('config.exportedIni', { defaultValue: 'Profile exported' }), 'success');
     } catch (err) {
-      showToast(t('config.exportFailed', { reason: String(err), defaultValue: `Export failed: ${String(err)}` }), 'error');
+      const message = formatError(t, err);
+      showToast(t('config.exportFailed', { reason: message, defaultValue: `Export failed: ${message}` }), 'error');
     }
   };
 
@@ -251,10 +255,11 @@ function ConfigEditorPage() {
     try {
       await openSegatoolsFolder();
     } catch (err) {
+      const message = formatError(t, err);
       showToast(
         t('config.openConfigFolderFailed', {
-          reason: String(err),
-          defaultValue: `Failed to open config folder: ${String(err)}`
+          reason: message,
+          defaultValue: `Failed to open config folder: ${message}`
         }),
         'error'
       );
@@ -272,7 +277,8 @@ function ConfigEditorPage() {
       setConfig(profile.segatools);
       showToast(t('config.importedIni', { name: profile.name, defaultValue: 'Profile imported' }), 'success');
     } catch (err) {
-      showToast(t('config.importFailed', { reason: String(err), defaultValue: `Import failed: ${String(err)}` }), 'error');
+      const message = formatError(t, err);
+      showToast(t('config.importFailed', { reason: message, defaultValue: `Import failed: ${message}` }), 'error');
     } finally {
       e.target.value = '';
     }
@@ -316,7 +322,7 @@ function ConfigEditorPage() {
   if (!config) return (
     <div className="empty-state">
       <h3 style={{ color: 'var(--danger)' }}>{t('common.error')}</h3>
-      <p className="error-message">{error || t('config.loadError')}</p>
+      <p className="error-message">{error ? formatError(t, error, { fallbackKey: 'config.loadError' }) : t('config.loadError')}</p>
     </div>
   );
 
@@ -395,7 +401,7 @@ function ConfigEditorPage() {
           {trustStatus.reason && <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>{t('config.trustReason', { reason: trustStatus.reason })}</div>}
         </div>
       )}
-      {error && <p style={{ color: '#f87171' }}>{error}</p>}
+      {error && <p style={{ color: '#f87171' }}>{formatError(t, error)}</p>}
       <SegatoolsEditor
         config={config}
         onChange={(next: SegatoolsConfig) => setConfig(next)}

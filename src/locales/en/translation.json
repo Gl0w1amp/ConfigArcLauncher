@@ -17,6 +17,12 @@
     "name": "Name",
     "error": "Error"
   },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "message": "The app ran into a problem and can't continue.",
+    "details": "Details: {{error}}",
+    "reload": "Reload"
+  },
   "nav": {
     "games": "Games",
     "editor": "Editor",

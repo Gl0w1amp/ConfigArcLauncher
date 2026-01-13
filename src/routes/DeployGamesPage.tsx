@@ -6,6 +6,7 @@ import { decryptGameFiles, loadDecryptKeys, pickDecryptFiles } from '../api/depl
 import { DecryptResult, KeyStatus } from '../types/deployGames';
 import { useToast, ToastContainer } from '../components/common/Toast';
 import { FSDECRYPT_KEY_URL_STORAGE_KEY } from '../constants/storage';
+import { formatError } from '../errors';
 import './DeployGamesPage.css';
 
 type DecryptProgress = {
@@ -109,7 +110,7 @@ function DeployGamesPage() {
       const selected = await pickDecryptFiles();
       setFiles(selected);
     } catch (err) {
-      showToast(String(err), 'error');
+      showToast(formatError(t, err), 'error');
     }
   };
 
@@ -132,7 +133,7 @@ function DeployGamesPage() {
       setKeyStatus({ key_source: res.key_source, key_game_count: res.key_game_count });
       showToast(t('deployGames.resultOk'), 'success');
     } catch (err) {
-      showToast(String(err), 'error');
+      showToast(formatError(t, err), 'error');
     } finally {
       setLoading(false);
       setDecryptProgress(null);
@@ -146,7 +147,7 @@ function DeployGamesPage() {
       setKeyStatus(status);
       showToast(t('deployGames.keyStatusLoaded'), 'success');
     } catch (err) {
-      showToast(String(err), 'error');
+      showToast(formatError(t, err), 'error');
     } finally {
       setCheckingKeys(false);
     }

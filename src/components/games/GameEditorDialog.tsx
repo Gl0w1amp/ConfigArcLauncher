@@ -4,6 +4,7 @@ import { Game } from '../../types/games';
 import { VhdConfig } from '../../types/vhd';
 import { pickAutoGame } from '../../api/gamesApi';
 import { loadVhdConfig, saveVhdConfig } from '../../api/vhdApi';
+import { formatError } from '../../errors';
 import './games.css';
 
 type Props = {
@@ -201,7 +202,7 @@ function GameEditorDialog({ game, onSave, onCancel, initialField, lockMode }: Pr
       setArgRows(parseArgs(detected.game.launch_args));
       setVhdConfig(detected.vhd ?? null);
     } catch (err: any) {
-      setError(String(err));
+      setError(formatError(t, err));
     } finally {
       setLoading(false);
     }
@@ -219,7 +220,7 @@ function GameEditorDialog({ game, onSave, onCancel, initialField, lockMode }: Pr
       }
       await onSave(draft);
     } catch (err: any) {
-      setError(String(err));
+      setError(formatError(t, err));
     }
   };
 

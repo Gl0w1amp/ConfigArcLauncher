@@ -2,10 +2,11 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import { check, Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { AUTO_UPDATE_STORAGE_KEY } from '../constants/storage';
+import { AppError, normalizeError } from '../errors';
 
 interface UpdateContextType {
   updateInfo: Update | null;
-  updateError: string | null;
+  updateError: AppError | null;
   installingUpdate: boolean;
   isChecking: boolean;
   checkForUpdates: (manual?: boolean) => Promise<boolean>;
@@ -26,7 +27,7 @@ export function useUpdate() {
 
 export function UpdateProvider({ children }: { children: React.ReactNode }) {
   const [updateInfo, setUpdateInfo] = useState<Update | null>(null);
-  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [updateError, setUpdateError] = useState<AppError | null>(null);
   const [installingUpdate, setInstallingUpdate] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const hasCheckedRef = useRef(false);
@@ -48,7 +49,7 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.error('Update check failed:', err);
       if (manual) {
-        setUpdateError(err instanceof Error ? err.message : String(err));
+        setUpdateError(normalizeError(err));
       }
       return false;
     } finally {
@@ -65,7 +66,7 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       setUpdateInfo(null);
       setInstallingUpdate(false);
-      setUpdateError(err instanceof Error ? err.message : String(err));
+      setUpdateError(normalizeError(err));
     }
   };
 

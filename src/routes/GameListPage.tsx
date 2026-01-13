@@ -8,6 +8,7 @@ import { useGamesState } from '../state/gamesStore';
 import { ConfigProfile, Game } from '../types/games';
 import { applyProfileToGame, launchGame } from '../api/gamesApi';
 import { listProfiles } from '../api/configApi';
+import { formatError } from '../errors';
 import './GameListPage.css';
 
 type LaunchProgress = {
@@ -143,7 +144,7 @@ function GameListPage() {
       await launchGame(gameId, profileId);
     } catch (err) {
       console.error(err);
-      setAlertMessage(t('games.launchFailed', { error: err }));
+      setAlertMessage(t('games.launchFailed', { error: formatError(t, err) }));
       setLaunchProgress(null);
     }
   };
@@ -153,7 +154,7 @@ function GameListPage() {
       await applyProfileToGame(gameId, profileId);
     } catch (err) {
       console.error(err);
-      setAlertMessage(t('games.launchFailed', { error: err }));
+      setAlertMessage(t('games.launchFailed', { error: formatError(t, err) }));
     }
   };
 
@@ -299,7 +300,7 @@ function GameListPage() {
             <div className="games-library-count">{sortedGames.length}</div>
           </div>
           {loading && <div className="games-state">{t('common.loading')}</div>}
-          {error && <div className="games-state error">{error}</div>}
+          {error && <div className="games-state error">{formatError(t, error)}</div>}
           <div className="games-library-list">
             {!sortedGames.length && !loading && (
               <div className="games-library-empty">{t('games.noGames')}</div>

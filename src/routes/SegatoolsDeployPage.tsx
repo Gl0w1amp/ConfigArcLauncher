@@ -5,6 +5,7 @@ import { SegatoolsTrustStatus } from '../types/trusted';
 import { useGamesState } from '../state/gamesStore';
 import { useToast, ToastContainer } from '../components/common/Toast';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
+import { formatError } from '../errors';
 import './SegatoolsDeployPage.css';
 
 // Simple SVG Icons
@@ -61,7 +62,7 @@ function SegatoolsDeployPage() {
       cachedGameId = activeGameId;
     } catch (err) {
       if (requestId !== loadRequestRef.current) return;
-      showToast(t('deploy.statusError', { error: String(err) }), 'error');
+      showToast(t('deploy.statusError', { error: formatError(t, err) }), 'error');
     } finally {
       if (requestId === loadRequestRef.current) {
         setLoading(false);
@@ -89,7 +90,7 @@ function SegatoolsDeployPage() {
         showToast(res.message || t('deploy.deployUnknown'), 'warning');
       }
     } catch (err) {
-      showToast(t('deploy.deployError', { error: String(err) }), 'error');
+      showToast(t('deploy.deployError', { error: formatError(t, err) }), 'error');
     } finally {
       setDeploying(false);
     }
@@ -102,7 +103,7 @@ function SegatoolsDeployPage() {
       setStatus(res.verification || await fetchTrustStatus());
       showToast(res.message || t('deploy.rollbackOk'), 'success');
     } catch (err) {
-      showToast(t('deploy.rollbackError', { error: String(err) }), 'error');
+      showToast(t('deploy.rollbackError', { error: formatError(t, err) }), 'error');
     } finally {
       setRollbacking(false);
     }

@@ -13,6 +13,7 @@ import { ConfigProfile } from '../types/games';
 import { getActiveGame } from '../api/gamesApi';
 import { fetchTrustStatus } from '../api/trustedApi';
 import { SegatoolsTrustStatus } from '../types/trusted';
+import { AppError, getErrorMessage, normalizeError } from '../errors';
 
 const TRUST_STATUS_STORAGE_PREFIX = 'trustStatus:';
 const TRUST_STATUS_STORAGE_TTL_MS = 5 * 60 * 1000;
@@ -59,7 +60,7 @@ export function useConfigState() {
   const [config, setConfig] = useState<SegatoolsConfig | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<AppError | null>(null);
   const [activeGameId, setActiveGameId] = useState<string | null>(null);
   const [trustStatus, setTrustStatus] = useState<SegatoolsTrustStatus | null>(null);
   const [trustLoading, setTrustLoading] = useState<boolean>(false);
@@ -76,7 +77,7 @@ export function useConfigState() {
     } catch (err) {
       const status = {
         trusted: false,
-        reason: String(err),
+        reason: getErrorMessage(err),
         build_id: undefined,
         generated_at: undefined,
         artifact_name: undefined,
@@ -101,9 +102,9 @@ export function useConfigState() {
       setActiveGameId(active);
       if (!active) {
         setConfig(null);
-        setError('No active game selected');
-        setTrustStatus(null);
-        return;
+      setError(normalizeError('No active game selected'));
+      setTrustStatus(null);
+      return;
       }
       const cachedTrust = active ? readCachedTrustStatus(active) : null;
       setTrustStatus(cachedTrust);
@@ -112,7 +113,7 @@ export function useConfigState() {
       setError(null);
       void refreshTrust(active);
     } catch (err) {
-      setError(String(err));
+      setError(normalizeError(err));
       setConfig(null);
     } finally {
       setLoading(false);
@@ -126,7 +127,7 @@ export function useConfigState() {
       setConfig(cfg);
       setError(null);
     } catch (err) {
-      setError(String(err));
+      setError(normalizeError(err));
     } finally {
       setSaving(false);
     }
@@ -147,7 +148,7 @@ export function useConfigState() {
 export function useProfilesState() {
   const [profiles, setProfiles] = useState<ConfigProfile[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<AppError | null>(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -156,7 +157,7 @@ export function useProfilesState() {
       setProfiles(list);
       setError(null);
     } catch (err) {
-      setError(String(err));
+      setError(normalizeError(err));
     } finally {
       setLoading(false);
     }

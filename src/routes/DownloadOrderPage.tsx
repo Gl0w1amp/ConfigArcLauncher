@@ -9,6 +9,7 @@ import {
 } from '../api/downloadOrderApi';
 import { useToast, ToastContainer } from '../components/common/Toast';
 import { Modal } from '../components/common/Modal';
+import { formatError } from '../errors';
 import '../components/common/Dialog.css';
 import './DownloadOrderPage.css';
 
@@ -172,15 +173,16 @@ function DownloadOrderPage() {
       setDownloadItems(items);
       setDownloadSelection(nextSelection);
       setDownloadDialogOpen(true);
-    } catch (err) {
-      showToast(
-        t('downloadOrder.autoParseFailed', {
-          error: String(err),
-          defaultValue: `Failed to fetch instruction file: ${String(err)}`,
-        }),
-        'error'
-      );
-    }
+      } catch (err) {
+        const message = formatError(t, err);
+        showToast(
+          t('downloadOrder.autoParseFailed', {
+            error: message,
+            defaultValue: `Failed to fetch instruction file: ${message}`,
+          }),
+          'error'
+        );
+      }
   };
 
   const handleDownloadConfirm = async () => {
@@ -204,7 +206,7 @@ function DownloadOrderPage() {
       );
       setDownloadDialogOpen(false);
     } catch (err) {
-      const message = String(err);
+      const message = formatError(t, err);
       if (message.toLowerCase().includes('cancel')) {
         showToast(
           t('downloadOrder.downloadCancelled', {
@@ -241,10 +243,11 @@ function DownloadOrderPage() {
         'info'
       );
     } catch (err) {
+      const message = formatError(t, err);
       showToast(
         t('downloadOrder.downloadError', {
-          error: String(err),
-          defaultValue: `Download failed: ${String(err)}`,
+          error: message,
+          defaultValue: `Download failed: ${message}`,
         }),
         'error'
       );
@@ -305,7 +308,7 @@ function DownloadOrderPage() {
       applyConfig(parsed);
       showToast(t('downloadOrder.importOk'), 'success');
     } catch (err) {
-      showToast(t('downloadOrder.importError', { error: String(err) }), 'error');
+      showToast(t('downloadOrder.importError', { error: formatError(t, err) }), 'error');
     } finally {
       event.target.value = '';
     }
@@ -342,7 +345,7 @@ function DownloadOrderPage() {
       }
       showToast(t('downloadOrder.requestOk'), 'success');
     } catch (err) {
-      showToast(String(err), 'error');
+      showToast(formatError(t, err), 'error');
     } finally {
       setLoading(false);
     }

@@ -6,6 +6,7 @@ import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { storeIoDll } from '../../api/configApi';
+import { getErrorMessage } from '../../errors';
 
 type Props = {
   label: string;
@@ -63,7 +64,7 @@ function OptionField({ label, type, value, onChange, helper, description, requir
           onChange(storedPath);
         }
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
+        const message = getErrorMessage(err);
         if (onDropError) {
           onDropError(message);
         } else {

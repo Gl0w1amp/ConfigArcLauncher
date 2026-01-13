@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Game } from '../types/games';
 import { listGames, saveGame as saveGameApi, deleteGame as deleteGameApi, getActiveGame, setActiveGame } from '../api/gamesApi';
+import { AppError, normalizeError } from '../errors';
 
 export function useGamesState() {
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<AppError | null>(null);
   const [activeGameId, setActiveGameId] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
@@ -17,7 +18,7 @@ export function useGamesState() {
       setActiveGameId(active);
       setError(null);
     } catch (err) {
-      setError(String(err));
+      setError(normalizeError(err));
     } finally {
       setLoading(false);
     }

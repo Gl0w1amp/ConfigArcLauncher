@@ -17,6 +17,12 @@
     "name": "名称",
     "error": "错误"
   },
+  "errorBoundary": {
+    "title": "发生错误",
+    "message": "应用遇到问题，无法继续。",
+    "details": "详情：{{error}}",
+    "reload": "重新加载"
+  },
   "nav": {
     "games": "游戏",
     "editor": "编辑器",
