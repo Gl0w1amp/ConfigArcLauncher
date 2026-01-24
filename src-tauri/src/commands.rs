@@ -2065,6 +2065,8 @@ pub fn download_order_cancel_cmd() -> ApiResult<()> {
 pub async fn download_order_download_files_cmd(
     app: AppHandle,
     items: Vec<DownloadOrderDownloadItem>,
+    user_agent: Option<String>,
+    proxy: Option<String>,
 ) -> ApiResult<Vec<DownloadOrderDownloadResult>> {
     tauri::async_runtime::spawn_blocking(move || -> ApiResult<Vec<DownloadOrderDownloadResult>> {
         if items.is_empty() {
@@ -2079,10 +2081,28 @@ pub async fn download_order_download_files_cmd(
             fs::create_dir_all(&download_dir).map_err(|e| ApiError::from(e.to_string()))?;
         }
 
-        let client = Client::builder()
+        let user_agent = user_agent
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string);
+        let proxy = proxy
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string);
+
+        let mut builder = Client::builder()
             .timeout(Duration::from_secs(120))
             .connect_timeout(Duration::from_secs(10))
-            .no_proxy()
+            .http1_only()
+            .no_proxy();
+
+        if let Some(p) = proxy {
+            builder = builder.proxy(Proxy::all(p).map_err(|e| ApiError::from(e.to_string()))?);
+        }
+
+        let client = builder
             .build()
             .map_err(|e| ApiError::from(e.to_string()))?;
         let mut used_names = HashSet::new();
@@ -2118,8 +2138,12 @@ pub async fn download_order_download_files_cmd(
             name = unique_filename(&name, &mut used_names, &download_dir);
             let path = download_dir.join(&name);
 
-            let mut resp = client
-                .get(&url)
+            let mut request = client.get(&url);
+            if let Some(ref agent) = user_agent {
+                request = request.header(USER_AGENT, HeaderValue::from_str(agent).map_err(|e| ApiError::from(e.to_string()))?);
+            }
+
+            let mut resp = request
                 .send()
                 .map_err(|e| ApiError::from(e.to_string()))?
                 .error_for_status()

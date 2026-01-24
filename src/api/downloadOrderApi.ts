@@ -37,8 +37,8 @@ export type DownloadOrderDownloadResult = {
 export const fetchDownloadOrderInstruction = (url: string, userAgent?: string, proxy?: string) =>
   invokeTauri<string>('download_order_fetch_text_cmd', { url, userAgent, proxy });
 
-export const downloadOrderFiles = (items: DownloadOrderDownloadItem[]) =>
-  invokeTauri<DownloadOrderDownloadResult[]>('download_order_download_files_cmd', { items });
+export const downloadOrderFiles = (items: DownloadOrderDownloadItem[], userAgent?: string, proxy?: string) =>
+  invokeTauri<DownloadOrderDownloadResult[]>('download_order_download_files_cmd', { items, userAgent, proxy });
 
 export const cancelDownloadOrder = () =>
   invokeTauri<void>('download_order_cancel_cmd');

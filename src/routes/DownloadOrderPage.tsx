@@ -207,11 +207,15 @@ function DownloadOrderPage() {
     setDownloadBusy(true);
     setDownloadProgress(null);
     try {
+      const serialHeader = useSerialHeaderRef.current ? serialRef.current.trim() : '';
+
       const results = await downloadOrderFiles(
         selectedItems.map((item) => ({
           url: item.url,
           filename: item.name,
-        }))
+        })),
+        serialHeader ? serialHeader : undefined,
+        proxy.trim() || undefined
       );
       showToast(
         t('downloadOrder.downloadOk', {
