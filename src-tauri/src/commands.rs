@@ -1992,8 +1992,14 @@ fn unique_filename(base: &str, used: &mut HashSet<String>, dir: &Path) -> String
 }
 
 #[command]
-pub async fn download_order_fetch_text_cmd(url: String, user_agent: Option<String>) -> ApiResult<String> {
+pub async fn download_order_fetch_text_cmd(
+    url: String,
+    user_agent: Option<String>,
+    proxy: Option<String>,
+) -> ApiResult<String> {
     tauri::async_runtime::spawn_blocking(move || {
+        let debug_logs = cfg!(debug_assertions)
+            || std::env::var_os("CONFIGARC_DEBUG_DOWNLOAD_ORDER").is_some();
         let trimmed = url.trim();
         if trimmed.is_empty() {
             return Err(("URL is required".to_string()).into());
@@ -2003,12 +2009,35 @@ pub async fn download_order_fetch_text_cmd(url: String, user_agent: Option<Strin
             .map(str::trim)
             .filter(|s| !s.is_empty())
             .map(str::to_string);
-        let client = Client::builder()
+        let proxy = proxy
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string);
+        if debug_logs {
+            let ua_log = user_agent.as_deref().unwrap_or("<none>");
+            let proxy_log = proxy.as_deref().unwrap_or("<none>");
+            eprintln!(
+                "[download_order] fetch_instruction url={} ua={} proxy={}",
+                trimmed, ua_log, proxy_log
+            );
+        }
+
+        let mut builder = Client::builder()
             .timeout(Duration::from_secs(30))
             .connect_timeout(Duration::from_secs(10))
-            .no_proxy()
+            .http1_only()
+            .no_proxy();
+
+        if let Some(p) = proxy {
+            builder = builder.proxy(Proxy::all(p).map_err(|e| ApiError::from(e.to_string()))?);
+        }
+
+        let client = builder
+            .danger_accept_invalid_certs(true)
             .build()
             .map_err(|e| ApiError::from(e.to_string()))?;
+        
         let mut request = client.get(trimmed);
         if let Some(agent) = user_agent {
             request = request.header(USER_AGENT, HeaderValue::from_str(&agent).map_err(|e| ApiError::from(e.to_string()))?);

@@ -135,6 +135,13 @@
   color: var(--text-secondary);
 }
 
+.download-order-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
 .download-order-row {
   display: grid;
   gap: 12px;

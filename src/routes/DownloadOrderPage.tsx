@@ -42,6 +42,7 @@ function DownloadOrderPage() {
   const [proxy, setProxy] = useState('');
   const [timeoutSecs, setTimeoutSecs] = useState('15');
   const [encodeRequest, setEncodeRequest] = useState(true);
+  const [useSerialHeader, setUseSerialHeader] = useState(false);
   const [headersText, setHeadersText] = useState(defaultHeaders);
   const [response, setResponse] = useState('');
   const [decodeError, setDecodeError] = useState<string | null>(null);
@@ -54,6 +55,16 @@ function DownloadOrderPage() {
   const [instructionUrl, setInstructionUrl] = useState<string | null>(null);
   const [downloadBusy, setDownloadBusy] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null);
+  const serialRef = useRef(serial);
+  const useSerialHeaderRef = useRef(useSerialHeader);
+
+  useEffect(() => {
+    serialRef.current = serial;
+  }, [serial]);
+
+  useEffect(() => {
+    useSerialHeaderRef.current = useSerialHeader;
+  }, [useSerialHeader]);
 
   useEffect(() => {
     let unlisten: (() => void) | null = null;
@@ -154,7 +165,12 @@ function DownloadOrderPage() {
     }
     setInstructionUrl(targetUrl);
     try {
-      const text = await fetchDownloadOrderInstruction(targetUrl);
+      const serialHeader = useSerialHeaderRef.current ? serialRef.current.trim() : '';
+      const text = await fetchDownloadOrderInstruction(
+        targetUrl,
+        serialHeader ? serialHeader : undefined,
+        proxy.trim() || undefined
+      );
       const urls = extractDownloadUrls(text);
       if (!urls.length) {
         showToast(
@@ -429,7 +445,11 @@ function DownloadOrderPage() {
                 <label>{t('downloadOrder.serialLabel')}</label>
                 <input
                   value={serial}
-                  onChange={(event) => setSerial(event.target.value)}
+                  onChange={(event) => {
+                    const nextSerial = event.target.value;
+                    setSerial(nextSerial);
+                    serialRef.current = nextSerial;
+                  }}
                   placeholder="AXXXXXXXXXX"
                 />
               </div>
@@ -451,8 +471,10 @@ function DownloadOrderPage() {
                   placeholder="15"
                 />
               </div>
-              <div className="download-order-field">
-                <label>{t('downloadOrder.optionsLabel')}</label>
+            </div>
+            <div className="download-order-field">
+              <label>{t('downloadOrder.optionsLabel')}</label>
+              <div className="download-order-options">
                 <div className="checkbox-wrapper">
                   <input
                     type="checkbox"
@@ -461,6 +483,23 @@ function DownloadOrderPage() {
                     onChange={(e) => setEncodeRequest(e.target.checked)}
                   />
                   <label htmlFor="encodeRequest">{t('downloadOrder.encodeRequest')}</label>
+                </div>
+                <div className="checkbox-wrapper">
+                  <input
+                    type="checkbox"
+                    id="useSerialHeader"
+                    checked={useSerialHeader}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setUseSerialHeader(checked);
+                      useSerialHeaderRef.current = checked;
+                    }}
+                  />
+                  <label htmlFor="useSerialHeader">
+                    {t('downloadOrder.useSerialHeader', {
+                      defaultValue: 'Add User-Agent when fetching instruction',
+                    })}
+                  </label>
                 </div>
               </div>
             </div>
