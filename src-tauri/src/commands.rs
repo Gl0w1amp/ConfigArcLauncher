@@ -1992,20 +1992,28 @@ fn unique_filename(base: &str, used: &mut HashSet<String>, dir: &Path) -> String
 }
 
 #[command]
-pub async fn download_order_fetch_text_cmd(url: String) -> ApiResult<String> {
+pub async fn download_order_fetch_text_cmd(url: String, user_agent: Option<String>) -> ApiResult<String> {
     tauri::async_runtime::spawn_blocking(move || {
         let trimmed = url.trim();
         if trimmed.is_empty() {
             return Err(("URL is required".to_string()).into());
         }
+        let user_agent = user_agent
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string);
         let client = Client::builder()
             .timeout(Duration::from_secs(30))
             .connect_timeout(Duration::from_secs(10))
             .no_proxy()
             .build()
             .map_err(|e| ApiError::from(e.to_string()))?;
-        let mut resp = client
-            .get(trimmed)
+        let mut request = client.get(trimmed);
+        if let Some(agent) = user_agent {
+            request = request.header(USER_AGENT, HeaderValue::from_str(&agent).map_err(|e| ApiError::from(e.to_string()))?);
+        }
+        let mut resp = request
             .send()
             .map_err(|e| ApiError::from(e.to_string()))?
             .error_for_status()
