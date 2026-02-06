@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, type ChangeEvent } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { listen } from '@tauri-apps/api/event';
 import {
@@ -9,11 +9,24 @@ import {
 } from '../api/downloadOrderApi';
 import { useToast, ToastContainer } from '../components/common/Toast';
 import { Modal } from '../components/common/Modal';
+import { IconDownload, IconRocket, IconSave } from '../components/common/Icons';
 import { formatError } from '../errors';
 import '../components/common/Dialog.css';
 import './DownloadOrderPage.css';
 
 type DownloadOrderConfig = Record<string, any>;
+type DownloadOrderExportConfig = {
+  url: string;
+  gameId: string;
+  ver: string;
+  serial: string;
+  proxy: string;
+  timeoutSecs: string;
+  encodeRequest: boolean;
+  useSerialHeader: boolean;
+  headers: string[];
+  autoParse: boolean;
+};
 type DownloadItem = {
   id: string;
   name: string;
@@ -29,11 +42,11 @@ type DownloadProgress = {
 };
 
 const defaultHeaders = '';
+const savedConfigStorageKey = 'downloadOrder:savedConfig';
 
 function DownloadOrderPage() {
   const { t } = useTranslation();
   const { toasts, showToast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [url, setUrl] = useState('');
   const [gameId, setGameId] = useState('');
@@ -189,16 +202,16 @@ function DownloadOrderPage() {
       setDownloadItems(items);
       setDownloadSelection(nextSelection);
       setDownloadDialogOpen(true);
-      } catch (err) {
-        const message = formatError(t, err);
-        showToast(
-          t('downloadOrder.autoParseFailed', {
-            error: message,
-            defaultValue: `Failed to fetch instruction file: ${message}`,
-          }),
-          'error'
-        );
-      }
+    } catch (err) {
+      const message = formatError(t, err);
+      showToast(
+        t('downloadOrder.autoParseFailed', {
+          error: message,
+          defaultValue: `Failed to fetch instruction file: ${message}`,
+        }),
+        'error'
+      );
+    }
   };
 
   const handleDownloadConfirm = async () => {
@@ -299,6 +312,40 @@ function DownloadOrderPage() {
     }
   };
 
+  const buildConfigSnapshot = (): DownloadOrderExportConfig => ({
+    url: url.trim(),
+    gameId: gameId.trim(),
+    ver: ver.trim(),
+    serial: serial.trim(),
+    proxy: proxy.trim(),
+    timeoutSecs: timeoutSecs.trim(),
+    encodeRequest,
+    useSerialHeader,
+    headers: parseHeaders(headersText),
+    autoParse,
+  });
+
+  const handleSaveConfig = () => {
+    try {
+      window.localStorage.setItem(savedConfigStorageKey, JSON.stringify(buildConfigSnapshot()));
+      showToast(
+        t('downloadOrder.saveOk', {
+          defaultValue: 'Config saved.',
+        }),
+        'success'
+      );
+    } catch (err) {
+      const message = formatError(t, err);
+      showToast(
+        t('downloadOrder.saveError', {
+          error: message,
+          defaultValue: `Failed to save config: ${message}`,
+        }),
+        'error'
+      );
+    }
+  };
+
   const applyConfig = (config: DownloadOrderConfig) => {
     const nextUrl = getValue(config, ['url', 'requestUrl', 'request_url']);
     const nextGameId = getValue(config, ['gameId', 'game_id']);
@@ -307,6 +354,8 @@ function DownloadOrderPage() {
     const nextProxy = getValue(config, ['proxy', 'proxyUrl', 'proxy_url']);
     const nextTimeout = getValue(config, ['timeoutSecs', 'timeout_secs', 'timeout']);
     const nextEncode = getValue(config, ['encodeRequest', 'encode_request', 'encode']);
+    const nextUseSerialHeader = getValue(config, ['useSerialHeader', 'use_serial_header']);
+    const nextAutoParse = getValue(config, ['autoParse', 'auto_parse']);
 
     if (typeof nextUrl === 'string') setUrl(nextUrl);
     if (typeof nextGameId === 'string') setGameId(nextGameId);
@@ -315,39 +364,42 @@ function DownloadOrderPage() {
     if (typeof nextProxy === 'string') setProxy(nextProxy);
     if (nextTimeout !== undefined) setTimeoutSecs(String(nextTimeout));
     if (typeof nextEncode === 'boolean') setEncodeRequest(nextEncode);
+    if (typeof nextUseSerialHeader === 'boolean') {
+      setUseSerialHeader(nextUseSerialHeader);
+      useSerialHeaderRef.current = nextUseSerialHeader;
+    }
+    if (typeof nextAutoParse === 'boolean') setAutoParse(nextAutoParse);
 
     normalizeHeaders(config);
   };
 
-  const handleImportConfig = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  useEffect(() => {
     try {
-      const text = await file.text();
-      const parsed = JSON.parse(text) as DownloadOrderConfig;
-      applyConfig(parsed);
-      showToast(t('downloadOrder.importOk'), 'success');
-    } catch (err) {
-      showToast(t('downloadOrder.importError', { error: formatError(t, err) }), 'error');
-    } finally {
-      event.target.value = '';
+      const savedRaw = window.localStorage.getItem(savedConfigStorageKey);
+      if (!savedRaw) return;
+      const parsed = JSON.parse(savedRaw) as DownloadOrderConfig;
+      if (parsed && typeof parsed === 'object') {
+        applyConfig(parsed);
+      }
+    } catch {
+      // Ignore invalid saved snapshots.
     }
-  };
+  }, []);
 
   const handleSend = async () => {
     setLoading(true);
     try {
-      const headers = parseHeaders(headersText);
-      const timeoutValue = Number(timeoutSecs);
+      const snapshot = buildConfigSnapshot();
+      const timeoutValue = Number(snapshot.timeoutSecs);
       const result = await requestDownloadOrder({
-        url: url.trim(),
-        gameId: gameId.trim(),
-        ver: ver.trim(),
-        serial: serial.trim(),
-        headers,
-        proxy: proxy.trim() || undefined,
+        url: snapshot.url,
+        gameId: snapshot.gameId,
+        ver: snapshot.ver,
+        serial: snapshot.serial,
+        headers: snapshot.headers,
+        proxy: snapshot.proxy || undefined,
         timeoutSecs: Number.isFinite(timeoutValue) && timeoutValue > 0 ? timeoutValue : undefined,
-        encodeRequest,
+        encodeRequest: snapshot.encodeRequest,
       });
       const lengthText = result.content_length ? ` · ${result.content_length}b` : '';
       const statusText = result.status_text ? ` ${result.status_text}` : '';
@@ -404,17 +456,21 @@ function DownloadOrderPage() {
           <div className="download-order-card-header">
             <h3>{t('downloadOrder.requestTitle')}</h3>
             <div className="download-order-actions">
-              <button type="button" onClick={() => fileInputRef.current?.click()}>
-                {t('downloadOrder.importConfig')}
+              <button
+                type="button"
+                className="download-order-icon-action"
+                onClick={handleSaveConfig}
+              >
+                <IconSave />
+                {t('common.save', { defaultValue: 'Save' })}
               </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".json,application/json"
-                onChange={handleImportConfig}
-                hidden
-              />
-              <button type="button" className="primary" onClick={handleSend} disabled={loading}>
+              <button
+                type="button"
+                className="primary download-order-icon-action"
+                onClick={handleSend}
+                disabled={loading}
+              >
+                <IconRocket />
                 {loading ? t('downloadOrder.requesting') : t('downloadOrder.request')}
               </button>
             </div>
@@ -659,6 +715,7 @@ function DownloadOrderPage() {
                 onClick={handleDownloadConfirm}
                 disabled={downloadBusy || selectedCount === 0}
               >
+                <IconDownload />
                 {downloadBusy
                   ? t('downloadOrder.downloading', { defaultValue: 'Downloading...' })
                   : t('downloadOrder.downloadSelected', { defaultValue: 'Download selected' })}
