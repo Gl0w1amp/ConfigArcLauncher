@@ -287,9 +287,9 @@ button svg {
 }
 
 .icon-btn.danger:hover {
-  background: rgba(239, 68, 68, 0.1);
-  color: var(--danger);
-  box-shadow: none;
+  background: var(--danger);
+  color: white;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
 }
 
 .icon-btn svg {
