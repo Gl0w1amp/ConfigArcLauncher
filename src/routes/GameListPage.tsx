@@ -276,7 +276,7 @@ function GameListPage() {
             setEditing(emptyGame());
             setEditingField(null);
           }}>{t('games.add')}</button>
-          <button onClick={reload}>Refresh</button>
+          <button onClick={() => reload(false)}>Refresh</button>
         </div>
       </header>
 

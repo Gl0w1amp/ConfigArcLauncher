@@ -9,8 +9,8 @@ export function useGamesState() {
   const [error, setError] = useState<AppError | null>(null);
   const [activeGameId, setActiveGameId] = useState<string | null>(null);
 
-  const reload = useCallback(async () => {
-    setLoading(true);
+  const reload = useCallback(async (silent: boolean = false) => {
+    if (!silent) setLoading(true);
     try {
       const list = await listGames();
       const active = await getActiveGame();
@@ -20,7 +20,7 @@ export function useGamesState() {
     } catch (err) {
       setError(normalizeError(err));
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
@@ -36,7 +36,7 @@ export function useGamesState() {
 
   const activateGame = useCallback(async (id: string, profileId?: string) => {
     await setActiveGame(id, profileId);
-    await reload();
+    await reload(true);
   }, [reload]);
 
   useEffect(() => {

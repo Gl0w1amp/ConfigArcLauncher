@@ -80,7 +80,8 @@ impl ApiError {
 
 fn infer_error_code(message: &str) -> ErrorCode {
     let lowered = message.to_lowercase();
-    if lowered.contains("no active game selected") {
+    // Keep IRIS-compatible hinting for active game resolution failures.
+    if lowered.contains("no active game selected") || lowered.contains("active game not found") {
         return ErrorCode::NoActiveGame;
     }
     if lowered.contains("segatools.ini not found") || lowered.contains("segatools missing") {
@@ -150,7 +151,8 @@ impl From<ConfigError> for ApiError {
             ConfigError::Json(_) => ErrorCode::Json,
             ConfigError::NotFound(_) => ErrorCode::NotFound,
         };
-        ApiError::new(code, err.to_string())
+        let message = err.to_string();
+        ApiError::with_details(code, message.clone(), message)
     }
 }
 
@@ -162,7 +164,8 @@ impl From<GameError> for ApiError {
             GameError::NotFound(_) => ErrorCode::NotFound,
             GameError::Launch(_) => ErrorCode::Unexpected,
         };
-        ApiError::new(code, err.to_string())
+        let message = err.to_string();
+        ApiError::with_details(code, message.clone(), message)
     }
 }
 
@@ -176,6 +179,7 @@ impl From<TrustedError> for ApiError {
             TrustedError::NotFound(_) => ErrorCode::NotFound,
             TrustedError::Zip(_) => ErrorCode::Zip,
         };
-        ApiError::new(code, err.to_string())
+        let message = err.to_string();
+        ApiError::with_details(code, message.clone(), message)
     }
 }
