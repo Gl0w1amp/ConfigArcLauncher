@@ -12,6 +12,7 @@ import { PromptDialog } from '../components/common/PromptDialog';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { Link } from 'react-router-dom';
 import { exportProfile, importProfile, loadGameDirSegatoolsConfig, openSegatoolsFolder, scanGameVfsFolders } from '../api/configApi';
+import { applyProfileToGame } from '../api/gamesApi';
 import '../components/config/config.css';
 import { formatError } from '../errors';
 import { 
@@ -237,6 +238,20 @@ function ConfigEditorPage() {
       return;
     }
     const prof = await loadProfile(id);
+    if (activeGameId) {
+      try {
+        await applyProfileToGame(activeGameId, id);
+      } catch (err) {
+        const message = formatError(t, err);
+        showToast(
+          t('config.profileApplyFailed', {
+            reason: message,
+            defaultValue: `Failed to apply profile to active game: ${message}`
+          }),
+          'error'
+        );
+      }
+    }
     setConfig({ ...prof.segatools });
     showToast(t('config.loadedProfile', { name: prof.name }), 'info');
   };
