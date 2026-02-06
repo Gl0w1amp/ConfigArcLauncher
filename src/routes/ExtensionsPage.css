@@ -24,7 +24,7 @@
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
-.utility-card {
+.extensions-page .utility-card {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
@@ -35,18 +35,18 @@
   min-height: 160px;
 }
 
-.utility-card.is-disabled {
+.extensions-page .utility-card.is-disabled {
   opacity: 0.7;
 }
 
-.utility-card-header {
+.extensions-page .utility-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--spacing-sm);
 }
 
-.utility-status {
+.extensions-page .utility-status {
   font-size: 0.8rem;
   padding: 2px 8px;
   border-radius: 999px;
@@ -54,16 +54,16 @@
   color: var(--danger);
 }
 
-.utility-description {
+.extensions-page .utility-description {
   color: var(--text-muted);
   margin: 0;
   line-height: 1.4;
 }
 
-.utility-actions {
+.extensions-page .utility-actions {
   margin-top: auto;
 }
 
-.utility-action {
+.extensions-page .utility-action {
   width: 100%;
 }

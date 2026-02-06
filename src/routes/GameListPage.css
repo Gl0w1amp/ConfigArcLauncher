@@ -562,20 +562,20 @@
   fill: currentColor;
 }
 
-.ghost-button {
+.games-view .ghost-button {
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: var(--text-secondary);
   box-shadow: none;
 }
 
-.ghost-button:hover {
+.games-view .ghost-button:hover {
   background: rgba(255, 255, 255, 0.08);
   color: var(--text-primary);
   box-shadow: none;
 }
 
-.ghost-button:disabled {
+.games-view .ghost-button:disabled {
   opacity: 0.5;
   cursor: default;
 }

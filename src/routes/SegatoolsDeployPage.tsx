@@ -154,7 +154,7 @@ function SegatoolsDeployPage() {
 
   return (
     <div className="deploy-container">
-      <div className="deploy-header">
+      <div className="page-header page-header-lined">
         <div>
           <h2>{t('deploy.title')}</h2>
           <small>{t('deploy.subtitle')}</small>

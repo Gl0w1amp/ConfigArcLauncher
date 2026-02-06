@@ -209,35 +209,6 @@ function ManageAimePage() {
   const isToast = useMemo(() => entries.some(e => e.name.toLowerCase() === 'toast'), [entries]);
 
   useEffect(() => {
-    if (isDinnerbone) {
-      document.body.classList.add('dinnerbone-mode');
-    } else {
-      document.body.classList.remove('dinnerbone-mode');
-    }
-    if (isJohnny) {
-      document.body.classList.add('johnny-mode');
-    } else {
-      document.body.classList.remove('johnny-mode');
-    }
-    if (isToast) {
-      document.body.classList.add('toast-mode');
-    } else {
-      document.body.classList.remove('toast-mode');
-    }
-    if (isRainbow) {
-      document.body.classList.add('rainbow-mode');
-    } else {
-      document.body.classList.remove('rainbow-mode');
-    }
-    return () => {
-      document.body.classList.remove('dinnerbone-mode');
-      document.body.classList.remove('johnny-mode');
-      document.body.classList.remove('toast-mode');
-      document.body.classList.remove('rainbow-mode');
-    };
-  }, [isDinnerbone, isJohnny, isToast, isRainbow]);
-
-  useEffect(() => {
     if (!isJohnny) return;
     const container = containerRef.current;
     if (!container) return;
@@ -372,8 +343,15 @@ function ManageAimePage() {
     );
   }
 
+  const effectClasses = [
+    isRainbow ? 'rainbow-mode' : '',
+    isToast ? 'toast-mode' : '',
+    isDinnerbone ? 'dinnerbone-mode' : '',
+    isJohnny ? 'johnny-mode' : '',
+  ].filter(Boolean).join(' ');
+
   return (
-    <div className="aime-page" ref={containerRef}>
+    <div className={`aime-page ${effectClasses}`.trim()} ref={containerRef}>
       <div className="aime-header">
         <div>
           <h2>{t('manage.aime.title')}{activeGame ? ` · ${activeGame.name}` : ''}</h2>

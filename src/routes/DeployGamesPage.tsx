@@ -167,7 +167,7 @@ function DeployGamesPage() {
 
   return (
     <div className="deploy-games-container">
-      <div className="deploy-games-header">
+      <div className="page-header page-header-lined">
         <div>
           <h2>{t('deployGames.title')}</h2>
           <small>{t('deployGames.subtitle')}</small>
@@ -175,8 +175,8 @@ function DeployGamesPage() {
       </div>
 
       <div className="deploy-games-grid">
-        <div className="deploy-games-card">
-          <div className="card-header">
+        <div className="deploy-games-card section-card">
+          <div className="card-header section-card-header">
             <h3><Icons.Key /> {t('deployGames.keyTitle')}</h3>
             <div className="card-badges">
               {keyStatus ? (
@@ -195,7 +195,7 @@ function DeployGamesPage() {
               )}
             </div>
           </div>
-          <div className="card-content">
+          <div className="card-content section-card-body">
             <div className="hint-text">{t('deployGames.keySubtitle')}</div>
             
             <div className="key-input-group">
@@ -216,12 +216,12 @@ function DeployGamesPage() {
           </div>
         </div>
 
-        <div className="deploy-games-card files-card">
-          <div className="card-header">
+        <div className="deploy-games-card files-card section-card">
+          <div className="card-header section-card-header">
             <h3><Icons.File /> {t('deployGames.filesTitle')}</h3>
             <span className="file-count">{files.length}</span>
           </div>
-          <div className="card-content">
+          <div className="card-content section-card-body">
             <div className="hint-text">{t('deployGames.filesSubtitle')}</div>
             <div className="file-actions">
               <button className="action-btn btn-secondary" onClick={handlePickFiles}>
@@ -275,8 +275,8 @@ function DeployGamesPage() {
         </label>
       </div>
 
-      <div className="deploy-games-card results-card">
-        <div className="card-header">
+      <div className="deploy-games-card results-card section-card">
+        <div className="card-header section-card-header">
           <h3>{t('deployGames.resultsTitle')}</h3>
           <div className="card-badges">
             <span className="meta-badge success">
@@ -287,7 +287,7 @@ function DeployGamesPage() {
             </span>
           </div>
         </div>
-        <div className="card-content">
+        <div className="card-content section-card-body">
           {results.length === 0 && (
             <div className="empty-text">{t('deployGames.resultsEmpty')}</div>
           )}

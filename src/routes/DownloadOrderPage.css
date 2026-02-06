@@ -4,24 +4,6 @@
   gap: var(--spacing-lg);
 }
 
-.download-order-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-bottom: var(--spacing-sm);
-  border-bottom: 1px solid var(--border-color);
-}
-
-.download-order-header h2 {
-  margin: 0 0 4px 0;
-  font-size: 1.5rem;
-}
-
-.download-order-header small {
-  color: var(--text-muted);
-  font-size: 0.9rem;
-}
-
 .download-order-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -29,24 +11,9 @@
   align-items: start;
 }
 
-.download-order-card {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
 .download-order-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
   padding: 12px 16px;
   min-height: 64px;
-  border-bottom: 1px solid var(--border-color);
-  background: rgba(255, 255, 255, 0.02);
   flex-shrink: 0;
 }
 
@@ -152,13 +119,6 @@
   font-size: 0.9rem;
   color: var(--text-primary);
   font-weight: 500;
-}
-
-.download-order-card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px;
 }
 
 .download-order-field {
@@ -324,7 +284,7 @@
   color: var(--text-primary);
 }
 
-.checkbox-wrapper {
+.download-order-checkbox-wrapper {
  display: flex;
  align-items: center;
  gap: 8px;
@@ -332,13 +292,13 @@
  padding: 0 4px;
 }
 
-.checkbox-wrapper input[type=checkbox] {
+.download-order-checkbox-wrapper input[type=checkbox] {
  width: 16px;
  height: 16px;
  accent-color: var(--accent-primary);
 }
 
-.checkbox-wrapper label {
+.download-order-checkbox-wrapper label {
  font-size: 0.9rem;
  color: var(--text-primary);
  cursor: pointer;

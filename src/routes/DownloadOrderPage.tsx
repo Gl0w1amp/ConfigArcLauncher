@@ -611,7 +611,7 @@ function DownloadOrderPage() {
 
   return (
     <div className="download-order-container">
-      <div className="download-order-header">
+      <div className="page-header page-header-lined">
         <div>
           <h2>{t('downloadOrder.title')}</h2>
           <small>{t('downloadOrder.subtitle')}</small>
@@ -619,8 +619,8 @@ function DownloadOrderPage() {
       </div>
 
       <div className="download-order-grid">
-        <div className="download-order-card">
-          <div className="download-order-card-header">
+        <div className="download-order-card section-card">
+          <div className="download-order-card-header section-card-header">
             <h3>{t('downloadOrder.requestTitle')}</h3>
             <div className="download-order-actions">
               <select
@@ -687,7 +687,7 @@ function DownloadOrderPage() {
               </button>
             </div>
           </div>
-          <div className="download-order-card-body">
+          <div className="download-order-card-body section-card-body">
             <div className="download-order-field">
               <label>{t('downloadOrder.urlLabel')}</label>
               <input
@@ -747,7 +747,7 @@ function DownloadOrderPage() {
             <div className="download-order-field">
               <label>{t('downloadOrder.optionsLabel')}</label>
               <div className="download-order-options">
-                <div className="checkbox-wrapper">
+                <div className="download-order-checkbox-wrapper">
                   <input
                     type="checkbox"
                     id="encodeRequest"
@@ -756,7 +756,7 @@ function DownloadOrderPage() {
                   />
                   <label htmlFor="encodeRequest">{t('downloadOrder.encodeRequest')}</label>
                 </div>
-                <div className="checkbox-wrapper">
+                <div className="download-order-checkbox-wrapper">
                   <input
                     type="checkbox"
                     id="useSerialHeader"
@@ -788,8 +788,8 @@ function DownloadOrderPage() {
           </div>
         </div>
 
-        <div className="download-order-card">
-          <div className="download-order-card-header">
+        <div className="download-order-card section-card">
+          <div className="download-order-card-header section-card-header">
             <h3>{t('downloadOrder.responseTitle')}</h3>
             <div className="download-order-actions">
               <label className="download-order-auto-toggle">
@@ -805,7 +805,7 @@ function DownloadOrderPage() {
               </label>
             </div>
           </div>
-          <div className="download-order-card-body">
+          <div className="download-order-card-body section-card-body">
             <textarea
               className="download-order-response"
               value={response}
