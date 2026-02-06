@@ -9,7 +9,7 @@ import {
 } from '../api/downloadOrderApi';
 import { useToast, ToastContainer } from '../components/common/Toast';
 import { Modal } from '../components/common/Modal';
-import { IconDownload, IconRocket, IconSave } from '../components/common/Icons';
+import { IconDownload, IconPlus, IconRocket, IconSave, IconTrash } from '../components/common/Icons';
 import { formatError } from '../errors';
 import '../components/common/Dialog.css';
 import './DownloadOrderPage.css';
@@ -27,6 +27,12 @@ type DownloadOrderExportConfig = {
   headers: string[];
   autoParse: boolean;
 };
+type DownloadOrderSavedConfig = {
+  id: string;
+  name: string;
+  config: DownloadOrderExportConfig;
+  updatedAt: string;
+};
 type DownloadItem = {
   id: string;
   name: string;
@@ -42,7 +48,8 @@ type DownloadProgress = {
 };
 
 const defaultHeaders = '';
-const savedConfigStorageKey = 'downloadOrder:savedConfig';
+const legacySavedConfigStorageKey = 'downloadOrder:savedConfig';
+const savedConfigsStorageKey = 'downloadOrder:savedConfigs';
 
 function DownloadOrderPage() {
   const { t } = useTranslation();
@@ -62,6 +69,8 @@ function DownloadOrderPage() {
   const [statusSummary, setStatusSummary] = useState('');
   const [loading, setLoading] = useState(false);
   const [autoParse, setAutoParse] = useState(true);
+  const [savedConfigs, setSavedConfigs] = useState<DownloadOrderSavedConfig[]>([]);
+  const [activeSavedConfigId, setActiveSavedConfigId] = useState('');
   const [downloadItems, setDownloadItems] = useState<DownloadItem[]>([]);
   const [downloadSelection, setDownloadSelection] = useState<Record<string, boolean>>({});
   const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
@@ -325,9 +334,73 @@ function DownloadOrderPage() {
     autoParse,
   });
 
+  const createSavedConfigId = () =>
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `do-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+  const getNextConfigName = (preferredGameId?: string) => {
+    const fallbackBase = t('downloadOrder.configNameDefault', {
+      index: 1,
+      defaultValue: 'Config 1',
+    });
+    const base = (preferredGameId ?? gameId).trim() || fallbackBase;
+    const usedNames = new Set(savedConfigs.map((item) => item.name.toLowerCase()));
+
+    if (!usedNames.has(base.toLowerCase())) {
+      return base;
+    }
+
+    let index = 2;
+    while (index < 10000) {
+      const candidate = `${base}-${index}`;
+      if (!usedNames.has(candidate.toLowerCase())) {
+        return candidate;
+      }
+      index += 1;
+    }
+
+    return `${base}-${Date.now()}`;
+  };
+
+  const persistSavedConfigs = (configs: DownloadOrderSavedConfig[], nextActiveId?: string) => {
+    setSavedConfigs(configs);
+    setActiveSavedConfigId(nextActiveId ?? '');
+    if (!configs.length) {
+      window.localStorage.removeItem(savedConfigsStorageKey);
+      return;
+    }
+    window.localStorage.setItem(savedConfigsStorageKey, JSON.stringify(configs));
+  };
+
   const handleSaveConfig = () => {
     try {
-      window.localStorage.setItem(savedConfigStorageKey, JSON.stringify(buildConfigSnapshot()));
+      const snapshot = buildConfigSnapshot();
+      const now = new Date().toISOString();
+      const existing = savedConfigs.find((item) => item.id === activeSavedConfigId);
+
+      if (existing) {
+        const nextConfigs = savedConfigs.map((item) =>
+          item.id === activeSavedConfigId
+            ? {
+                ...item,
+                config: snapshot,
+                updatedAt: now,
+              }
+            : item
+        );
+        persistSavedConfigs(nextConfigs, activeSavedConfigId);
+      } else {
+        const newItem: DownloadOrderSavedConfig = {
+          id: createSavedConfigId(),
+          name: getNextConfigName(snapshot.gameId),
+          config: snapshot,
+          updatedAt: now,
+        };
+        const nextConfigs = [newItem, ...savedConfigs];
+        persistSavedConfigs(nextConfigs, newItem.id);
+      }
+
       showToast(
         t('downloadOrder.saveOk', {
           defaultValue: 'Config saved.',
@@ -344,6 +417,70 @@ function DownloadOrderPage() {
         'error'
       );
     }
+  };
+
+  const handleSaveAsNewConfig = () => {
+    const snapshot = buildConfigSnapshot();
+    const defaultName = getNextConfigName(snapshot.gameId);
+    const rawName = window.prompt(
+      t('downloadOrder.configNamePrompt', {
+        defaultValue: 'Enter a name for this config:',
+      }),
+      defaultName
+    );
+    if (rawName === null) return;
+
+    const name = rawName.trim() || defaultName;
+    const now = new Date().toISOString();
+    const newItem: DownloadOrderSavedConfig = {
+      id: createSavedConfigId(),
+      name,
+      config: snapshot,
+      updatedAt: now,
+    };
+
+    const nextConfigs = [newItem, ...savedConfigs];
+    persistSavedConfigs(nextConfigs, newItem.id);
+    showToast(
+      t('downloadOrder.saveAsOk', {
+        defaultValue: 'Saved as new config.',
+      }),
+      'success'
+    );
+  };
+
+  const handleDeleteConfig = () => {
+    if (!activeSavedConfigId) return;
+    const target = savedConfigs.find((item) => item.id === activeSavedConfigId);
+    if (!target) return;
+
+    const confirmed = window.confirm(
+      t('downloadOrder.deleteConfirm', {
+        name: target.name,
+        defaultValue: `Delete config "${target.name}"?`,
+      })
+    );
+    if (!confirmed) return;
+
+    const nextConfigs = savedConfigs.filter((item) => item.id !== target.id);
+    const nextActive = nextConfigs[0]?.id ?? '';
+    persistSavedConfigs(nextConfigs, nextActive);
+    if (nextConfigs[0]) {
+      applyConfig(nextConfigs[0].config);
+    }
+    showToast(
+      t('downloadOrder.deleteOk', {
+        defaultValue: 'Config deleted.',
+      }),
+      'info'
+    );
+  };
+
+  const handleSelectSavedConfig = (id: string) => {
+    setActiveSavedConfigId(id);
+    const target = savedConfigs.find((item) => item.id === id);
+    if (!target) return;
+    applyConfig(target.config);
   };
 
   const applyConfig = (config: DownloadOrderConfig) => {
@@ -375,11 +512,41 @@ function DownloadOrderPage() {
 
   useEffect(() => {
     try {
-      const savedRaw = window.localStorage.getItem(savedConfigStorageKey);
-      if (!savedRaw) return;
-      const parsed = JSON.parse(savedRaw) as DownloadOrderConfig;
-      if (parsed && typeof parsed === 'object') {
-        applyConfig(parsed);
+      const savedListRaw = window.localStorage.getItem(savedConfigsStorageKey);
+      if (savedListRaw) {
+        const parsedList = JSON.parse(savedListRaw) as DownloadOrderSavedConfig[];
+        if (Array.isArray(parsedList) && parsedList.length > 0) {
+          const validList = parsedList.filter(
+            (item) =>
+              item &&
+              typeof item === 'object' &&
+              typeof item.id === 'string' &&
+              typeof item.name === 'string' &&
+              item.config &&
+              typeof item.config === 'object'
+          );
+          if (validList.length > 0) {
+            setSavedConfigs(validList);
+            setActiveSavedConfigId(validList[0].id);
+            applyConfig(validList[0].config);
+            return;
+          }
+        }
+      }
+
+      const legacyRaw = window.localStorage.getItem(legacySavedConfigStorageKey);
+      if (legacyRaw) {
+        const parsedLegacy = JSON.parse(legacyRaw) as DownloadOrderExportConfig;
+        if (parsedLegacy && typeof parsedLegacy === 'object') {
+          const migrated: DownloadOrderSavedConfig = {
+            id: createSavedConfigId(),
+            name: getNextConfigName(parsedLegacy.gameId),
+            config: parsedLegacy,
+            updatedAt: new Date().toISOString(),
+          };
+          persistSavedConfigs([migrated], migrated.id);
+          applyConfig(parsedLegacy);
+        }
       }
     } catch {
       // Ignore invalid saved snapshots.
@@ -456,22 +623,67 @@ function DownloadOrderPage() {
           <div className="download-order-card-header">
             <h3>{t('downloadOrder.requestTitle')}</h3>
             <div className="download-order-actions">
+              <select
+                className="download-order-config-select"
+                value={activeSavedConfigId}
+                onChange={(event) => handleSelectSavedConfig(event.target.value)}
+              >
+                <option value="">
+                  {t('downloadOrder.savedConfigEmpty', {
+                    defaultValue: 'No saved config',
+                  })}
+                </option>
+                {savedConfigs.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
               <button
                 type="button"
-                className="download-order-icon-action"
-                onClick={handleSaveConfig}
+                className="icon-btn download-order-icon-action"
+                onClick={handleSaveAsNewConfig}
+                title={t('downloadOrder.saveAsNew', { defaultValue: 'Save as new' })}
+                aria-label={t('downloadOrder.saveAsNew', { defaultValue: 'Save as new' })}
               >
-                <IconSave />
-                {t('common.save', { defaultValue: 'Save' })}
+                <IconPlus />
               </button>
               <button
                 type="button"
-                className="primary download-order-icon-action"
+                className="icon-btn download-order-icon-action"
+                onClick={handleSaveConfig}
+                title={t('common.save', { defaultValue: 'Save' })}
+                aria-label={t('common.save', { defaultValue: 'Save' })}
+              >
+                <IconSave />
+              </button>
+              <button
+                type="button"
+                className="icon-btn danger download-order-icon-action"
+                onClick={handleDeleteConfig}
+                disabled={!activeSavedConfigId}
+                title={t('common.delete', { defaultValue: 'Delete' })}
+                aria-label={t('common.delete', { defaultValue: 'Delete' })}
+              >
+                <IconTrash />
+              </button>
+              <button
+                type="button"
+                className="download-order-icon-action download-order-send-btn"
                 onClick={handleSend}
                 disabled={loading}
+                title={
+                  loading
+                    ? t('downloadOrder.requesting')
+                    : t('downloadOrder.request', { defaultValue: 'Send request' })
+                }
+                aria-label={
+                  loading
+                    ? t('downloadOrder.requesting')
+                    : t('downloadOrder.request', { defaultValue: 'Send request' })
+                }
               >
                 <IconRocket />
-                {loading ? t('downloadOrder.requesting') : t('downloadOrder.request')}
               </button>
             </div>
           </div>
