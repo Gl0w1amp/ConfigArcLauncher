@@ -58,14 +58,14 @@ export function PromptDialog({
           <button 
             type="button" 
             onClick={onCancel}
-            className="dialog-btn dialog-btn-secondary"
+            className="dialog-btn action-btn btn-secondary"
           >
             {cancelLabel || t('common.cancel')}
           </button>
           <button 
             type="submit" 
             disabled={!value.trim()}
-            className="dialog-btn dialog-btn-primary"
+            className="dialog-btn action-btn btn-primary"
             style={!value.trim() ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
           >
             {confirmLabel || t('common.confirm')}

@@ -115,45 +115,6 @@
   gap: var(--spacing-md);
 }
 
-.deploy-container .action-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 14px 24px;
-  border-radius: var(--radius-md);
-  font-weight: 600;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: none;
-}
-
-.deploy-container .btn-primary {
-  background: var(--accent-primary);
-  color: white;
-  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
-}
-
-.deploy-container .btn-primary:hover {
-  background: var(--accent-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 8px -1px rgba(59, 130, 246, 0.4);
-}
-
-.deploy-container .btn-danger {
-  background: var(--bg-primary);
-  color: var(--danger);
-  border: 1px solid var(--danger);
-}
-
-.deploy-container .btn-danger:hover {
-  background: var(--danger);
-  color: white;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 8px -1px rgba(239, 68, 68, 0.4);
-}
-
 /* File Verification Section */
 .deploy-container .file-section {
   background: var(--bg-secondary);

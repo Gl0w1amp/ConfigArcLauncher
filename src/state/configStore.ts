@@ -127,7 +127,9 @@ export function useConfigState() {
       setConfig(cfg);
       setError(null);
     } catch (err) {
-      setError(normalizeError(err));
+      const normalized = normalizeError(err);
+      setError(normalized);
+      throw normalized;
     } finally {
       setSaving(false);
     }

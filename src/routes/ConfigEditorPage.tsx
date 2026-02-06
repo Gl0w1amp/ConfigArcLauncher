@@ -11,7 +11,7 @@ import { useToast, ToastContainer } from '../components/common/Toast';
 import { PromptDialog } from '../components/common/PromptDialog';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { Link } from 'react-router-dom';
-import { exportProfile, importProfile, loadDefaultSegatoolsConfig, loadGameDirSegatoolsConfig, openSegatoolsFolder, scanGameVfsFolders } from '../api/configApi';
+import { exportProfile, importProfile, loadGameDirSegatoolsConfig, openSegatoolsFolder, scanGameVfsFolders } from '../api/configApi';
 import '../components/config/config.css';
 import { formatError } from '../errors';
 import { 
@@ -107,26 +107,37 @@ function ConfigEditorPage() {
 
   const handleMainSave = async () => {
     if (!config) return;
-    
-    // Save to disk
-    await save(config);
-    
-    // Save to profile if selected
-    if (selectedProfileId) {
-      const profile = profiles.find((p) => p.id === selectedProfileId);
-      if (profile) {
-        const updatedProfile = {
-          ...profile,
-          segatools: config,
-          updated_at: new Date().toISOString()
-        };
-        await saveProfile(updatedProfile);
-        reloadProfiles();
-        showToast(t('config.savedAndProfile', { defaultValue: 'Saved to Disk & Profile' }), 'success');
-        return;
+
+    try {
+      // Save to disk
+      await save(config);
+
+      // Save to profile if selected
+      if (selectedProfileId) {
+        const profile = profiles.find((p) => p.id === selectedProfileId);
+        if (profile) {
+          const updatedProfile = {
+            ...profile,
+            segatools: config,
+            updated_at: new Date().toISOString()
+          };
+          await saveProfile(updatedProfile);
+          reloadProfiles();
+          showToast(t('config.savedAndProfile', { defaultValue: 'Saved to Disk & Profile' }), 'success');
+          return;
+        }
       }
+      showToast(t('config.saved'), 'success');
+    } catch (err) {
+      const message = formatError(t, err);
+      showToast(
+        t('config.saveFailed', {
+          reason: message,
+          defaultValue: `Save failed: ${message}`
+        }),
+        'error'
+      );
     }
-    showToast(t('config.saved'), 'success');
   };
 
   const handleProfileDelete = () => {
@@ -156,14 +167,14 @@ function ConfigEditorPage() {
 
   const onConfirmCreateProfile = async (name: string) => {
     if (!config || !name) return;
-    const defaultConfig = await loadDefaultSegatoolsConfig();
+    const now = new Date().toISOString();
     const profile: ConfigProfile = {
       id: crypto.randomUUID ? crypto.randomUUID() : `profile-${Date.now()}`,
       name,
       description: '',
-      segatools: defaultConfig,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      segatools: config,
+      created_at: now,
+      updated_at: now
     };
     await saveProfile(profile);
     setSelectedProfileId(profile.id);
@@ -285,23 +296,22 @@ function ConfigEditorPage() {
   };
 
   useEffect(() => {
-    if (profiles.length > 0 && activeGameId && !initialized) {
-      setInitialized(true);
-      const last = localStorage.getItem(`lastProfile:${activeGameId}`);
-      let targetId: string | null = null;
-      if (last && profiles.some(p => p.id === last)) {
-        targetId = last;
-      } else {
-        const original = profiles.find(p => p.name === "Original INI");
-        targetId = original ? original.id : profiles[0].id;
-      }
+    setInitialized(false);
+    setSelectedProfileId('');
+  }, [activeGameId]);
 
-      if (targetId) {
-        handleProfileLoad(targetId);
-      } else {
-        setSelectedProfileId('');
-      }
+  useEffect(() => {
+    if (!activeGameId || initialized || profiles.length === 0) return;
+
+    setInitialized(true);
+    const last = localStorage.getItem(`lastProfile:${activeGameId}`);
+    if (last && profiles.some((p) => p.id === last)) {
+      void handleProfileLoad(last);
+      return;
     }
+
+    // No persisted profile selection: keep using current disk-backed segatools.ini.
+    setSelectedProfileId('');
   }, [profiles, activeGameId, initialized]);
 
   if (loading) return (
@@ -420,7 +430,7 @@ function ConfigEditorPage() {
       <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
         <button onClick={handleMainSave} disabled={saving} className="primary">
           <IconSave />
-          {t('config.saveProfile')}
+          {t('config.saveConfig', { defaultValue: 'Save Config' })}
         </button>
         <button onClick={resetToDefaults}>
           <IconUndo />

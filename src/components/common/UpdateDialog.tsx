@@ -92,7 +92,7 @@ export function UpdateDialog({
           <button 
             type="button" 
             onClick={onCancel}
-            className="dialog-btn dialog-btn-secondary"
+            className="dialog-btn action-btn btn-secondary"
             disabled={installing}
           >
             {t('updater.cancel')}
@@ -100,7 +100,7 @@ export function UpdateDialog({
           <button 
             type="button" 
             onClick={onConfirm}
-            className="dialog-btn dialog-btn-primary"
+            className="dialog-btn action-btn btn-primary"
             disabled={installing}
             style={{ minWidth: 90 }}
           >

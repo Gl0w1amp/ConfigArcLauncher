@@ -20,7 +20,7 @@ export function AlertDialog({ title, message, onClose }: Props) {
         <button 
           type="button" 
           onClick={onClose}
-          className="dialog-btn dialog-btn-primary"
+          className="dialog-btn action-btn btn-primary"
         >
           {t('common.confirm')}
         </button>

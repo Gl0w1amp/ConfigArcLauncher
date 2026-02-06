@@ -158,28 +158,6 @@
   height: 16px;
 }
 
-.deploy-games-container .action-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 10px 16px;
-  border-radius: var(--radius-md);
-  font-weight: 600;
-}
-
-.deploy-games-container .btn-primary {
-  background: var(--accent-primary);
-  color: white;
-  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
-}
-
-.deploy-games-container .btn-primary:hover {
-  background: var(--accent-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 8px -1px rgba(59, 130, 246, 0.4);
-}
-
 .deploy-games-container .decrypt-btn {
   position: relative;
   overflow: hidden;
@@ -394,36 +372,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-/* Buttons */
-.deploy-games-container .btn-secondary {
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-}
-
-.deploy-games-container .btn-secondary:hover {
-  background: var(--bg-hover);
-  border-color: var(--text-muted);
-}
-
-.deploy-games-container .btn-danger-ghost {
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--text-muted);
-}
-
-.deploy-games-container .btn-danger-ghost:hover {
-  color: var(--danger);
-  background: rgba(239, 68, 68, 0.1);
-}
-
-.deploy-games-container .icon-only {
-  padding: 0;
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
 }
 
 /* Spinner */

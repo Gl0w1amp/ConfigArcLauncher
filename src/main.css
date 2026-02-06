@@ -188,6 +188,86 @@ button.danger:hover {
   box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
 }
 
+button svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.action-btn {
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+}
+
+.action-btn.btn-lg {
+  padding: 14px 24px;
+  font-size: 1rem;
+}
+
+.action-btn.btn-lg svg {
+  width: 18px;
+  height: 18px;
+}
+
+.btn-primary {
+  background: var(--accent-primary);
+  color: white;
+  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 8px -1px rgba(59, 130, 246, 0.4);
+}
+
+.btn-secondary {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.btn-secondary:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--text-muted);
+  box-shadow: none;
+}
+
+.btn-danger {
+  background: var(--bg-primary);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+
+.btn-danger:hover {
+  background: var(--danger);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 8px -1px rgba(239, 68, 68, 0.4);
+}
+
+.btn-danger-ghost {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  box-shadow: none;
+}
+
+.btn-danger-ghost:hover {
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.1);
+  box-shadow: none;
+}
+
+.icon-only {
+  padding: 0;
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  flex-shrink: 0;
+}
+
 .icon-btn {
   padding: 6px;
   width: 32px;
@@ -210,6 +290,12 @@ button.danger:hover {
   background: rgba(239, 68, 68, 0.1);
   color: var(--danger);
   box-shadow: none;
+}
+
+.icon-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 
 /* Inputs */

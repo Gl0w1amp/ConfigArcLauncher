@@ -5,6 +5,7 @@ import { listen } from '@tauri-apps/api/event';
 import { decryptGameFiles, loadDecryptKeys, pickDecryptFiles } from '../api/deployGamesApi';
 import { DecryptResult, KeyStatus } from '../types/deployGames';
 import { useToast, ToastContainer } from '../components/common/Toast';
+import { IconCheck, IconFile, IconFolder, IconKey, IconLink, IconPlay, IconTrash, IconX } from '../components/common/Icons';
 import { FSDECRYPT_KEY_URL_STORAGE_KEY } from '../constants/storage';
 import { formatError } from '../errors';
 import './DeployGamesPage.css';
@@ -15,17 +16,6 @@ type DecryptProgress = {
   total: number;
   current_file: number;
   total_files: number;
-};
-
-const Icons = {
-  Key: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="7.5" cy="15.5" r="5.5"/><path d="M12 15.5h9"/><path d="M16 15.5v-3"/><path d="M20 15.5v-3"/></svg>,
-  Link: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.07 0l1.41-1.41a5 5 0 0 0-7.07-7.07L9.99 4"/><path d="M14 11a5 5 0 0 0-7.07 0L5.52 12.41a5 5 0 0 0 7.07 7.07L14 20"/></svg>,
-  File: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>,
-  Folder: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>,
-  Trash: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
-  Play: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>,
-  Check: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
-  X: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
 };
 
 function DeployGamesPage() {
@@ -177,7 +167,7 @@ function DeployGamesPage() {
       <div className="deploy-games-grid">
         <div className="deploy-games-card section-card">
           <div className="card-header section-card-header">
-            <h3><Icons.Key /> {t('deployGames.keyTitle')}</h3>
+            <h3><IconKey width={18} height={18} /> {t('deployGames.keyTitle')}</h3>
             <div className="card-badges">
               {keyStatus ? (
                 <>
@@ -200,7 +190,7 @@ function DeployGamesPage() {
             
             <div className="key-input-group">
               <div className="input-wrapper">
-                <span className="input-icon"><Icons.Link /></span>
+                <span className="input-icon"><IconLink /></span>
                 <input
                   value={keyUrl}
                   onChange={(e) => setKeyUrl(e.target.value)}
@@ -208,7 +198,7 @@ function DeployGamesPage() {
                 />
               </div>
               <button className="action-btn btn-secondary icon-only" onClick={handleCheckKeys} disabled={checkingKeys} title={t('deployGames.checkKeys')}>
-                {checkingKeys ? <span className="spinner-sm" /> : <Icons.Check />}
+                {checkingKeys ? <span className="spinner-sm" /> : <IconCheck />}
               </button>
             </div>
             
@@ -218,17 +208,17 @@ function DeployGamesPage() {
 
         <div className="deploy-games-card files-card section-card">
           <div className="card-header section-card-header">
-            <h3><Icons.File /> {t('deployGames.filesTitle')}</h3>
+            <h3><IconFile width={18} height={18} /> {t('deployGames.filesTitle')}</h3>
             <span className="file-count">{files.length}</span>
           </div>
           <div className="card-content section-card-body">
             <div className="hint-text">{t('deployGames.filesSubtitle')}</div>
             <div className="file-actions">
               <button className="action-btn btn-secondary" onClick={handlePickFiles}>
-                <Icons.Folder /> {t('deployGames.pickFiles')}
+                <IconFolder /> {t('deployGames.pickFiles')}
               </button>
               <button className="action-btn btn-danger-ghost" onClick={handleClearFiles} disabled={files.length === 0}>
-                <Icons.Trash /> {t('deployGames.clearFiles')}
+                <IconTrash /> {t('deployGames.clearFiles')}
               </button>
             </div>
             <div className="file-list">
@@ -261,7 +251,7 @@ function DeployGamesPage() {
             </>
           ) : (
             <>
-              <Icons.Play /> {t('deployGames.decrypt')}
+              <IconPlay /> {t('deployGames.decrypt')}
             </>
           )}
         </button>
@@ -280,10 +270,10 @@ function DeployGamesPage() {
           <h3>{t('deployGames.resultsTitle')}</h3>
           <div className="card-badges">
             <span className="meta-badge success">
-              <Icons.Check /> {t('deployGames.resultOk')}: {successCount}
+              <IconCheck /> {t('deployGames.resultOk')}: {successCount}
             </span>
             <span className="meta-badge error">
-              <Icons.X /> {t('deployGames.resultFailed')}: {failedCount}
+              <IconX /> {t('deployGames.resultFailed')}: {failedCount}
             </span>
           </div>
         </div>
@@ -315,7 +305,7 @@ function DeployGamesPage() {
                     ))}
                   </div>
                   <span className={`result-badge ${isFailed ? 'error' : 'ok'}`}>
-                    {isFailed ? <Icons.X /> : <Icons.Check />}
+                    {isFailed ? <IconX /> : <IconCheck />}
                     {statusText}
                   </span>
                 </div>

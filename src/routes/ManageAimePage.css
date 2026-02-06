@@ -97,27 +97,6 @@
   gap: var(--spacing-sm);
 }
 
-/* Buttons */
-.aime-page .btn-primary {
-  background: var(--accent-primary);
-  color: white;
-}
-
-.aime-page .btn-primary:hover {
-  background: var(--accent-hover);
-}
-
-.aime-page .btn-danger {
-  background: rgba(239, 68, 68, 0.1);
-  color: var(--danger);
-  border: 1px solid rgba(239, 68, 68, 0.2);
-}
-
-.aime-page .btn-danger:hover {
-  background: rgba(239, 68, 68, 0.2);
-  border-color: var(--danger);
-}
-
 /* Active Aime Display */
 .aime-current-info {
   display: flex;

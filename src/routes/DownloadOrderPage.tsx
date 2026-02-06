@@ -916,14 +916,14 @@ function DownloadOrderPage() {
             <div className="dialog-footer">
               <button
                 type="button"
-                className="dialog-btn dialog-btn-secondary"
+                className="dialog-btn action-btn btn-secondary"
                 onClick={handleCancelDownload}
               >
                 {t('common.cancel', { defaultValue: 'Cancel' })}
               </button>
               <button
                 type="button"
-                className="dialog-btn dialog-btn-primary"
+                className="dialog-btn action-btn btn-primary"
                 onClick={handleDownloadConfirm}
                 disabled={downloadBusy || selectedCount === 0}
               >

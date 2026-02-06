@@ -32,14 +32,14 @@ export function ConfirmDialog({
         <button 
           type="button" 
           onClick={onCancel}
-          className="dialog-btn dialog-btn-secondary"
+          className="dialog-btn action-btn btn-secondary"
         >
           {cancelLabel || t('common.cancel')}
         </button>
         <button 
           type="button" 
           onClick={onConfirm}
-          className={`dialog-btn ${isDangerous ? 'dialog-btn-danger' : 'dialog-btn-primary'}`}
+          className={`dialog-btn action-btn ${isDangerous ? 'btn-danger' : 'btn-primary'}`}
         >
           {confirmLabel || t('common.confirm')}
         </button>
