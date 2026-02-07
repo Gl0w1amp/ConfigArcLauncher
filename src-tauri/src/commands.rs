@@ -92,6 +92,19 @@ fn remote_config_manager(app: &AppHandle) -> ApiResult<RemoteConfigManager> {
     RemoteConfigManager::new(root).map_err(|e| ApiError::from(e.to_string()))
 }
 
+fn ensure_segatoools_present_sections(cfg: &mut SegatoolsConfig, game_name: Option<&str>) {
+    if !cfg.present_sections.is_empty() {
+        return;
+    }
+    let key = canonical_game_key(game_name.unwrap_or(""));
+    let mut sections: Vec<String> = allowed_sections_for_game(&key)
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect();
+    sections.sort();
+    cfg.present_sections = sections;
+}
+
 #[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoteApplyResult {
@@ -931,6 +944,7 @@ pub fn apply_remote_config_cmd(app: AppHandle) -> ApiResult<RemoteApplyResult> {
         let game_name = game_name_by_id.get(trimmed).map(|s| s.as_str());
         for profile in profiles {
             let mut profile = profile;
+            ensure_segatoools_present_sections(&mut profile.segatools, game_name);
             profile.segatools = sanitize_segatoools_for_game(profile.segatools, game_name);
             save_profile_for_game(&profile, trimmed).map_err(|e| ApiError::from(e.to_string()))?;
             result.profiles_applied += 1;
@@ -942,6 +956,7 @@ pub fn apply_remote_config_cmd(app: AppHandle) -> ApiResult<RemoteApplyResult> {
             let game_name = game_name_by_id.get(active_id).map(|s| s.as_str());
             for profile in plan.profiles {
                 let mut profile = profile;
+                ensure_segatoools_present_sections(&mut profile.segatools, game_name);
                 profile.segatools = sanitize_segatoools_for_game(profile.segatools, game_name);
                 save_profile_for_game(&profile, active_id).map_err(|e| ApiError::from(e.to_string()))?;
                 result.profiles_applied += 1;
@@ -958,15 +973,18 @@ pub fn apply_remote_config_cmd(app: AppHandle) -> ApiResult<RemoteApplyResult> {
             continue;
         }
         let game_name = game_name_by_id.get(trimmed).map(|s| s.as_str());
+        let mut cfg = cfg;
+        ensure_segatoools_present_sections(&mut cfg, game_name);
         let sanitized = sanitize_segatoools_for_game(cfg, game_name);
         let path = segatoools_path_for_game_id(trimmed).map_err(|e| ApiError::from(e.to_string()))?;
         persist_segatoools_config(&path, &sanitized).map_err(|e| ApiError::from(e.to_string()))?;
         result.segatools_applied += 1;
     }
 
-    if let Some(cfg) = plan.segatools {
+    if let Some(mut cfg) = plan.segatools {
         if let Some(active_id) = active_game_id.as_deref() {
             let game_name = game_name_by_id.get(active_id).map(|s| s.as_str());
+            ensure_segatoools_present_sections(&mut cfg, game_name);
             let sanitized = sanitize_segatoools_for_game(cfg, game_name);
             let path = segatoools_path_for_game_id(active_id).map_err(|e| ApiError::from(e.to_string()))?;
             persist_segatoools_config(&path, &sanitized).map_err(|e| ApiError::from(e.to_string()))?;
