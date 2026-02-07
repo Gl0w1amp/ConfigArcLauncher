@@ -16,6 +16,7 @@ use crate::trusted::{
     deploy_segatoools_for_active, rollback_segatoools_for_active, verify_segatoools_for_active,
     DeployResult, RollbackResult, SegatoolsTrustStatus,
 };
+use crate::remote::{RemoteConfigManager, RemoteSyncStatus};
 use crate::vhd::{load_vhd_config, mount_vhd_with_elevation, resolve_vhd_config, save_vhd_config, unmount_vhd_handle, VhdConfig};
 use crate::fsdecrypt;
 use serde::{Serialize, Deserialize};
@@ -81,6 +82,14 @@ struct ImportProfilePayload {
 fn gen_profile_id(prefix: &str) -> String {
     let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis();
     format!("{}-{}", prefix, ts)
+}
+
+fn remote_config_manager(app: &AppHandle) -> ApiResult<RemoteConfigManager> {
+    let root = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| ApiError::from(e.to_string()))?;
+    RemoteConfigManager::new(root).map_err(|e| ApiError::from(e.to_string()))
 }
 
 fn blacklist_sections_for_game(name: &str) -> HashSet<&'static str> {
@@ -846,6 +855,32 @@ pub fn import_segatoools_config_cmd(content: String) -> ApiResult<SegatoolsConfi
     let game_name = active_game().ok().map(|g| g.name);
     let cfg = load_segatoools_config_from_string(&content).map_err(|e| ApiError::from(e.to_string()))?;
     Ok(sanitize_segatoools_for_game(cfg, game_name.as_deref()))
+}
+
+#[command]
+pub fn get_local_override_cmd(app: AppHandle) -> ApiResult<Value> {
+    let manager = remote_config_manager(&app)?;
+    Ok(manager.read_local_override())
+}
+
+#[command]
+pub fn set_local_override_cmd(app: AppHandle, override_json: Value) -> ApiResult<()> {
+    let manager = remote_config_manager(&app)?;
+    manager
+        .write_local_override(&override_json)
+        .map_err(|e| ApiError::from(e.to_string()))
+}
+
+#[command]
+pub fn get_effective_remote_config_cmd(app: AppHandle) -> ApiResult<Value> {
+    let manager = remote_config_manager(&app)?;
+    Ok(manager.effective_config())
+}
+
+#[command]
+pub fn sync_remote_config_cmd(app: AppHandle, endpoint: Option<String>) -> ApiResult<RemoteSyncStatus> {
+    let manager = remote_config_manager(&app)?;
+    Ok(manager.sync_remote(endpoint.as_deref()))
 }
 
 #[command]

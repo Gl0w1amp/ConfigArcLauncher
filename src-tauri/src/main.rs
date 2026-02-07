@@ -6,6 +6,7 @@ mod error;
 mod fsdecrypt;
 mod games;
 mod icf;
+mod remote;
 mod trusted;
 mod vhd;
 
@@ -20,6 +21,10 @@ fn main() {
             save_segatoools_config,
             export_segatoools_config_cmd,
             import_segatoools_config_cmd,
+            get_local_override_cmd,
+            set_local_override_cmd,
+            get_effective_remote_config_cmd,
+            sync_remote_config_cmd,
             export_profile_cmd,
             import_profile_cmd,
             list_profiles_cmd,
