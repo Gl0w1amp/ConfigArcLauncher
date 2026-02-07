@@ -1,3 +1,5 @@
+use crate::config::{profiles::ConfigProfile, segatools::SegatoolsConfig};
+use crate::games::model::Game;
 use chrono::Utc;
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
@@ -49,6 +51,23 @@ pub struct RemoteSyncStatus {
     pub endpoint: Option<String>,
     pub used_cache: bool,
     pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoteApplyPlan {
+    #[serde(default)]
+    pub active_game_id: Option<String>,
+    #[serde(default)]
+    pub games: Vec<Game>,
+    #[serde(default)]
+    pub profiles: Vec<ConfigProfile>,
+    #[serde(default)]
+    pub profiles_by_game: HashMap<String, Vec<ConfigProfile>>,
+    #[serde(default)]
+    pub segatools: Option<SegatoolsConfig>,
+    #[serde(default)]
+    pub segatools_by_game: HashMap<String, SegatoolsConfig>,
 }
 
 pub struct RemoteConfigManager {
@@ -113,6 +132,12 @@ impl RemoteConfigManager {
         let remote = self.read_remote_cache().config;
         let local = self.read_local_override();
         merge_json(&remote, &local)
+    }
+
+    pub fn apply_plan(&self) -> Result<RemoteApplyPlan, RemoteError> {
+        let config = self.effective_config();
+        let plan: RemoteApplyPlan = serde_json::from_value(config)?;
+        Ok(plan)
     }
 
     pub fn resolve_endpoint(&self, override_endpoint: Option<&str>) -> Option<String> {

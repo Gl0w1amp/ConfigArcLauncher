@@ -25,6 +25,7 @@ fn main() {
             set_local_override_cmd,
             get_effective_remote_config_cmd,
             sync_remote_config_cmd,
+            apply_remote_config_cmd,
             export_profile_cmd,
             import_profile_cmd,
             list_profiles_cmd,

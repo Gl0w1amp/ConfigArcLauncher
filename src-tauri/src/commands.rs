@@ -3,7 +3,7 @@ use crate::config::{
         active_game_dir, ensure_default_segatoools_exists, get_active_game_id, segatoools_path_for_active,
         segatoools_path_for_game_id, set_active_game_id,
     },
-    profiles::{delete_profile, list_profiles, load_profile, save_profile, ConfigProfile},
+    profiles::{delete_profile, list_profiles, load_profile, save_profile, save_profile_for_game, ConfigProfile},
     segatools::SegatoolsConfig,
     templates,
     json_configs::{JsonConfigFile, list_json_configs_for_active, load_json_config_for_active, save_json_config_for_active},
@@ -25,7 +25,7 @@ use flate2::{Compression, write::DeflateEncoder, write::ZlibEncoder, read::ZlibD
 use reqwest::blocking::Client;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue, CONTENT_TYPE, USER_AGENT};
 use reqwest::Proxy;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use tauri::{command, AppHandle, Emitter, Manager, Window};
 use serde_json::Value;
 use std::fs;
@@ -90,6 +90,16 @@ fn remote_config_manager(app: &AppHandle) -> ApiResult<RemoteConfigManager> {
         .app_data_dir()
         .map_err(|e| ApiError::from(e.to_string()))?;
     RemoteConfigManager::new(root).map_err(|e| ApiError::from(e.to_string()))
+}
+
+#[derive(Debug, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoteApplyResult {
+    pub games_applied: usize,
+    pub profiles_applied: usize,
+    pub segatools_applied: usize,
+    pub active_game_id: Option<String>,
+    pub warnings: Vec<String>,
 }
 
 fn blacklist_sections_for_game(name: &str) -> HashSet<&'static str> {
@@ -881,6 +891,92 @@ pub fn get_effective_remote_config_cmd(app: AppHandle) -> ApiResult<Value> {
 pub fn sync_remote_config_cmd(app: AppHandle, endpoint: Option<String>) -> ApiResult<RemoteSyncStatus> {
     let manager = remote_config_manager(&app)?;
     Ok(manager.sync_remote(endpoint.as_deref()))
+}
+
+#[command]
+pub fn apply_remote_config_cmd(app: AppHandle) -> ApiResult<RemoteApplyResult> {
+    let manager = remote_config_manager(&app)?;
+    let plan = manager.apply_plan().map_err(|e| ApiError::from(e.to_string()))?;
+    let mut result = RemoteApplyResult::default();
+
+    for game in plan.games {
+        store::save_game(game).map_err(|e| ApiError::from(e.to_string()))?;
+        result.games_applied += 1;
+    }
+
+    let mut active_game_id = get_active_game_id().map_err(|e| ApiError::from(e.to_string()))?;
+    if let Some(requested_active) = plan
+        .active_game_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|id| !id.is_empty())
+    {
+        set_active_game_id(requested_active).map_err(|e| ApiError::from(e.to_string()))?;
+        active_game_id = Some(requested_active.to_string());
+    }
+    result.active_game_id = active_game_id.clone();
+
+    let games = store::list_games().map_err(|e| ApiError::from(e.to_string()))?;
+    let game_name_by_id: HashMap<String, String> = games
+        .into_iter()
+        .map(|g| (g.id, g.name))
+        .collect();
+
+    for (game_id, profiles) in plan.profiles_by_game {
+        let trimmed = game_id.trim();
+        if trimmed.is_empty() {
+            result.warnings.push("Skipped profilesByGame entry with empty game id".to_string());
+            continue;
+        }
+        let game_name = game_name_by_id.get(trimmed).map(|s| s.as_str());
+        for profile in profiles {
+            let mut profile = profile;
+            profile.segatools = sanitize_segatoools_for_game(profile.segatools, game_name);
+            save_profile_for_game(&profile, trimmed).map_err(|e| ApiError::from(e.to_string()))?;
+            result.profiles_applied += 1;
+        }
+    }
+
+    if !plan.profiles.is_empty() {
+        if let Some(active_id) = active_game_id.as_deref() {
+            let game_name = game_name_by_id.get(active_id).map(|s| s.as_str());
+            for profile in plan.profiles {
+                let mut profile = profile;
+                profile.segatools = sanitize_segatoools_for_game(profile.segatools, game_name);
+                save_profile_for_game(&profile, active_id).map_err(|e| ApiError::from(e.to_string()))?;
+                result.profiles_applied += 1;
+            }
+        } else {
+            result.warnings.push("Skipped profiles because no active game is selected".to_string());
+        }
+    }
+
+    for (game_id, cfg) in plan.segatools_by_game {
+        let trimmed = game_id.trim();
+        if trimmed.is_empty() {
+            result.warnings.push("Skipped segatoolsByGame entry with empty game id".to_string());
+            continue;
+        }
+        let game_name = game_name_by_id.get(trimmed).map(|s| s.as_str());
+        let sanitized = sanitize_segatoools_for_game(cfg, game_name);
+        let path = segatoools_path_for_game_id(trimmed).map_err(|e| ApiError::from(e.to_string()))?;
+        persist_segatoools_config(&path, &sanitized).map_err(|e| ApiError::from(e.to_string()))?;
+        result.segatools_applied += 1;
+    }
+
+    if let Some(cfg) = plan.segatools {
+        if let Some(active_id) = active_game_id.as_deref() {
+            let game_name = game_name_by_id.get(active_id).map(|s| s.as_str());
+            let sanitized = sanitize_segatoools_for_game(cfg, game_name);
+            let path = segatoools_path_for_game_id(active_id).map_err(|e| ApiError::from(e.to_string()))?;
+            persist_segatoools_config(&path, &sanitized).map_err(|e| ApiError::from(e.to_string()))?;
+            result.segatools_applied += 1;
+        } else {
+            result.warnings.push("Skipped segatools because no active game is selected".to_string());
+        }
+    }
+
+    Ok(result)
 }
 
 #[command]

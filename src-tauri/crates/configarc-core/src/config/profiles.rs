@@ -57,6 +57,20 @@ pub fn save_profile(profile: &ConfigProfile) -> Result<(), ConfigError> {
   Ok(())
 }
 
+pub fn save_profile_for_game(profile: &ConfigProfile, game_id: &str) -> Result<(), ConfigError> {
+  let mut profiles = list_profiles(Some(game_id))?;
+  profiles.retain(|p| p.id != profile.id);
+  profiles.push(profile.clone());
+
+  let path = profiles_path(Some(game_id))?;
+  if let Some(parent) = path.parent() {
+    fs::create_dir_all(parent)?;
+  }
+  let json = serde_json::to_string_pretty(&profiles)?;
+  fs::write(path, json)?;
+  Ok(())
+}
+
 pub fn delete_profile(id: &str) -> Result<(), ConfigError> {
   let mut profiles = list_profiles(None)?;
   let before = profiles.len();

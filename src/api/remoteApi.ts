@@ -8,9 +8,18 @@ export interface RemoteSyncStatus {
   error?: string | null;
 }
 
+export interface RemoteApplyResult {
+  gamesApplied: number;
+  profilesApplied: number;
+  segatoolsApplied: number;
+  activeGameId?: string | null;
+  warnings: string[];
+}
+
 export const getLocalOverride = () => invokeTauri<Record<string, unknown>>('get_local_override_cmd');
 export const setLocalOverride = (overrideJson: Record<string, unknown>) =>
   invokeTauri<void>('set_local_override_cmd', { overrideJson });
 export const getEffectiveRemoteConfig = () => invokeTauri<Record<string, unknown>>('get_effective_remote_config_cmd');
 export const syncRemoteConfig = (endpoint?: string) =>
   invokeTauri<RemoteSyncStatus>('sync_remote_config_cmd', { endpoint });
+export const applyRemoteConfig = () => invokeTauri<RemoteApplyResult>('apply_remote_config_cmd');
