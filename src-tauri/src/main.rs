@@ -21,6 +21,8 @@ fn main() {
             save_segatoools_config,
             export_segatoools_config_cmd,
             import_segatoools_config_cmd,
+            get_offline_mode_cmd,
+            set_offline_mode_cmd,
             get_local_override_cmd,
             set_local_override_cmd,
             get_effective_remote_config_cmd,

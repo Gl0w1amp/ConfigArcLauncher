@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { check, Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
-import { AUTO_UPDATE_STORAGE_KEY } from '../constants/storage';
+import { AUTO_UPDATE_STORAGE_KEY, OFFLINE_MODE_STORAGE_KEY } from '../constants/storage';
 import { AppError, normalizeError } from '../errors';
 
 interface UpdateContextType {
@@ -31,9 +31,16 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
   const [installingUpdate, setInstallingUpdate] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const hasCheckedRef = useRef(false);
+  const isOfflineModeEnabled = () => localStorage.getItem(OFFLINE_MODE_STORAGE_KEY) === '1';
 
   const checkForUpdates = async (manual = false) => {
     if (isChecking) return false;
+    if (isOfflineModeEnabled()) {
+      if (manual) {
+        setUpdateError({ code: 'OFFLINE_MODE', message: 'Offline mode is enabled.' });
+      }
+      return false;
+    }
     setIsChecking(true);
     setUpdateError(null);
     
@@ -59,6 +66,11 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
 
   const installUpdate = async () => {
     if (!updateInfo || installingUpdate) return;
+    if (isOfflineModeEnabled()) {
+      setUpdateInfo(null);
+      setUpdateError({ code: 'OFFLINE_MODE', message: 'Offline mode is enabled.' });
+      return;
+    }
     setInstallingUpdate(true);
     try {
       await updateInfo.downloadAndInstall();

@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
-import { AUTO_UPDATE_STORAGE_KEY } from '../../constants/storage';
+import { AUTO_UPDATE_STORAGE_KEY, OFFLINE_MODE_STORAGE_KEY } from '../../constants/storage';
 import { useExtensions } from '../../context/ExtensionsContext';
+import { invokeTauri } from '../../api/tauriClient';
 
 function SettingsForm() {
   const { t, i18n } = useTranslation();
@@ -11,6 +12,31 @@ function SettingsForm() {
   const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(
     () => localStorage.getItem(AUTO_UPDATE_STORAGE_KEY) === '1'
   );
+  const [offlineModeEnabled, setOfflineModeEnabled] = useState(
+    () => localStorage.getItem(OFFLINE_MODE_STORAGE_KEY) === '1'
+  );
+  const [offlineModeBusy, setOfflineModeBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    invokeTauri<boolean>('get_offline_mode_cmd')
+      .then((enabled) => {
+        if (cancelled) return;
+        setOfflineModeEnabled(enabled);
+        if (enabled) {
+          localStorage.setItem(OFFLINE_MODE_STORAGE_KEY, '1');
+        } else {
+          localStorage.removeItem(OFFLINE_MODE_STORAGE_KEY);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load offline mode state:', err);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const changeLanguage = (lang: string) => {
     if (lang === 'system') {
@@ -35,6 +61,26 @@ function SettingsForm() {
       localStorage.setItem(AUTO_UPDATE_STORAGE_KEY, '1');
     } else {
       localStorage.removeItem(AUTO_UPDATE_STORAGE_KEY);
+    }
+  };
+
+  const setOfflineMode = async (enabled: boolean) => {
+    if (offlineModeBusy) return;
+    const previous = offlineModeEnabled;
+    setOfflineModeEnabled(enabled);
+    setOfflineModeBusy(true);
+    try {
+      await invokeTauri('set_offline_mode_cmd', { enabled });
+      if (enabled) {
+        localStorage.setItem(OFFLINE_MODE_STORAGE_KEY, '1');
+      } else {
+        localStorage.removeItem(OFFLINE_MODE_STORAGE_KEY);
+      }
+    } catch (err) {
+      console.error('Failed to update offline mode:', err);
+      setOfflineModeEnabled(previous);
+    } finally {
+      setOfflineModeBusy(false);
     }
   };
 
@@ -261,6 +307,27 @@ function SettingsForm() {
             }} />
           </label>
         </div>
+      </div>
+
+      <div style={{ 
+        border: '1px solid var(--border-color)',
+        borderRadius: 'var(--radius-md)',
+        background: 'var(--bg-tertiary)',
+        padding: 'var(--spacing-sm) var(--spacing-md)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 'var(--spacing-md)',
+        minHeight: '56px',
+        marginTop: 'var(--spacing-sm)'
+      }}>
+        <div style={{ display: 'grid', gap: 4 }}>
+          <span style={{ fontWeight: 500 }}>{t('settings.offlineMode.title')}</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+            {t('settings.offlineMode.desc')}
+          </span>
+        </div>
+        {renderToggle('offline-mode-switch', offlineModeEnabled, setOfflineMode)}
       </div>
 
       <h3 style={{ marginBottom: 'var(--spacing-md)', marginTop: 'var(--spacing-lg)' }}>

@@ -1,3 +1,4 @@
 export const AUTO_UPDATE_STORAGE_KEY = 'settings:autoUpdate';
 export const FSDECRYPT_KEY_URL_STORAGE_KEY = 'settings:fsdecryptKeyUrl';
 export const EXTENSIONS_ENABLED_STORAGE_KEY = 'settings:extensionsEnabled';
+export const OFFLINE_MODE_STORAGE_KEY = 'settings:offlineMode';

@@ -37,6 +37,9 @@ use std::os::windows::process::CommandExt;
 use std::io::{Read, Write};
 
 static DOWNLOAD_ORDER_CANCELLED: AtomicBool = AtomicBool::new(false);
+const APP_SETTINGS_FILE_NAME: &str = "settings.json";
+const OFFLINE_MODE_BLOCK_MESSAGE: &str =
+    "Offline mode is enabled. Disable it in Settings to use network features.";
 
 fn redact_keychip_id(content: &str) -> String {
     let mut result = String::with_capacity(content.len());
@@ -90,6 +93,49 @@ fn remote_config_manager(app: &AppHandle) -> ApiResult<RemoteConfigManager> {
         .app_data_dir()
         .map_err(|e| ApiError::from(e.to_string()))?;
     RemoteConfigManager::new(root).map_err(|e| ApiError::from(e.to_string()))
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct AppSettings {
+    #[serde(default)]
+    offline_mode: bool,
+}
+
+fn app_settings_path(app: &AppHandle) -> ApiResult<PathBuf> {
+    let root = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| ApiError::from(e.to_string()))?;
+    fs::create_dir_all(&root).map_err(|e| ApiError::from(e.to_string()))?;
+    Ok(root.join(APP_SETTINGS_FILE_NAME))
+}
+
+fn read_app_settings(app: &AppHandle) -> ApiResult<AppSettings> {
+    let path = app_settings_path(app)?;
+    if !path.exists() {
+        return Ok(AppSettings::default());
+    }
+    let raw = fs::read(&path).map_err(|e| ApiError::from(e.to_string()))?;
+    let parsed = serde_json::from_slice::<AppSettings>(&raw).map_err(|e| ApiError::from(e.to_string()))?;
+    Ok(parsed)
+}
+
+fn write_app_settings(app: &AppHandle, settings: &AppSettings) -> ApiResult<()> {
+    let path = app_settings_path(app)?;
+    let raw = serde_json::to_vec_pretty(settings).map_err(|e| ApiError::from(e.to_string()))?;
+    fs::write(path, raw).map_err(|e| ApiError::from(e.to_string()))
+}
+
+fn is_offline_mode_enabled(app: &AppHandle) -> ApiResult<bool> {
+    Ok(read_app_settings(app)?.offline_mode)
+}
+
+fn ensure_network_allowed(app: &AppHandle) -> ApiResult<()> {
+    if is_offline_mode_enabled(app)? {
+        return Err(ApiError::from(OFFLINE_MODE_BLOCK_MESSAGE));
+    }
+    Ok(())
 }
 
 fn ensure_segatoools_present_sections(cfg: &mut SegatoolsConfig, game_name: Option<&str>) {
@@ -881,6 +927,18 @@ pub fn import_segatoools_config_cmd(content: String) -> ApiResult<SegatoolsConfi
 }
 
 #[command]
+pub fn get_offline_mode_cmd(app: AppHandle) -> ApiResult<bool> {
+    is_offline_mode_enabled(&app)
+}
+
+#[command]
+pub fn set_offline_mode_cmd(app: AppHandle, enabled: bool) -> ApiResult<()> {
+    let mut settings = read_app_settings(&app)?;
+    settings.offline_mode = enabled;
+    write_app_settings(&app, &settings)
+}
+
+#[command]
 pub fn get_local_override_cmd(app: AppHandle) -> ApiResult<Value> {
     let manager = remote_config_manager(&app)?;
     Ok(manager.read_local_override())
@@ -902,6 +960,7 @@ pub fn get_effective_remote_config_cmd(app: AppHandle) -> ApiResult<Value> {
 
 #[command]
 pub fn sync_remote_config_cmd(app: AppHandle, endpoint: Option<String>) -> ApiResult<RemoteSyncStatus> {
+    ensure_network_allowed(&app)?;
     let manager = remote_config_manager(&app)?;
     Ok(manager.sync_remote(endpoint.as_deref()))
 }
@@ -1993,7 +2052,7 @@ pub fn delete_mod_cmd(name: String) -> ApiResult<Vec<ModEntry>> {
 }
 
 #[command]
-pub async fn load_fsdecrypt_keys_cmd(key_url: Option<String>) -> ApiResult<fsdecrypt::KeyStatus> {
+pub async fn load_fsdecrypt_keys_cmd(app: AppHandle, key_url: Option<String>) -> ApiResult<fsdecrypt::KeyStatus> {
     let key_url = key_url.and_then(|url| {
         let trimmed = url.trim().to_string();
         if trimmed.is_empty() {
@@ -2002,6 +2061,9 @@ pub async fn load_fsdecrypt_keys_cmd(key_url: Option<String>) -> ApiResult<fsdec
             Some(trimmed)
         }
     });
+    if key_url.is_some() {
+        ensure_network_allowed(&app)?;
+    }
     tauri::async_runtime::spawn_blocking(move || fsdecrypt::load_key_status(key_url))
         .await
         .map_err(|e| ApiError::from(e.to_string()))?
@@ -2027,6 +2089,10 @@ pub async fn decrypt_game_files_cmd(
             Some(trimmed)
         }
     });
+    if key_url.is_some() {
+        let app = window.app_handle();
+        ensure_network_allowed(&app)?;
+    }
     let window = window.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let mut report_progress = |progress: fsdecrypt::DecryptProgress| {
@@ -2142,10 +2208,12 @@ fn unique_filename(base: &str, used: &mut HashSet<String>, dir: &Path) -> String
 
 #[command]
 pub async fn download_order_fetch_text_cmd(
+    app: AppHandle,
     url: String,
     user_agent: Option<String>,
     proxy: Option<String>,
 ) -> ApiResult<String> {
+    ensure_network_allowed(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
         let debug_logs = cfg!(debug_assertions)
             || std::env::var_os("CONFIGARC_DEBUG_DOWNLOAD_ORDER").is_some();
@@ -2217,6 +2285,7 @@ pub async fn download_order_download_files_cmd(
     user_agent: Option<String>,
     proxy: Option<String>,
 ) -> ApiResult<Vec<DownloadOrderDownloadResult>> {
+    ensure_network_allowed(&app)?;
     tauri::async_runtime::spawn_blocking(move || -> ApiResult<Vec<DownloadOrderDownloadResult>> {
         if items.is_empty() {
             return Err(("No files selected".to_string()).into());
@@ -2362,7 +2431,8 @@ pub async fn download_order_download_files_cmd(
 }
 
 #[command]
-pub async fn download_order_cmd(payload: DownloadOrderRequest) -> ApiResult<DownloadOrderResponse> {
+pub async fn download_order_cmd(app: AppHandle, payload: DownloadOrderRequest) -> ApiResult<DownloadOrderResponse> {
+    ensure_network_allowed(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
         let debug_logs = cfg!(debug_assertions)
             || std::env::var_os("CONFIGARC_DEBUG_DOWNLOAD_ORDER").is_some();
@@ -2655,7 +2725,8 @@ pub async fn download_order_cmd(payload: DownloadOrderRequest) -> ApiResult<Down
 }
 
 #[command]
-pub async fn segatools_trust_status_cmd() -> ApiResult<SegatoolsTrustStatus> {
+pub async fn segatools_trust_status_cmd(app: AppHandle) -> ApiResult<SegatoolsTrustStatus> {
+    ensure_network_allowed(&app)?;
     tauri::async_runtime::spawn_blocking(|| {
         verify_segatoools_for_active().map_err(|e| ApiError::from(e.to_string()))
     })
@@ -2664,7 +2735,8 @@ pub async fn segatools_trust_status_cmd() -> ApiResult<SegatoolsTrustStatus> {
 }
 
 #[command]
-pub fn deploy_segatoools_cmd(force: bool) -> ApiResult<DeployResult> {
+pub fn deploy_segatoools_cmd(app: AppHandle, force: bool) -> ApiResult<DeployResult> {
+    ensure_network_allowed(&app)?;
     deploy_segatoools_for_active(force).map_err(|e| ApiError::from(e.to_string()))
 }
 
