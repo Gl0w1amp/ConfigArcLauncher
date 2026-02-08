@@ -75,7 +75,7 @@ export function useConfigState() {
       } else {
         setTrustStatus({
           trusted: false,
-          reason: 'Offline mode is enabled.',
+          reason: 'Trust verification unavailable in offline mode.',
           checked_files: [],
           has_backup: false,
           missing_files: false,

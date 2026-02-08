@@ -169,10 +169,31 @@ function SegatoolsDeployPage() {
         </button>
       </div>
       {offlineModeEnabled && (
-        <div className="hint-text" style={{ marginBottom: 12 }}>
-          {t('settings.offlineMode.desc', {
-            defaultValue: 'Disable all networking features, including update checks, remote sync, and online downloads.'
-          })}
+        <div className="deploy-offline-panel" role="status" aria-live="polite">
+          <div className="deploy-offline-center">
+            <div className="deploy-offline-icon">
+              <IconAlertCircle width={36} height={36} />
+            </div>
+            <div className="deploy-offline-title">
+              {t('settings.offlineMode.enabledHint', {
+                defaultValue: 'Offline mode is enabled',
+              })}
+            </div>
+            <div className="deploy-offline-desc">
+              {t('settings.offlineMode.desc', {
+                defaultValue: 'Disable all networking features, including update checks, remote sync, and online downloads.'
+              })}
+            </div>
+            <span className="deploy-offline-chip">
+              {t('settings.offlineMode.title', { defaultValue: 'Offline mode' })}
+            </span>
+          </div>
+          <div className="deploy-offline-divider" />
+          <div className="deploy-offline-actions">
+            <span className="deploy-offline-action">{t('deploy.refresh')}</span>
+            <span className="deploy-offline-action">{t('deploy.deploy')}</span>
+            <span className="deploy-offline-action">{t('deploy.rollback')}</span>
+          </div>
         </div>
       )}
 

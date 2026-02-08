@@ -355,6 +355,71 @@ input:focus + .toggle-slider {
   font-size: 0.9rem;
 }
 
+.config-trust-banner {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.config-trust-banner-icon {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.config-trust-banner-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.config-trust-banner-content {
+  display: grid;
+  gap: 4px;
+}
+
+.config-trust-banner-reason {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  margin-top: 2px;
+}
+
+.config-trust-banner-danger {
+  background: rgba(248, 113, 113, 0.1);
+  border-color: var(--danger);
+}
+
+.config-trust-banner-danger .config-trust-banner-icon {
+  background: rgba(239, 68, 68, 0.16);
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.config-trust-banner-industrial {
+  border-color: rgba(59, 130, 246, 0.4);
+  background:
+    linear-gradient(155deg, rgba(15, 23, 42, 0.88) 0%, rgba(30, 41, 59, 0.76) 100%),
+    repeating-linear-gradient(120deg, rgba(59, 130, 246, 0.16) 0 12px, rgba(59, 130, 246, 0.02) 12px 24px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.config-trust-banner-industrial .config-trust-banner-icon {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.45);
+}
+
+.config-trust-banner-industrial .config-trust-banner-content strong {
+  color: #bfdbfe;
+}
+
 
 .spin { animation: spin 1s linear infinite; }
 

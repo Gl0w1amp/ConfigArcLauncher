@@ -239,3 +239,110 @@
   align-items: flex-start;
   gap: 8px;
 }
+
+.deploy-container .deploy-offline-panel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  background:
+    linear-gradient(155deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.8) 100%),
+    repeating-linear-gradient(120deg, rgba(59, 130, 246, 0.16) 0 14px, rgba(59, 130, 246, 0.03) 14px 28px);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.24);
+  padding: 24px 24px 20px;
+}
+
+.deploy-container .deploy-offline-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.deploy-container .deploy-offline-icon {
+  width: 76px;
+  height: 76px;
+  flex-shrink: 0;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.44);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 10px 18px rgba(30, 64, 175, 0.25);
+}
+
+.deploy-container .deploy-offline-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.deploy-container .deploy-offline-desc {
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  max-width: 760px;
+}
+
+.deploy-container .deploy-offline-chip {
+  margin-top: 2px;
+  border-radius: 999px;
+  border: 1px solid rgba(59, 130, 246, 0.45);
+  background: rgba(59, 130, 246, 0.2);
+  color: #bfdbfe;
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 7px 12px;
+}
+
+.deploy-container .deploy-offline-divider {
+  height: 1px;
+  margin: 20px 0 14px;
+  background: linear-gradient(
+    90deg,
+    rgba(59, 130, 246, 0.5) 0%,
+    rgba(59, 130, 246, 0.2) 60%,
+    rgba(59, 130, 246, 0.06) 100%
+  );
+}
+
+.deploy-container .deploy-offline-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.deploy-container .deploy-offline-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(59, 130, 246, 0.34);
+  background: rgba(30, 64, 175, 0.2);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 6px 12px;
+}
+
+.deploy-container .deploy-offline-action::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #60a5fa;
+  box-shadow: 0 0 8px rgba(96, 165, 250, 0.7);
+}

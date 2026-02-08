@@ -116,6 +116,7 @@
     "trustChecking": "Verifying segatools trust...",
     "trustOk": "Trusted segatools verified",
     "trustFailed": "Untrusted segatools detected",
+    "trustUnavailableOffline": "Trust verification unavailable in offline mode",
     "trustMissing": "segatools missing",
     "trustRefresh": "Re-check trust",
     "openDeploy": "Open Deploy",
@@ -124,6 +125,8 @@
     "ioDropHint": "Drag an IO DLL here",
     "trustWarningTitle": "Non-trusted segatools detected",
     "trustWarningMessage": "This appears to be a non-open-source trusted build of segatools. Please redeploy the trusted version.",
+    "trustOfflineTitle": "Trust verification unavailable",
+    "trustOfflineMessage": "Cannot verify trusted segatools while offline. Disable offline mode and re-check trust status.",
     "trustMissingTitle": "segatools missing",
     "trustMissingMessage": "segatools files are missing. Please deploy the trusted version.",
     "trustReason": "Details: {{reason}}"

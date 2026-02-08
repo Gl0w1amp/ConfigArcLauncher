@@ -19,7 +19,7 @@ import { useOfflineMode } from '../state/offlineMode';
 import { 
   IconPlus, IconSave, IconTrash, IconRefresh, IconRocket, 
   IconFolderOpen, IconWand, IconUndo, IconDownload, IconUpload, 
-  IconFileImport, IconHardDrive 
+  IconFileImport, IconHardDrive, IconShieldOff, IconAlertCircle
 } from '../components/common/Icons';
 
 function ConfigEditorPage() {
@@ -354,6 +354,7 @@ function ConfigEditorPage() {
   );
 
   const trustChecking = !trustStatus;
+  const trustUnavailableOffline = Boolean(trustStatus) && !trustStatus.trusted && offlineModeEnabled;
   const offlineDisabledTitle = t('settings.offlineMode.enabledHint', {
     defaultValue: 'Offline mode is enabled',
   });
@@ -394,7 +395,15 @@ function ConfigEditorPage() {
             className="config-trust-status"
             style={{ color: trustStatus?.trusted ? 'var(--success)' : 'var(--warning)' }}
           >
-            {trustChecking ? t('config.trustChecking') : trustStatus?.trusted ? t('config.trustOk') : trustStatus?.missing_files ? t('config.trustMissing') : t('config.trustFailed')}
+            {trustChecking
+              ? t('config.trustChecking')
+              : trustUnavailableOffline
+              ? t('config.trustUnavailableOffline', { defaultValue: 'Trust verification unavailable in offline mode' })
+              : trustStatus?.trusted
+              ? t('config.trustOk')
+              : trustStatus?.missing_files
+              ? t('config.trustMissing')
+              : t('config.trustFailed')}
           </span>
           <button
             className={`config-toolbar-button ${offlineModeEnabled ? 'offline-disabled' : ''}`}
@@ -430,10 +439,40 @@ function ConfigEditorPage() {
         </div>
       </div>
       {trustStatus && !trustStatus.trusted && (
-        <div style={{ background: 'rgba(248,113,113,0.1)', border: '1px solid var(--danger)', padding: 10, borderRadius: 8, marginBottom: 12 }}>
-          <strong>{trustStatus.missing_files ? t('config.trustMissingTitle') : t('config.trustWarningTitle')}</strong>
-          <div>{trustStatus.missing_files ? t('config.trustMissingMessage') : t('config.trustWarningMessage')}</div>
-          {trustStatus.reason && <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>{t('config.trustReason', { reason: trustStatus.reason })}</div>}
+        <div
+          className={
+            trustUnavailableOffline
+              ? 'config-trust-banner config-trust-banner-industrial'
+              : 'config-trust-banner config-trust-banner-danger'
+          }
+        >
+          <div className="config-trust-banner-icon">
+            {trustUnavailableOffline ? <IconShieldOff /> : <IconAlertCircle />}
+          </div>
+          <div className="config-trust-banner-content">
+            <strong>
+              {trustUnavailableOffline
+                ? t('config.trustOfflineTitle', { defaultValue: 'Trust verification unavailable' })
+                : trustStatus.missing_files
+                ? t('config.trustMissingTitle')
+                : t('config.trustWarningTitle')}
+            </strong>
+            <div>
+              {trustUnavailableOffline
+                ? t('config.trustOfflineMessage', {
+                    defaultValue:
+                      'Cannot verify trusted segatools while offline. Disable offline mode and re-check trust status.',
+                  })
+                : trustStatus.missing_files
+                ? t('config.trustMissingMessage')
+                : t('config.trustWarningMessage')}
+            </div>
+            {trustStatus.reason && (
+              <div className="config-trust-banner-reason">
+                {t('config.trustReason', { reason: trustStatus.reason })}
+              </div>
+            )}
+          </div>
         </div>
       )}
       {error && <p style={{ color: '#f87171' }}>{formatError(t, error)}</p>}
