@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Modal } from './Modal';
 import './Dialog.css';
 import { Update } from '@tauri-apps/plugin-updater';
+import { useOfflineMode } from '../../state/offlineMode';
 
 type Props = {
   updateInfo: Update;
@@ -33,6 +34,10 @@ export function UpdateDialog({
   onCancel 
 }: Props) {
   const { t } = useTranslation();
+  const offlineModeEnabled = useOfflineMode();
+  const offlineDisabledTitle = t('settings.offlineMode.enabledHint', {
+    defaultValue: 'Offline mode is enabled',
+  });
 
   const resolvedChangelog = useMemo(() => {
     const body = updateInfo.body?.trim() ?? '';
@@ -100,8 +105,9 @@ export function UpdateDialog({
           <button 
             type="button" 
             onClick={onConfirm}
-            className="dialog-btn action-btn btn-primary"
-            disabled={installing}
+            className={`dialog-btn action-btn btn-primary ${offlineModeEnabled ? 'offline-disabled' : ''}`}
+            disabled={installing || offlineModeEnabled}
+            title={offlineModeEnabled ? offlineDisabledTitle : undefined}
             style={{ minWidth: 90 }}
           >
             {installing ? (

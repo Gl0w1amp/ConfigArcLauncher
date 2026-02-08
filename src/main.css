@@ -194,6 +194,26 @@ button svg {
   flex-shrink: 0;
 }
 
+button.offline-disabled,
+button.offline-disabled:disabled {
+  background: var(--bg-tertiary) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-muted) !important;
+  box-shadow: none !important;
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none !important;
+  filter: saturate(0.25);
+}
+
+button.offline-disabled:hover,
+button.offline-disabled:disabled:hover {
+  background: var(--bg-tertiary) !important;
+  color: var(--text-muted) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
 .action-btn {
   padding: 10px 16px;
   border-radius: var(--radius-md);

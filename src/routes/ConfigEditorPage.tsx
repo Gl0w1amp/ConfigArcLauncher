@@ -15,6 +15,7 @@ import { exportProfile, importProfile, loadGameDirSegatoolsConfig, openSegatools
 import { applyProfileToGame } from '../api/gamesApi';
 import '../components/config/config.css';
 import { formatError } from '../errors';
+import { useOfflineMode } from '../state/offlineMode';
 import { 
   IconPlus, IconSave, IconTrash, IconRefresh, IconRocket, 
   IconFolderOpen, IconWand, IconUndo, IconDownload, IconUpload, 
@@ -23,6 +24,7 @@ import {
 
 function ConfigEditorPage() {
   const { t } = useTranslation();
+  const offlineModeEnabled = useOfflineMode();
   const { config, setConfig, loading, saving, error, activeGameId, reload, save, resetToDefaults, trustStatus, trustLoading, refreshTrust } = useConfigState();
   const { profiles, reload: reloadProfiles, saveProfile, deleteProfile, loadProfile } = useProfilesState();
   const { games } = useGamesState();
@@ -352,6 +354,9 @@ function ConfigEditorPage() {
   );
 
   const trustChecking = !trustStatus;
+  const offlineDisabledTitle = t('settings.offlineMode.enabledHint', {
+    defaultValue: 'Offline mode is enabled',
+  });
 
   return (
     <div>
@@ -391,7 +396,12 @@ function ConfigEditorPage() {
           >
             {trustChecking ? t('config.trustChecking') : trustStatus?.trusted ? t('config.trustOk') : trustStatus?.missing_files ? t('config.trustMissing') : t('config.trustFailed')}
           </span>
-          <button className="config-toolbar-button" onClick={refreshTrust} disabled={trustLoading}>
+          <button
+            className={`config-toolbar-button ${offlineModeEnabled ? 'offline-disabled' : ''}`}
+            onClick={refreshTrust}
+            disabled={trustLoading || offlineModeEnabled}
+            title={offlineModeEnabled ? offlineDisabledTitle : undefined}
+          >
             <IconRefresh className={trustLoading ? "spin" : ""} />
             {trustLoading ? t('config.trustChecking') : t('config.trustRefresh')}
           </button>

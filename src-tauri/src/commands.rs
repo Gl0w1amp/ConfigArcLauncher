@@ -2741,6 +2741,7 @@ pub fn deploy_segatoools_cmd(app: AppHandle, force: bool) -> ApiResult<DeployRes
 }
 
 #[command]
-pub fn rollback_segatoools_cmd() -> ApiResult<RollbackResult> {
+pub fn rollback_segatoools_cmd(app: AppHandle) -> ApiResult<RollbackResult> {
+    ensure_network_allowed(&app)?;
     rollback_segatoools_for_active().map_err(|e| ApiError::from(e.to_string()))
 }

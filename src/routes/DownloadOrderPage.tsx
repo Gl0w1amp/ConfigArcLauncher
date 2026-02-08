@@ -11,6 +11,7 @@ import { useToast, ToastContainer } from '../components/common/Toast';
 import { Modal } from '../components/common/Modal';
 import { IconDownload, IconPlus, IconRocket, IconSave, IconTrash } from '../components/common/Icons';
 import { formatError } from '../errors';
+import { useOfflineMode } from '../state/offlineMode';
 import '../components/common/Dialog.css';
 import './DownloadOrderPage.css';
 
@@ -54,6 +55,7 @@ const savedConfigsStorageKey = 'downloadOrder:savedConfigs';
 function DownloadOrderPage() {
   const { t } = useTranslation();
   const { toasts, showToast } = useToast();
+  const offlineModeEnabled = useOfflineMode();
 
   const [url, setUrl] = useState('');
   const [gameId, setGameId] = useState('');
@@ -224,6 +226,7 @@ function DownloadOrderPage() {
   };
 
   const handleDownloadConfirm = async () => {
+    if (offlineModeEnabled) return;
     const selectedItems = downloadItems.filter((item) => downloadSelection[item.id]);
     if (!selectedItems.length) return;
     setDownloadBusy(true);
@@ -554,6 +557,7 @@ function DownloadOrderPage() {
   }, []);
 
   const handleSend = async () => {
+    if (offlineModeEnabled) return;
     setLoading(true);
     try {
       const snapshot = buildConfigSnapshot();
@@ -594,6 +598,9 @@ function DownloadOrderPage() {
     (count, item) => count + (downloadSelection[item.id] ? 1 : 0),
     0
   );
+  const offlineDisabledTitle = t('settings.offlineMode.enabledHint', {
+    defaultValue: 'Offline mode is enabled',
+  });
   const allSelected = downloadItems.length > 0 && selectedCount === downloadItems.length;
   const progressPercent = Math.min(100, Math.max(0, downloadProgress?.percent ?? 0));
   const formatBytes = (value?: number | null) => {
@@ -669,16 +676,20 @@ function DownloadOrderPage() {
               </button>
               <button
                 type="button"
-                className="download-order-icon-action download-order-send-btn"
+                className={`download-order-icon-action download-order-send-btn ${offlineModeEnabled ? 'offline-disabled' : ''}`}
                 onClick={handleSend}
-                disabled={loading}
+                disabled={loading || offlineModeEnabled}
                 title={
-                  loading
+                  offlineModeEnabled
+                    ? offlineDisabledTitle
+                    : loading
                     ? t('downloadOrder.requesting')
                     : t('downloadOrder.request', { defaultValue: 'Send request' })
                 }
                 aria-label={
-                  loading
+                  offlineModeEnabled
+                    ? offlineDisabledTitle
+                    : loading
                     ? t('downloadOrder.requesting')
                     : t('downloadOrder.request', { defaultValue: 'Send request' })
                 }
@@ -923,9 +934,10 @@ function DownloadOrderPage() {
               </button>
               <button
                 type="button"
-                className="dialog-btn action-btn btn-primary"
+                className={`dialog-btn action-btn btn-primary ${offlineModeEnabled ? 'offline-disabled' : ''}`}
                 onClick={handleDownloadConfirm}
-                disabled={downloadBusy || selectedCount === 0}
+                disabled={downloadBusy || selectedCount === 0 || offlineModeEnabled}
+                title={offlineModeEnabled ? offlineDisabledTitle : undefined}
               >
                 <IconDownload />
                 {downloadBusy

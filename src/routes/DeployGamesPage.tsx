@@ -8,6 +8,7 @@ import { useToast, ToastContainer } from '../components/common/Toast';
 import { IconCheck, IconFile, IconFolder, IconKey, IconLink, IconPlay, IconTrash, IconX } from '../components/common/Icons';
 import { FSDECRYPT_KEY_URL_STORAGE_KEY } from '../constants/storage';
 import { formatError } from '../errors';
+import { useOfflineMode } from '../state/offlineMode';
 import './DeployGamesPage.css';
 
 type DecryptProgress = {
@@ -21,6 +22,7 @@ type DecryptProgress = {
 function DeployGamesPage() {
   const { t } = useTranslation();
   const { toasts, showToast } = useToast();
+  const offlineModeEnabled = useOfflineMode();
 
   const [files, setFiles] = useState<string[]>([]);
   const [keyUrl, setKeyUrl] = useState<string>(() => localStorage.getItem(FSDECRYPT_KEY_URL_STORAGE_KEY) ?? '');
@@ -32,13 +34,16 @@ function DeployGamesPage() {
   const [decryptProgress, setDecryptProgress] = useState<number | null>(null);
 
   useEffect(() => {
-    const stored = localStorage.getItem(FSDECRYPT_KEY_URL_STORAGE_KEY);
-    loadDecryptKeys(stored?.trim() || undefined).then(status => {
+    const stored = localStorage.getItem(FSDECRYPT_KEY_URL_STORAGE_KEY)?.trim() || undefined;
+    if (offlineModeEnabled && stored) {
+      return;
+    }
+    loadDecryptKeys(stored).then(status => {
       setKeyStatus(status);
     }).catch(() => {
       // Ignore errors on auto-check
     });
-  }, []);
+  }, [offlineModeEnabled]);
 
   useEffect(() => {
     let unlisten: (() => void) | null = null;
@@ -110,6 +115,9 @@ function DeployGamesPage() {
   };
 
   const handleDecrypt = async () => {
+    if (offlineModeEnabled && keyUrl.trim()) {
+      return;
+    }
     if (files.length === 0) {
       showToast(t('deployGames.noFiles'), 'error');
       return;
@@ -131,6 +139,9 @@ function DeployGamesPage() {
   };
 
   const handleCheckKeys = async () => {
+    if (offlineModeEnabled && keyUrl.trim()) {
+      return;
+    }
     setCheckingKeys(true);
     try {
       const status = await loadDecryptKeys(keyUrl.trim() || undefined);
@@ -150,6 +161,10 @@ function DeployGamesPage() {
   };
 
   const displayProgress = Math.min(100, Math.max(0, decryptProgress ?? 0));
+  const blocksRemoteKeyOps = offlineModeEnabled && keyUrl.trim().length > 0;
+  const offlineDisabledTitle = t('settings.offlineMode.enabledHint', {
+    defaultValue: 'Offline mode is enabled',
+  });
   const failedCount = results.reduce((count, result) => (
     count + (result.failed || Boolean(result.error) ? 1 : 0)
   ), 0);
@@ -197,10 +212,22 @@ function DeployGamesPage() {
                   placeholder={t('deployGames.keyUrlPlaceholder')}
                 />
               </div>
-              <button className="action-btn btn-secondary icon-only" onClick={handleCheckKeys} disabled={checkingKeys} title={t('deployGames.checkKeys')}>
+              <button
+                className={`action-btn btn-secondary icon-only ${blocksRemoteKeyOps ? 'offline-disabled' : ''}`}
+                onClick={handleCheckKeys}
+                disabled={checkingKeys || blocksRemoteKeyOps}
+                title={blocksRemoteKeyOps ? offlineDisabledTitle : t('deployGames.checkKeys')}
+              >
                 {checkingKeys ? <span className="spinner-sm" /> : <IconCheck />}
               </button>
             </div>
+            {blocksRemoteKeyOps && (
+              <div className="hint-text">
+                {t('settings.offlineMode.desc', {
+                  defaultValue: 'Disable all networking features, including update checks, remote sync, and online downloads.'
+                })}
+              </div>
+            )}
             
             <div className="hint-text">{t('deployGames.keyLocalHint')}</div>
           </div>
@@ -237,9 +264,10 @@ function DeployGamesPage() {
 
       <div className="deploy-games-actions">
         <button
-          className={`action-btn btn-primary decrypt-btn ${loading ? 'is-loading' : ''}`}
+          className={`action-btn btn-primary decrypt-btn ${loading ? 'is-loading' : ''} ${blocksRemoteKeyOps ? 'offline-disabled' : ''}`}
           onClick={handleDecrypt}
-          disabled={loading}
+          disabled={loading || blocksRemoteKeyOps}
+          title={blocksRemoteKeyOps ? offlineDisabledTitle : undefined}
         >
           {loading ? (
             <>

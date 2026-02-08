@@ -7,6 +7,7 @@ import { useToast, ToastContainer } from '../components/common/Toast';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { IconAlertCircle, IconCheck, IconDownload, IconFile, IconGamepad, IconHistory, IconRefresh, IconShield, IconShieldOff, IconTag, IconX } from '../components/common/Icons';
 import { formatError } from '../errors';
+import { useOfflineMode } from '../state/offlineMode';
 import './SegatoolsDeployPage.css';
 
 // Simple cache to prevent loading flicker
@@ -16,6 +17,7 @@ let cachedGameId: string | null = null;
 function SegatoolsDeployPage() {
   const { t } = useTranslation();
   const { games, activeGameId } = useGamesState();
+  const offlineModeEnabled = useOfflineMode();
   const [status, setStatus] = useState<SegatoolsTrustStatus | null>(() => {
     return (activeGameId === cachedGameId) ? cachedStatus : null;
   });
@@ -28,8 +30,15 @@ function SegatoolsDeployPage() {
   const { toasts, showToast } = useToast();
 
   const activeGame = useMemo(() => games.find(g => g.id === activeGameId), [games, activeGameId]);
+  const offlineDisabledTitle = t('settings.offlineMode.enabledHint', {
+    defaultValue: 'Offline mode is enabled',
+  });
 
   const loadStatus = async () => {
+    if (offlineModeEnabled) {
+      setLoading(false);
+      return;
+    }
     const requestId = ++loadRequestRef.current;
     if (!activeGameId) {
       if (requestId === loadRequestRef.current) {
@@ -57,9 +66,10 @@ function SegatoolsDeployPage() {
 
   useEffect(() => {
     loadStatus();
-  }, [activeGameId]);
+  }, [activeGameId, offlineModeEnabled]);
 
   const runDeploy = async (force: boolean) => {
+    if (offlineModeEnabled) return;
     setDeploying(true);
     try {
       const res = await deploySegatools(force);
@@ -82,10 +92,15 @@ function SegatoolsDeployPage() {
   };
 
   const onRollback = async () => {
+    if (offlineModeEnabled) return;
     setRollbacking(true);
     try {
       const res = await rollbackSegatools();
-      setStatus(res.verification || await fetchTrustStatus());
+      if (res.verification) {
+        setStatus(res.verification);
+      } else if (!offlineModeEnabled) {
+        setStatus(await fetchTrustStatus());
+      }
       showToast(res.message || t('deploy.rollbackOk'), 'success');
     } catch (err) {
       showToast(t('deploy.rollbackError', { error: formatError(t, err) }), 'error');
@@ -144,10 +159,22 @@ function SegatoolsDeployPage() {
           <h2>{t('deploy.title')}</h2>
           <small>{t('deploy.subtitle')}</small>
         </div>
-        <button className="icon-btn" onClick={loadStatus} title={t('deploy.refresh')}>
+        <button
+          className={`icon-btn ${offlineModeEnabled ? 'offline-disabled' : ''}`}
+          onClick={loadStatus}
+          disabled={offlineModeEnabled}
+          title={offlineModeEnabled ? offlineDisabledTitle : t('deploy.refresh')}
+        >
           <IconRefresh width={20} height={20} />
         </button>
       </div>
+      {offlineModeEnabled && (
+        <div className="hint-text" style={{ marginBottom: 12 }}>
+          {t('settings.offlineMode.desc', {
+            defaultValue: 'Disable all networking features, including update checks, remote sync, and online downloads.'
+          })}
+        </div>
+      )}
 
       {status && (
         <>
@@ -182,18 +209,20 @@ function SegatoolsDeployPage() {
 
           <div className="action-bar">
             <button 
-              className="action-btn btn-lg btn-primary" 
+              className={`action-btn btn-lg btn-primary ${offlineModeEnabled ? 'offline-disabled' : ''}`} 
               onClick={() => runDeploy(false)} 
-              disabled={deploying}
+              disabled={deploying || offlineModeEnabled}
+              title={offlineModeEnabled ? offlineDisabledTitle : undefined}
             >
               <IconDownload width={18} height={18} />
               {deploying ? t('deploy.deploying') : t('deploy.deploy')}
             </button>
             
             <button 
-              className="action-btn btn-lg btn-danger" 
+              className={`action-btn btn-lg btn-danger ${offlineModeEnabled ? 'offline-disabled' : ''}`} 
               onClick={onRollback} 
-              disabled={rollbacking || !status?.has_backup}
+              disabled={rollbacking || !status?.has_backup || offlineModeEnabled}
+              title={offlineModeEnabled ? offlineDisabledTitle : undefined}
             >
               <IconHistory width={18} height={18} />
               {rollbacking ? t('deploy.rollingBack') : t('deploy.rollback')}

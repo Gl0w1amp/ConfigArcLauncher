@@ -14,6 +14,7 @@ import { getActiveGame } from '../api/gamesApi';
 import { fetchTrustStatus } from '../api/trustedApi';
 import { SegatoolsTrustStatus } from '../types/trusted';
 import { AppError, getErrorMessage, normalizeError } from '../errors';
+import { isOfflineModeEnabled } from './offlineMode';
 
 const TRUST_STATUS_STORAGE_PREFIX = 'trustStatus:';
 const TRUST_STATUS_STORAGE_TTL_MS = 5 * 60 * 1000;
@@ -66,6 +67,23 @@ export function useConfigState() {
   const [trustLoading, setTrustLoading] = useState<boolean>(false);
 
   const refreshTrust = useCallback(async (gameId?: string | null) => {
+    if (isOfflineModeEnabled()) {
+      const targetGameId = gameId ?? activeGameId;
+      const cachedTrust = targetGameId ? readCachedTrustStatus(targetGameId) : null;
+      if (cachedTrust) {
+        setTrustStatus(cachedTrust);
+      } else {
+        setTrustStatus({
+          trusted: false,
+          reason: 'Offline mode is enabled.',
+          checked_files: [],
+          has_backup: false,
+          missing_files: false,
+        });
+      }
+      setTrustLoading(false);
+      return;
+    }
     setTrustLoading(true);
     try {
       const status = await fetchTrustStatus();

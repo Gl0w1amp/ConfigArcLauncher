@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
-import { AUTO_UPDATE_STORAGE_KEY, OFFLINE_MODE_STORAGE_KEY } from '../../constants/storage';
+import { AUTO_UPDATE_STORAGE_KEY } from '../../constants/storage';
 import { useExtensions } from '../../context/ExtensionsContext';
 import { invokeTauri } from '../../api/tauriClient';
+import { setOfflineModeStorage, useOfflineMode } from '../../state/offlineMode';
 
 function SettingsForm() {
   const { t, i18n } = useTranslation();
@@ -12,31 +13,8 @@ function SettingsForm() {
   const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(
     () => localStorage.getItem(AUTO_UPDATE_STORAGE_KEY) === '1'
   );
-  const [offlineModeEnabled, setOfflineModeEnabled] = useState(
-    () => localStorage.getItem(OFFLINE_MODE_STORAGE_KEY) === '1'
-  );
+  const offlineModeEnabled = useOfflineMode();
   const [offlineModeBusy, setOfflineModeBusy] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    invokeTauri<boolean>('get_offline_mode_cmd')
-      .then((enabled) => {
-        if (cancelled) return;
-        setOfflineModeEnabled(enabled);
-        if (enabled) {
-          localStorage.setItem(OFFLINE_MODE_STORAGE_KEY, '1');
-        } else {
-          localStorage.removeItem(OFFLINE_MODE_STORAGE_KEY);
-        }
-      })
-      .catch((err) => {
-        console.error('Failed to load offline mode state:', err);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const changeLanguage = (lang: string) => {
     if (lang === 'system') {
@@ -67,18 +45,13 @@ function SettingsForm() {
   const setOfflineMode = async (enabled: boolean) => {
     if (offlineModeBusy) return;
     const previous = offlineModeEnabled;
-    setOfflineModeEnabled(enabled);
+    setOfflineModeStorage(enabled);
     setOfflineModeBusy(true);
     try {
       await invokeTauri('set_offline_mode_cmd', { enabled });
-      if (enabled) {
-        localStorage.setItem(OFFLINE_MODE_STORAGE_KEY, '1');
-      } else {
-        localStorage.removeItem(OFFLINE_MODE_STORAGE_KEY);
-      }
     } catch (err) {
       console.error('Failed to update offline mode:', err);
-      setOfflineModeEnabled(previous);
+      setOfflineModeStorage(previous);
     } finally {
       setOfflineModeBusy(false);
     }
@@ -322,9 +295,13 @@ function SettingsForm() {
         marginTop: 'var(--spacing-sm)'
       }}>
         <div style={{ display: 'grid', gap: 4 }}>
-          <span style={{ fontWeight: 500 }}>{t('settings.offlineMode.title')}</span>
+          <span style={{ fontWeight: 500 }}>
+            {t('settings.offlineMode.title', { defaultValue: 'Offline mode' })}
+          </span>
           <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>
-            {t('settings.offlineMode.desc')}
+            {t('settings.offlineMode.desc', {
+              defaultValue: 'Disable all networking features, including update checks, remote sync, and online downloads.'
+            })}
           </span>
         </div>
         {renderToggle('offline-mode-switch', offlineModeEnabled, setOfflineMode)}

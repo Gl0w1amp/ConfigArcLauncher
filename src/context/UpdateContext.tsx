@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { check, Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
-import { AUTO_UPDATE_STORAGE_KEY, OFFLINE_MODE_STORAGE_KEY } from '../constants/storage';
+import { AUTO_UPDATE_STORAGE_KEY } from '../constants/storage';
 import { AppError, normalizeError } from '../errors';
+import { useOfflineMode } from '../state/offlineMode';
 
 interface UpdateContextType {
   updateInfo: Update | null;
@@ -31,11 +32,11 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
   const [installingUpdate, setInstallingUpdate] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const hasCheckedRef = useRef(false);
-  const isOfflineModeEnabled = () => localStorage.getItem(OFFLINE_MODE_STORAGE_KEY) === '1';
+  const offlineModeEnabled = useOfflineMode();
 
   const checkForUpdates = async (manual = false) => {
     if (isChecking) return false;
-    if (isOfflineModeEnabled()) {
+    if (offlineModeEnabled) {
       if (manual) {
         setUpdateError({ code: 'OFFLINE_MODE', message: 'Offline mode is enabled.' });
       }
@@ -66,7 +67,7 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
 
   const installUpdate = async () => {
     if (!updateInfo || installingUpdate) return;
-    if (isOfflineModeEnabled()) {
+    if (offlineModeEnabled) {
       setUpdateInfo(null);
       setUpdateError({ code: 'OFFLINE_MODE', message: 'Offline mode is enabled.' });
       return;
@@ -94,10 +95,10 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
     if (hasCheckedRef.current) return;
     hasCheckedRef.current = true;
 
-    if (localStorage.getItem(AUTO_UPDATE_STORAGE_KEY) === '1') {
+    if (!offlineModeEnabled && localStorage.getItem(AUTO_UPDATE_STORAGE_KEY) === '1') {
       checkForUpdates();
     }
-  }, []);
+  }, [offlineModeEnabled]);
 
   return (
     <UpdateContext.Provider value={{

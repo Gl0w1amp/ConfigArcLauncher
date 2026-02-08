@@ -365,7 +365,8 @@
     },
     "offlineMode": {
       "title": "Offline mode",
-      "desc": "Disable all networking features, including update checks, remote sync, and online downloads."
+      "desc": "Disable all networking features, including update checks, remote sync, and online downloads.",
+      "enabledHint": "Offline mode is enabled"
     },
     "extensions": "Extensions",
     "extensionsEmpty": "No extensions registered yet."
