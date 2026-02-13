@@ -504,6 +504,7 @@ fn detect_vfs_paths_on_drive() -> ApiResult<VfsResolved> {
     let y_drive = PathBuf::from("Y:\\");
     let z_drive = PathBuf::from("Z:\\");
     let y_amfs = PathBuf::from("Y:\\amfs");
+    let y_appdata = PathBuf::from("Y:\\appdata");
 
     let mut amfs = if y_amfs.is_dir() {
         Some(y_amfs)
@@ -512,7 +513,9 @@ fn detect_vfs_paths_on_drive() -> ApiResult<VfsResolved> {
     } else {
         None
     };
-    let mut appdata = if y_drive.is_dir() {
+    let mut appdata = if y_appdata.is_dir() {
+        Some(y_appdata)
+    } else if y_drive.is_dir() {
         Some(y_drive)
     } else if direct_appdata.is_dir() {
         Some(direct_appdata)
@@ -1772,6 +1775,16 @@ pub struct VfsScanResult {
 
 #[command]
 pub fn scan_game_vfs_folders_cmd() -> ApiResult<VfsScanResult> {
+    let game = active_game()?;
+    if matches!(game.launch_mode, LaunchMode::Vhd) {
+        let vfs = detect_vfs_paths_on_drive()?;
+        return Ok(VfsScanResult {
+            amfs: Some(vfs.amfs),
+            appdata: Some(vfs.appdata),
+            option: Some(vfs.option),
+        });
+    }
+
     let game_dir = active_game_dir().map_err(|e| ApiError::from(e.to_string()))?;
     
     let mut result = VfsScanResult {
