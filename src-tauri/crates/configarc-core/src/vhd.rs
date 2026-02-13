@@ -17,23 +17,29 @@ fn default_true() -> bool {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VhdConfig {
-    pub base_path: String,
-    pub patch_path: String,
+    pub app_base_path: String,
+    pub app_patch_path: String,
+    pub appdata_path: String,
+    pub option_path: String,
     #[serde(default = "default_true")]
     pub delta_enabled: bool,
 }
 
 #[derive(Debug, Clone)]
 pub struct ResolvedVhdConfig {
-    pub base_path: PathBuf,
-    pub patch_path: PathBuf,
+    pub app_base_path: PathBuf,
+    pub app_patch_path: PathBuf,
+    pub appdata_path: PathBuf,
+    pub option_path: PathBuf,
     pub delta_enabled: bool,
 }
 
 #[derive(Debug, Clone)]
 pub struct MountedVhd {
-    pub mount_path: PathBuf,
-    pub runtime_path: Option<PathBuf>,
+    pub app_mount_path: PathBuf,
+    pub app_runtime_path: Option<PathBuf>,
+    pub appdata_mount_path: PathBuf,
+    pub option_mount_path: PathBuf,
 }
 
 #[derive(Debug, Clone)]
@@ -53,8 +59,8 @@ pub enum VhdMountHandle {
 #[derive(Debug, Serialize, Deserialize)]
 struct HelperResult {
     ok: bool,
-    mount_path: Option<String>,
-    runtime_path: Option<String>,
+    app_mount_path: Option<String>,
+    app_runtime_path: Option<String>,
     error: Option<String>,
 }
 
@@ -89,19 +95,29 @@ pub fn resolve_vhd_config(game_id: &str, cfg: &VhdConfig) -> Result<ResolvedVhdC
         .parent()
         .map(Path::to_path_buf)
         .ok_or_else(|| "Missing vhd.json parent directory".to_string())?;
-    let base_path = resolve_with_base(&base_dir, &cfg.base_path);
-    let patch_path = resolve_with_base(&base_dir, &cfg.patch_path);
+    let app_base_path = resolve_with_base(&base_dir, &cfg.app_base_path);
+    let app_patch_path = resolve_with_base(&base_dir, &cfg.app_patch_path);
+    let appdata_path = resolve_with_base(&base_dir, &cfg.appdata_path);
+    let option_path = resolve_with_base(&base_dir, &cfg.option_path);
 
-    if !base_path.exists() {
-        return Err(format!("Base VHD not found: {}", base_path.to_string_lossy()));
+    if !app_base_path.exists() {
+        return Err(format!("App base VHD not found: {}", app_base_path.to_string_lossy()));
     }
-    if !patch_path.exists() {
-        return Err(format!("Patch VHD not found: {}", patch_path.to_string_lossy()));
+    if !app_patch_path.exists() {
+        return Err(format!("App patch VHD not found: {}", app_patch_path.to_string_lossy()));
+    }
+    if !appdata_path.exists() {
+        return Err(format!("AppData VHD not found: {}", appdata_path.to_string_lossy()));
+    }
+    if !option_path.exists() {
+        return Err(format!("Option VHD not found: {}", option_path.to_string_lossy()));
     }
 
     Ok(ResolvedVhdConfig {
-        base_path,
-        patch_path,
+        app_base_path,
+        app_patch_path,
+        appdata_path,
+        option_path,
         delta_enabled: cfg.delta_enabled,
     })
 }
@@ -123,6 +139,24 @@ fn runtime_path_for_patch(patch_path: &Path) -> PathBuf {
         .unwrap_or("runtime");
     let ext = patch_path.extension().and_then(OsStr::to_str).unwrap_or("vhd");
     parent.join(format!("{}-runtime.{}", stem, ext))
+}
+
+fn ensure_drive_free(drive_letter: char) -> Result<(), String> {
+    let root = format!("{}:\\", drive_letter.to_ascii_uppercase());
+    if Path::new(&root).exists() {
+        return Err(format!(
+            "Drive {}: is already in use. Please eject or change the assigned drive.",
+            drive_letter.to_ascii_uppercase()
+        ));
+    }
+    Ok(())
+}
+
+fn ensure_mount_points_free() -> Result<(), String> {
+    ensure_drive_free('X')?;
+    ensure_drive_free('Y')?;
+    ensure_drive_free('Z')?;
+    Ok(())
 }
 
 fn run_powershell(command: &str) -> Result<(), String> {
@@ -167,7 +201,7 @@ fn run_diskpart(script: &str) -> Result<(), String> {
 }
 
 fn close_explorer_for_x_drive() {
-    let cmd = "Start-Sleep -Milliseconds 300; $shell = New-Object -ComObject Shell.Application; $shell.Windows() | Where-Object { $_.LocationURL -like 'file:///X:*' -or $_.LocationURL -like 'file:///X:/*' } | ForEach-Object { $_.Quit() }";
+    let cmd = "Start-Sleep -Milliseconds 300; $shell = New-Object -ComObject Shell.Application; $shell.Windows() | Where-Object { $_.LocationURL -like 'file:///X:*' -or $_.LocationURL -like 'file:///X:/*' -or $_.LocationURL -like 'file:///Y:*' -or $_.LocationURL -like 'file:///Y:/*' -or $_.LocationURL -like 'file:///Z:*' -or $_.LocationURL -like 'file:///Z:/*' } | ForEach-Object { $_.Quit() }";
     let _ = run_powershell(cmd);
 }
 
@@ -200,11 +234,32 @@ fn temp_tag() -> String {
         .to_string()
 }
 
-fn ensure_x_drive_free() -> Result<(), String> {
-    if Path::new("X:\\").exists() {
-        return Err("Drive X: is already in use. Please eject or change the assigned drive.".to_string());
+fn mount_image_to_drive(image_path: &Path, drive_letter: char) -> Result<(), String> {
+    let drive = drive_letter.to_ascii_uppercase();
+    let access_path = format!("{}:\\", drive);
+    let mount_cmd = format!(
+        "Mount-DiskImage -ImagePath \"{}\" -StorageType VHD -NoDriveLetter -Passthru -Access ReadWrite -Confirm:$false -ErrorAction Stop | Get-Disk | Get-Partition | Where-Object {{ ($_ | Get-Volume) -ne $Null }} | Add-PartitionAccessPath -AccessPath \"{}\" -ErrorAction Stop | Out-Null",
+        image_path.to_string_lossy(),
+        access_path
+    );
+    run_powershell(&mount_cmd)
+}
+
+fn dismount_image(image_path: &Path) {
+    let dismount = format!(
+        "Dismount-DiskImage -ImagePath \"{}\" -Confirm:$false -ErrorAction SilentlyContinue",
+        image_path.to_string_lossy()
+    );
+    let _ = run_powershell(&dismount);
+}
+
+fn cleanup_runtime(runtime_path: &Option<PathBuf>) {
+    if let Some(path) = runtime_path {
+        dismount_image(path);
+        if path.exists() {
+            let _ = fs::remove_file(path);
+        }
     }
-    Ok(())
 }
 
 fn wait_for_helper_result(path: &Path, timeout: Duration) -> Result<HelperResult, String> {
@@ -255,9 +310,13 @@ fn mount_vhd_via_helper(cfg: &ResolvedVhdConfig) -> Result<ElevatedVhdMount, Str
         "-File".to_string(),
         script_path.to_string_lossy().to_string(),
         "--base".to_string(),
-        cfg.base_path.to_string_lossy().to_string(),
+        cfg.app_base_path.to_string_lossy().to_string(),
         "--patch".to_string(),
-        cfg.patch_path.to_string_lossy().to_string(),
+        cfg.app_patch_path.to_string_lossy().to_string(),
+        "--appdata".to_string(),
+        cfg.appdata_path.to_string_lossy().to_string(),
+        "--option".to_string(),
+        cfg.option_path.to_string_lossy().to_string(),
         "--delta".to_string(),
         if cfg.delta_enabled { "1".to_string() } else { "0".to_string() },
         "--result".to_string(),
@@ -286,8 +345,8 @@ fn mount_vhd_via_helper(cfg: &ResolvedVhdConfig) -> Result<ElevatedVhdMount, Str
         return Err(message);
     }
 
-    let _ = result.mount_path;
-    let _ = result.runtime_path;
+    let _ = result.app_mount_path;
+    let _ = result.app_runtime_path;
 
     Ok(ElevatedVhdMount {
         script_path,
@@ -298,12 +357,12 @@ fn mount_vhd_via_helper(cfg: &ResolvedVhdConfig) -> Result<ElevatedVhdMount, Str
 }
 
 pub fn mount_vhd(cfg: &ResolvedVhdConfig) -> Result<MountedVhd, String> {
-    ensure_x_drive_free()?;
+    ensure_mount_points_free()?;
 
-    let mut mount_path = cfg.patch_path.clone();
-    let mut runtime_path = None;
+    let mut app_mount_path = cfg.app_patch_path.clone();
+    let mut app_runtime_path = None;
     if cfg.delta_enabled {
-        let delta_path = runtime_path_for_patch(&cfg.patch_path);
+        let delta_path = runtime_path_for_patch(&cfg.app_patch_path);
         let dismount = format!(
             "Dismount-DiskImage -ImagePath \"{}\" -Confirm:$false -ErrorAction SilentlyContinue",
             delta_path.to_string_lossy()
@@ -314,59 +373,47 @@ pub fn mount_vhd(cfg: &ResolvedVhdConfig) -> Result<MountedVhd, String> {
         }
         let script = format!("create vdisk file=\"{}\" parent=\"{}\"\n",
             delta_path.to_string_lossy(),
-            cfg.patch_path.to_string_lossy()
+            cfg.app_patch_path.to_string_lossy()
         );
         run_diskpart(&script)?;
         if !delta_path.exists() {
             return Err("Failed to create runtime VHD".to_string());
         }
-        mount_path = delta_path.clone();
-        runtime_path = Some(delta_path);
+        app_mount_path = delta_path.clone();
+        app_runtime_path = Some(delta_path);
     }
 
-    let mount_cmd = format!(
-        "Mount-DiskImage -ImagePath \"{}\" -StorageType VHD -NoDriveLetter -Passthru -Access ReadWrite -Confirm:$false -ErrorAction Stop | Get-Disk | Get-Partition | Where-Object {{ ($_ | Get-Volume) -ne $Null }} | Add-PartitionAccessPath -AccessPath \"X:\\\" -ErrorAction Stop | Out-Null",
-        mount_path.to_string_lossy()
-    );
-    if let Err(err) = run_powershell(&mount_cmd) {
-        if let Some(runtime_path) = &runtime_path {
-            let dismount_runtime = format!(
-                "Dismount-DiskImage -ImagePath \"{}\" -Confirm:$false -ErrorAction SilentlyContinue",
-                runtime_path.to_string_lossy()
-            );
-            let _ = run_powershell(&dismount_runtime);
-            if runtime_path.exists() {
-                let _ = fs::remove_file(runtime_path);
-            }
-        }
+    if let Err(err) = mount_image_to_drive(&app_mount_path, 'X') {
+        cleanup_runtime(&app_runtime_path);
+        return Err(err);
+    }
+    if let Err(err) = mount_image_to_drive(&cfg.appdata_path, 'Y') {
+        dismount_image(&app_mount_path);
+        cleanup_runtime(&app_runtime_path);
+        return Err(err);
+    }
+    if let Err(err) = mount_image_to_drive(&cfg.option_path, 'Z') {
+        dismount_image(&cfg.appdata_path);
+        dismount_image(&app_mount_path);
+        cleanup_runtime(&app_runtime_path);
         return Err(err);
     }
 
     close_explorer_for_x_drive();
 
     Ok(MountedVhd {
-        mount_path,
-        runtime_path,
+        app_mount_path,
+        app_runtime_path,
+        appdata_mount_path: cfg.appdata_path.clone(),
+        option_mount_path: cfg.option_path.clone(),
     })
 }
 
 pub fn unmount_vhd(mounted: &MountedVhd) -> Result<(), String> {
-    let dismount = format!(
-        "Dismount-DiskImage -ImagePath \"{}\" -Confirm:$false -ErrorAction SilentlyContinue",
-        mounted.mount_path.to_string_lossy()
-    );
-    let _ = run_powershell(&dismount);
-
-    if let Some(runtime_path) = &mounted.runtime_path {
-        let dismount_runtime = format!(
-            "Dismount-DiskImage -ImagePath \"{}\" -Confirm:$false -ErrorAction SilentlyContinue",
-            runtime_path.to_string_lossy()
-        );
-        let _ = run_powershell(&dismount_runtime);
-        if runtime_path.exists() {
-            let _ = fs::remove_file(runtime_path);
-        }
-    }
+    dismount_image(&mounted.option_mount_path);
+    dismount_image(&mounted.appdata_mount_path);
+    dismount_image(&mounted.app_mount_path);
+    cleanup_runtime(&mounted.app_runtime_path);
     Ok(())
 }
 

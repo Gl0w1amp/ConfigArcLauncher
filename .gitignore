@@ -36,3 +36,6 @@ src-tauri/configarc_games.json
 src-tauri/configarc_active_game.json
 src-tauri/configarc_aime.json
 fsdecrypte_keys.json
+
+# Not for public release yet
+SetupScripts

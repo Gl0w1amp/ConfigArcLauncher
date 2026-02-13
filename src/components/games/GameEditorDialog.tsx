@@ -11,7 +11,7 @@ type Props = {
   game: Game;
   onSave: (game: Game) => Promise<void> | void;
   onCancel: () => void;
-  initialField?: 'execPath' | 'workdir' | 'launchArgs' | 'baseVhdPath' | 'patchVhdPath';
+  initialField?: 'execPath' | 'workdir' | 'launchArgs' | 'baseVhdPath' | 'patchVhdPath' | 'appdataVhdPath' | 'optionVhdPath';
   lockMode?: boolean;
 };
 
@@ -60,6 +60,8 @@ function GameEditorDialog({ game, onSave, onCancel, initialField, lockMode }: Pr
   const folderPanelRef = useRef<HTMLDivElement>(null);
   const baseVhdInputRef = useRef<HTMLInputElement>(null);
   const patchVhdInputRef = useRef<HTMLInputElement>(null);
+  const appdataVhdInputRef = useRef<HTMLInputElement>(null);
+  const optionVhdInputRef = useRef<HTMLInputElement>(null);
   const execInputRef = useRef<HTMLInputElement>(null);
   const workdirInputRef = useRef<HTMLInputElement>(null);
   const argsInputRef = useRef<HTMLInputElement>(null);
@@ -84,8 +86,10 @@ function GameEditorDialog({ game, onSave, onCancel, initialField, lockMode }: Pr
       .catch(() => {
         if (game.executable_path) {
           setVhdConfig({
-            base_path: game.executable_path,
-            patch_path: '',
+            app_base_path: game.executable_path,
+            app_patch_path: '',
+            appdata_path: '',
+            option_path: '',
             delta_enabled: true,
           });
         } else {
@@ -105,8 +109,10 @@ function GameEditorDialog({ game, onSave, onCancel, initialField, lockMode }: Pr
     }
   }, [
     isVhd,
-    vhdConfig?.base_path,
-    vhdConfig?.patch_path,
+    vhdConfig?.app_base_path,
+    vhdConfig?.app_patch_path,
+    vhdConfig?.appdata_path,
+    vhdConfig?.option_path,
     vhdConfig?.delta_enabled,
     draft.executable_path,
     draft.working_dir,
@@ -131,6 +137,8 @@ function GameEditorDialog({ game, onSave, onCancel, initialField, lockMode }: Pr
       launchArgs: argsInputRef,
       baseVhdPath: baseVhdInputRef,
       patchVhdPath: patchVhdInputRef,
+      appdataVhdPath: appdataVhdInputRef,
+      optionVhdPath: optionVhdInputRef,
     } as const;
     const target = targets[initialField];
     if (target?.current) {
@@ -158,6 +166,8 @@ function GameEditorDialog({ game, onSave, onCancel, initialField, lockMode }: Pr
 
   const showBaseVhdPath = !isCompact || initialField === 'baseVhdPath';
   const showPatchVhdPath = !isCompact || initialField === 'patchVhdPath';
+  const showAppdataVhdPath = !isCompact || initialField === 'appdataVhdPath';
+  const showOptionVhdPath = !isCompact || initialField === 'optionVhdPath';
   const showExecPath = !isCompact || initialField === 'execPath';
   const showWorkdir = !isCompact || initialField === 'workdir';
   const showLaunchArgs = !isCompact || initialField === 'launchArgs';
@@ -212,7 +222,7 @@ function GameEditorDialog({ game, onSave, onCancel, initialField, lockMode }: Pr
     e.preventDefault();
     try {
       if ((draft.launch_mode ?? 'folder') === 'vhd') {
-        if (!vhdConfig || !vhdConfig.base_path || !vhdConfig.patch_path) {
+        if (!vhdConfig || !vhdConfig.app_base_path || !vhdConfig.app_patch_path || !vhdConfig.appdata_path || !vhdConfig.option_path) {
           setError(t('games.editor.vhdMissing'));
           return;
         }
@@ -320,19 +330,21 @@ function GameEditorDialog({ game, onSave, onCancel, initialField, lockMode }: Pr
           <div ref={vhdPanelRef} aria-hidden={!isVhd} style={panelStyle(isVhd)}>
             {showBaseVhdPath && (
               <label className="game-editor-label">
-                <div className="game-editor-label-text">{t('games.editor.baseVhdPath')}</div>
+                <div className="game-editor-label-text">{t('games.editor.appVhdPath')}</div>
                 <input
                   ref={baseVhdInputRef}
-                  value={vhdConfig?.base_path ?? ''}
+                  value={vhdConfig?.app_base_path ?? ''}
                   disabled={!isVhd}
                   onChange={(e) => {
-                    const base_path = e.target.value;
+                    const app_base_path = e.target.value;
                     setVhdConfig(prev => ({
-                      base_path,
-                      patch_path: prev?.patch_path ?? '',
+                      app_base_path,
+                      app_patch_path: prev?.app_patch_path ?? '',
+                      appdata_path: prev?.appdata_path ?? '',
+                      option_path: prev?.option_path ?? '',
                       delta_enabled: prev?.delta_enabled ?? true,
                     }));
-                    update('executable_path', base_path);
+                    update('executable_path', app_base_path);
                   }}
                   className="game-editor-input"
                   required
@@ -341,16 +353,62 @@ function GameEditorDialog({ game, onSave, onCancel, initialField, lockMode }: Pr
             )}
             {showPatchVhdPath && (
               <label className="game-editor-label">
-                <div className="game-editor-label-text">{t('games.editor.patchVhdPath')}</div>
+                <div className="game-editor-label-text">{t('games.editor.appPatchVhdPath')}</div>
                 <input
                   ref={patchVhdInputRef}
-                  value={vhdConfig?.patch_path ?? ''}
+                  value={vhdConfig?.app_patch_path ?? ''}
                   disabled={!isVhd}
                   onChange={(e) => {
-                    const patch_path = e.target.value;
+                    const app_patch_path = e.target.value;
                     setVhdConfig(prev => ({
-                      base_path: prev?.base_path ?? '',
-                      patch_path,
+                      app_base_path: prev?.app_base_path ?? '',
+                      app_patch_path,
+                      appdata_path: prev?.appdata_path ?? '',
+                      option_path: prev?.option_path ?? '',
+                      delta_enabled: prev?.delta_enabled ?? true,
+                    }));
+                  }}
+                  className="game-editor-input"
+                  required
+                />
+              </label>
+            )}
+            {showAppdataVhdPath && (
+              <label className="game-editor-label">
+                <div className="game-editor-label-text">{t('games.editor.appdataVhdPath')}</div>
+                <input
+                  ref={appdataVhdInputRef}
+                  value={vhdConfig?.appdata_path ?? ''}
+                  disabled={!isVhd}
+                  onChange={(e) => {
+                    const appdata_path = e.target.value;
+                    setVhdConfig(prev => ({
+                      app_base_path: prev?.app_base_path ?? '',
+                      app_patch_path: prev?.app_patch_path ?? '',
+                      appdata_path,
+                      option_path: prev?.option_path ?? '',
+                      delta_enabled: prev?.delta_enabled ?? true,
+                    }));
+                  }}
+                  className="game-editor-input"
+                  required
+                />
+              </label>
+            )}
+            {showOptionVhdPath && (
+              <label className="game-editor-label">
+                <div className="game-editor-label-text">{t('games.editor.optionVhdPath')}</div>
+                <input
+                  ref={optionVhdInputRef}
+                  value={vhdConfig?.option_path ?? ''}
+                  disabled={!isVhd}
+                  onChange={(e) => {
+                    const option_path = e.target.value;
+                    setVhdConfig(prev => ({
+                      app_base_path: prev?.app_base_path ?? '',
+                      app_patch_path: prev?.app_patch_path ?? '',
+                      appdata_path: prev?.appdata_path ?? '',
+                      option_path,
                       delta_enabled: prev?.delta_enabled ?? true,
                     }));
                   }}
@@ -366,8 +424,10 @@ function GameEditorDialog({ game, onSave, onCancel, initialField, lockMode }: Pr
                   checked={vhdConfig?.delta_enabled ?? true}
                   disabled={!isVhd}
                   onChange={(e) => setVhdConfig(prev => ({
-                    base_path: prev?.base_path ?? '',
-                    patch_path: prev?.patch_path ?? '',
+                    app_base_path: prev?.app_base_path ?? '',
+                    app_patch_path: prev?.app_patch_path ?? '',
+                    appdata_path: prev?.appdata_path ?? '',
+                    option_path: prev?.option_path ?? '',
                     delta_enabled: e.target.checked,
                   }))}
                   style={{ width: 16, height: 16 }}

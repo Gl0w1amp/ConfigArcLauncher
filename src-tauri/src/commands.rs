@@ -501,10 +501,31 @@ fn detect_vfs_paths_on_drive() -> ApiResult<VfsResolved> {
     let direct_amfs = PathBuf::from("X:\\amfs");
     let direct_appdata = PathBuf::from("X:\\appdata");
     let direct_option = PathBuf::from("X:\\option");
+    let y_drive = PathBuf::from("Y:\\");
+    let z_drive = PathBuf::from("Z:\\");
+    let y_amfs = PathBuf::from("Y:\\amfs");
 
-    let mut amfs = if direct_amfs.is_dir() { Some(direct_amfs) } else { None };
-    let mut appdata = if direct_appdata.is_dir() { Some(direct_appdata) } else { None };
-    let mut option = if direct_option.is_dir() { Some(direct_option) } else { None };
+    let mut amfs = if y_amfs.is_dir() {
+        Some(y_amfs)
+    } else if direct_amfs.is_dir() {
+        Some(direct_amfs)
+    } else {
+        None
+    };
+    let mut appdata = if y_drive.is_dir() {
+        Some(y_drive)
+    } else if direct_appdata.is_dir() {
+        Some(direct_appdata)
+    } else {
+        None
+    };
+    let mut option = if z_drive.is_dir() {
+        Some(z_drive)
+    } else if direct_option.is_dir() {
+        Some(direct_option)
+    } else {
+        None
+    };
 
     for base in candidates.iter() {
         if !base.exists() {
@@ -813,6 +834,18 @@ pub struct AutoDetectResult {
 }
 
 fn detect_vhd_files_in_dir(dir: &Path) -> ApiResult<VhdConfig> {
+    fn file_size(path: &Path) -> u64 {
+        fs::metadata(path).map(|m| m.len()).unwrap_or(0)
+    }
+
+    fn file_name_contains(path: &Path, patterns: &[&str]) -> bool {
+        let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+            return false;
+        };
+        let lower = name.to_lowercase();
+        patterns.iter().any(|p| lower.contains(p))
+    }
+
     let mut vhds: Vec<PathBuf> = fs::read_dir(dir)
         .map_err(|e| ApiError::from(e.to_string()))?
         .filter_map(|entry| entry.ok().map(|e| e.path()))
@@ -827,35 +860,68 @@ fn detect_vhd_files_in_dir(dir: &Path) -> ApiResult<VhdConfig> {
         return Err(("No VHD files found in the selected folder.".to_string()).into());
     }
 
-    vhds.sort_by_key(|p| fs::metadata(p).map(|m| m.len()).unwrap_or(0));
+    vhds.sort_by_key(|p| file_size(p));
 
-    let patch = vhds.iter().find(|p| {
-        p.file_name()
-            .and_then(|n| n.to_str())
-            .map(|n| n.to_lowercase().contains("unpack") || n.to_lowercase().contains("patch"))
-            .unwrap_or(false)
-    })
-    .cloned()
-    .or_else(|| {
-        if vhds.len() > 1 { vhds.first().cloned() } else { None }
-    })
-    .ok_or_else(|| "Patch VHD not found. Please select manually.".to_string())?;
-
-    let base = vhds.iter()
-        .filter(|p| **p != patch)
-        .max_by_key(|p| fs::metadata(p).map(|m| m.len()).unwrap_or(0))
+    let appdata = vhds
+        .iter()
+        .find(|p| file_name_contains(p, &["appdata", "app_data"]))
         .cloned()
-        .ok_or_else(|| "Base VHD not found. Please select manually.".to_string())?;
+        .ok_or_else(|| "AppData VHD not found. Please select manually.".to_string())?;
+
+    let option = vhds
+        .iter()
+        .find(|p| file_name_contains(p, &["option", "opt"]))
+        .cloned()
+        .ok_or_else(|| "Option VHD not found. Please select manually.".to_string())?;
+
+    let mut app_candidates: Vec<PathBuf> = vhds
+        .iter()
+        .filter(|p| *p != &appdata && *p != &option)
+        .cloned()
+        .collect();
+
+    if app_candidates.len() < 2 {
+        return Err(
+            "App base/patch VHD files not found. Please ensure folder includes app base, app patch, appdata, and option VHDs."
+                .to_string()
+                .into(),
+        );
+    }
+
+    app_candidates.sort_by_key(|p| file_size(p));
+
+    let base = app_candidates
+        .iter()
+        .filter(|p| !file_name_contains(p, &["patch", "unpack"]))
+        .max_by_key(|p| file_size(p))
+        .cloned()
+        .or_else(|| app_candidates.iter().max_by_key(|p| file_size(p)).cloned())
+        .ok_or_else(|| "App base VHD not found. Please select manually.".to_string())?;
+
+    let patch = app_candidates
+        .iter()
+        .find(|p| *p != &base && file_name_contains(p, &["patch", "unpack"]))
+        .cloned()
+        .or_else(|| {
+            app_candidates
+                .iter()
+                .filter(|p| *p != &base)
+                .min_by_key(|p| file_size(p))
+                .cloned()
+        })
+        .ok_or_else(|| "App patch VHD not found. Please select manually.".to_string())?;
 
     Ok(VhdConfig {
-        base_path: base.to_string_lossy().to_string(),
-        patch_path: patch.to_string_lossy().to_string(),
+        app_base_path: base.to_string_lossy().to_string(),
+        app_patch_path: patch.to_string_lossy().to_string(),
+        appdata_path: appdata.to_string_lossy().to_string(),
+        option_path: option.to_string_lossy().to_string(),
         delta_enabled: true,
     })
 }
 
 fn build_vhd_game(dir: &Path, vhd: &VhdConfig) -> Game {
-    let name = Path::new(&vhd.base_path)
+    let name = Path::new(&vhd.app_base_path)
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("VHD Game")
@@ -864,7 +930,7 @@ fn build_vhd_game(dir: &Path, vhd: &VhdConfig) -> Game {
     Game {
         id: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis().to_string(),
         name,
-        executable_path: vhd.base_path.clone(),
+        executable_path: vhd.app_base_path.clone(),
         working_dir: Some(dir.to_string_lossy().to_string()),
         launch_args: vec![],
         enabled: true,
