@@ -1,15 +1,20 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+const isDev = process.env.NODE_ENV === 'development';
+
 export default defineConfig({
   plugins: [react()],
-  base: './',
+  // Use absolute base in dev so Vite preamble/HMR client injects correctly.
+  // Use relative base for bundled desktop assets.
+  base: isDev ? '/' : './',
   // Prevent vite from obscuring rust errors
   clearScreen: false,
   // Tauri expects a fixed port, fail if that port is not available
   server: {
     port: 5173,
-    strictPort: true
+    strictPort: true,
+    host: true
   },
   // to make use of `TAURI_PLATFORM`, `TAURI_ARCH`, `TAURI_FAMILY`,
   // `TAURI_PLATFORM_VERSION`, `TAURI_PLATFORM_TYPE` and `TAURI_DEBUG`
