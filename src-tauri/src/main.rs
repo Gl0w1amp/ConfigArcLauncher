@@ -6,6 +6,7 @@ mod error;
 mod fsdecrypt;
 mod games;
 mod icf;
+mod privexec;
 mod remote;
 mod trusted;
 mod vhd;
@@ -77,7 +78,10 @@ fn main() {
             download_order_cancel_cmd,
             segatools_trust_status_cmd,
             deploy_segatoools_cmd,
-            rollback_segatoools_cmd
+            rollback_segatoools_cmd,
+            privexec_get_paths_cmd,
+            privexec_execute_cmd,
+            privexec_apply_policy_update_cmd
         ])
         .setup(|app| {
             app.handle();

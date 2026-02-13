@@ -17,6 +17,10 @@ use crate::trusted::{
     DeployResult, RollbackResult, SegatoolsTrustStatus,
 };
 use crate::remote::{RemoteConfigManager, RemoteSyncStatus};
+use crate::privexec::{
+    CommandResponse as PrivExecCommandResponse, PolicyUpdateResponse as PrivExecPolicyUpdateResponse,
+    PrivExecConfig, PrivExecCore,
+};
 use crate::vhd::{load_vhd_config, mount_vhd_with_elevation, resolve_vhd_config, save_vhd_config, unmount_vhd_handle, VhdConfig};
 use crate::fsdecrypt;
 use serde::{Serialize, Deserialize};
@@ -136,6 +140,77 @@ fn ensure_network_allowed(app: &AppHandle) -> ApiResult<()> {
         return Err(ApiError::from(OFFLINE_MODE_BLOCK_MESSAGE));
     }
     Ok(())
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PrivExecPaths {
+    pub root_dir: String,
+    pub policy_path: String,
+    pub audit_log_path: String,
+}
+
+fn resolve_privexec_root_dir(app: &AppHandle, root_dir: Option<&str>) -> ApiResult<PathBuf> {
+    if let Some(root) = root_dir.map(str::trim).filter(|v| !v.is_empty()) {
+        let path = PathBuf::from(root);
+        if !path.is_absolute() {
+            return Err(ApiError::from("privexec rootDir must be an absolute path"));
+        }
+        return Ok(path);
+    }
+
+    let app_root = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| ApiError::from(e.to_string()))?;
+    Ok(app_root.join("privexec"))
+}
+
+fn resolve_privexec_device_id(device_id: Option<&str>) -> String {
+    if let Some(value) = device_id.map(str::trim).filter(|v| !v.is_empty()) {
+        return value.to_string();
+    }
+    if let Ok(value) = std::env::var("CONFIGARC_DEVICE_ID") {
+        if !value.trim().is_empty() {
+            return value.trim().to_string();
+        }
+    }
+    std::env::var("COMPUTERNAME")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .map(|v| v.trim().to_string())
+        .unwrap_or_else(|| "UNKNOWN_DEVICE".to_string())
+}
+
+fn resolve_bootstrap_keys(
+    bootstrap_public_keys: Option<HashMap<String, String>>,
+) -> ApiResult<HashMap<String, String>> {
+    if let Some(keys) = bootstrap_public_keys {
+        return Ok(keys);
+    }
+
+    let from_env = match std::env::var("CONFIGARC_PRIVEXEC_BOOTSTRAP_KEYS") {
+        Ok(raw) if !raw.trim().is_empty() => {
+            serde_json::from_str::<HashMap<String, String>>(&raw)
+                .map_err(|e| ApiError::from(format!("invalid CONFIGARC_PRIVEXEC_BOOTSTRAP_KEYS: {}", e)))?
+        }
+        _ => HashMap::new(),
+    };
+    Ok(from_env)
+}
+
+fn build_privexec_core(
+    app: &AppHandle,
+    root_dir: Option<&str>,
+    device_id: Option<&str>,
+    bootstrap_public_keys: Option<HashMap<String, String>>,
+) -> ApiResult<PrivExecCore> {
+    let mut config = PrivExecConfig::new(
+        resolve_privexec_root_dir(app, root_dir)?,
+        resolve_privexec_device_id(device_id),
+    );
+    config.bootstrap_public_keys = resolve_bootstrap_keys(bootstrap_public_keys)?;
+    PrivExecCore::new(config).map_err(|e| ApiError::from(e.to_string()))
 }
 
 fn ensure_segatoools_present_sections(cfg: &mut SegatoolsConfig, game_name: Option<&str>) {
@@ -2744,4 +2819,49 @@ pub fn deploy_segatoools_cmd(app: AppHandle, force: bool) -> ApiResult<DeployRes
 pub fn rollback_segatoools_cmd(app: AppHandle) -> ApiResult<RollbackResult> {
     ensure_network_allowed(&app)?;
     rollback_segatoools_for_active().map_err(|e| ApiError::from(e.to_string()))
+}
+
+#[command]
+pub fn privexec_get_paths_cmd(app: AppHandle, root_dir: Option<String>) -> ApiResult<PrivExecPaths> {
+    let core = build_privexec_core(&app, root_dir.as_deref(), None, None)?;
+    let root = resolve_privexec_root_dir(&app, root_dir.as_deref())?;
+    Ok(PrivExecPaths {
+        root_dir: root.to_string_lossy().to_string(),
+        policy_path: core.policy_path().to_string_lossy().to_string(),
+        audit_log_path: core.audit_log_path().to_string_lossy().to_string(),
+    })
+}
+
+#[command]
+pub fn privexec_execute_cmd(
+    app: AppHandle,
+    request_json: String,
+    root_dir: Option<String>,
+    device_id: Option<String>,
+    bootstrap_public_keys: Option<HashMap<String, String>>,
+) -> ApiResult<PrivExecCommandResponse> {
+    let core = build_privexec_core(
+        &app,
+        root_dir.as_deref(),
+        device_id.as_deref(),
+        bootstrap_public_keys,
+    )?;
+    Ok(core.execute_request_json(&request_json))
+}
+
+#[command]
+pub fn privexec_apply_policy_update_cmd(
+    app: AppHandle,
+    update_json: String,
+    root_dir: Option<String>,
+    device_id: Option<String>,
+    bootstrap_public_keys: Option<HashMap<String, String>>,
+) -> ApiResult<PrivExecPolicyUpdateResponse> {
+    let core = build_privexec_core(
+        &app,
+        root_dir.as_deref(),
+        device_id.as_deref(),
+        bootstrap_public_keys,
+    )?;
+    Ok(core.apply_policy_update_json(&update_json))
 }
