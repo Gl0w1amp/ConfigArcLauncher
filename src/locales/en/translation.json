@@ -54,6 +54,7 @@
     "launchProgress": {
       "title": "Launching {{name}}",
       "mounting": "Mounting VHD...",
+      "unlocking": "Unlocking BitLocker...",
       "detecting": "Detecting game files...",
       "configuring": "Updating segatools settings...",
       "launching": "Starting game...",

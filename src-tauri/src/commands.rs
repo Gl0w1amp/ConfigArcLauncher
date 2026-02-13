@@ -608,6 +608,167 @@ fn wait_for_process_exit(name: &str) -> ApiResult<()> {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BitLockerSecretKind {
+    RecoveryPassword,
+    Password,
+}
+
+fn run_powershell_capture_with_env(
+    script: &str,
+    envs: Option<&HashMap<String, String>>,
+) -> ApiResult<String> {
+    let mut command = Command::new("powershell");
+    command
+        .args(&["-NoProfile", "-Command", script])
+        .creation_flags(0x08000000);
+    if let Some(envs) = envs {
+        for (key, value) in envs {
+            command.env(key, value);
+        }
+    }
+    let output = command
+        .output()
+        .map_err(|e| ApiError::from(e.to_string()))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let msg = if !stderr.is_empty() { stderr } else { stdout };
+        return Err(ApiError::from(if msg.is_empty() {
+            "PowerShell command failed".to_string()
+        } else {
+            msg
+        }));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+fn bitlocker_cmdlets_available() -> bool {
+    let script = "Get-Command Get-BitLockerVolume -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name";
+    match run_powershell_capture_with_env(script, None) {
+        Ok(out) => out.trim().eq_ignore_ascii_case("Get-BitLockerVolume"),
+        Err(_) => false,
+    }
+}
+
+fn query_bitlocker_status(mount_point: &str) -> ApiResult<Value> {
+    let escaped = mount_point.replace('\'', "''");
+    let script = format!(
+        "$mountPoint='{}';Get-BitLockerVolume -MountPoint $mountPoint -ErrorAction Stop | Select-Object MountPoint,VolumeStatus,ProtectionStatus,LockStatus,EncryptionPercentage | ConvertTo-Json -Compress",
+        escaped
+    );
+    let out = run_powershell_capture_with_env(&script, None)?;
+    serde_json::from_str::<Value>(&out).map_err(|e| ApiError::from(e.to_string()))
+}
+
+fn resolve_bitlocker_secret_for_mount(
+    mount_letter: char,
+) -> Option<(BitLockerSecretKind, String, String)> {
+    let upper = mount_letter.to_ascii_uppercase();
+    let recovery_keys = vec![
+        format!("CONFIGARC_BITLOCKER_{}_RECOVERY_PASSWORD", upper),
+        "CONFIGARC_BITLOCKER_RECOVERY_PASSWORD".to_string(),
+    ];
+    for key in recovery_keys {
+        if let Ok(value) = std::env::var(&key) {
+            let trimmed = value.trim().to_string();
+            if !trimmed.is_empty() {
+                return Some((BitLockerSecretKind::RecoveryPassword, key, trimmed));
+            }
+        }
+    }
+
+    let password_keys = vec![
+        format!("CONFIGARC_BITLOCKER_{}_PASSWORD", upper),
+        "CONFIGARC_BITLOCKER_PASSWORD".to_string(),
+    ];
+    for key in password_keys {
+        if let Ok(value) = std::env::var(&key) {
+            let trimmed = value.trim().to_string();
+            if !trimmed.is_empty() {
+                return Some((BitLockerSecretKind::Password, key, trimmed));
+            }
+        }
+    }
+    None
+}
+
+fn unlock_bitlocker_mount_if_needed(mount_letter: char) -> ApiResult<()> {
+    if !bitlocker_cmdlets_available() {
+        return Ok(());
+    }
+
+    let mount = format!("{}:", mount_letter.to_ascii_uppercase());
+    let status = query_bitlocker_status(&mount)?;
+    let lock_status = status
+        .get("LockStatus")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    if lock_status != "locked" {
+        return Ok(());
+    }
+
+    let (kind, env_name, secret) = resolve_bitlocker_secret_for_mount(mount_letter).ok_or_else(|| {
+        ApiError::from(format!(
+            "BitLocker volume {} is locked. Set {} or CONFIGARC_BITLOCKER_{}_PASSWORD.",
+            mount,
+            format!("CONFIGARC_BITLOCKER_{}_RECOVERY_PASSWORD", mount_letter.to_ascii_uppercase()),
+            mount_letter.to_ascii_uppercase()
+        ))
+    })?;
+
+    let mut envs = HashMap::new();
+    envs.insert("CONFIGARC_UNLOCK_SECRET".to_string(), secret);
+    let escaped = mount.replace('\'', "''");
+    let unlock_script = match kind {
+        BitLockerSecretKind::RecoveryPassword => format!(
+            "$mountPoint='{}';$secret=$env:CONFIGARC_UNLOCK_SECRET;Unlock-BitLocker -MountPoint $mountPoint -RecoveryPassword $secret -ErrorAction Stop;Get-BitLockerVolume -MountPoint $mountPoint -ErrorAction Stop | Select-Object MountPoint,LockStatus,ProtectionStatus | ConvertTo-Json -Compress",
+            escaped
+        ),
+        BitLockerSecretKind::Password => format!(
+            "$mountPoint='{}';$secret=$env:CONFIGARC_UNLOCK_SECRET;$secure=ConvertTo-SecureString -String $secret -AsPlainText -Force;Unlock-BitLocker -MountPoint $mountPoint -Password $secure -ErrorAction Stop;Get-BitLockerVolume -MountPoint $mountPoint -ErrorAction Stop | Select-Object MountPoint,LockStatus,ProtectionStatus | ConvertTo-Json -Compress",
+            escaped
+        ),
+    };
+    let out = run_powershell_capture_with_env(&unlock_script, Some(&envs))?;
+    let after = serde_json::from_str::<Value>(&out).map_err(|e| ApiError::from(e.to_string()))?;
+    let after_lock = after
+        .get("LockStatus")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    if after_lock != "unlocked" {
+        return Err(ApiError::from(format!(
+            "BitLocker unlock did not succeed for {} (secret source: {}).",
+            mount, env_name
+        )));
+    }
+    Ok(())
+}
+
+fn unlock_mounted_vhd_bitlocker_volumes() -> ApiResult<()> {
+    for drive in ['X', 'Y', 'Z'] {
+        unlock_bitlocker_mount_if_needed(drive)?;
+    }
+    Ok(())
+}
+
+fn lock_mounted_vhd_bitlocker_volumes_best_effort() {
+    if !bitlocker_cmdlets_available() {
+        return;
+    }
+    for drive in ['X', 'Y', 'Z'] {
+        let mount = format!("{}:", drive);
+        let escaped = mount.replace('\'', "''");
+        let script = format!(
+            "$mountPoint='{}';try {{ Lock-BitLocker -MountPoint $mountPoint -ForceDismount:$false -ErrorAction Stop | Out-Null }} catch {{ }}",
+            escaped
+        );
+        let _ = run_powershell_capture_with_env(&script, None);
+    }
+}
+
 fn active_game() -> ApiResult<Game> {
     let active_id = get_active_game_id()
         .map_err(|e| ApiError::from(e.to_string()))?
@@ -1414,6 +1575,9 @@ fn launch_vhd_game(game: &Game, profile_id: Option<String>, window: &Window) -> 
     };
 
     let result = (|| -> ApiResult<()> {
+        emit_launch_progress(window, &game.id, "unlocking");
+        unlock_mounted_vhd_bitlocker_volumes()?;
+
         emit_launch_progress(window, &game.id, "detecting");
         let detected = detect_game_on_mount()?;
         let (mut cfg, seg_path) = load_launch_config(game, profile_id, &detected.name)?;
@@ -1461,12 +1625,14 @@ fn launch_vhd_game(game: &Game, profile_id: Option<String>, window: &Window) -> 
             } else {
                 let _ = child.wait();
             }
+            lock_mounted_vhd_bitlocker_volumes_best_effort();
             let _ = unmount_vhd_handle(&mounted_for_thread);
         });
         Ok(())
     })();
 
     if result.is_err() {
+        lock_mounted_vhd_bitlocker_volumes_best_effort();
         let _ = unmount_vhd_handle(&mounted);
         emit_launch_progress(window, &game.id, "error");
     } else {

@@ -18,6 +18,7 @@ const CREATE_NO_WINDOW: u32 = 0x08000000;
 const POLICY_FILE_NAME: &str = "policy.json";
 const NONCE_STATE_FILE_NAME: &str = "nonces.json";
 const COMMAND_STATE_FILE_NAME: &str = "commands.json";
+const SESSION_STATE_FILE_NAME: &str = "sessions.json";
 const AUDIT_FILE_NAME: &str = "audit.jsonl";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,6 +36,9 @@ pub enum PrivExecErrorCode {
     RequestNotYetValid,
     NonceReplay,
     CommandIdConflict,
+    SessionRequired,
+    SessionNotFound,
+    SessionExpired,
     InvalidParameter,
     PathNotFound,
     PathNotAllowed,
@@ -61,6 +65,9 @@ impl PrivExecErrorCode {
             PrivExecErrorCode::RequestNotYetValid => "REQUEST_NOT_YET_VALID",
             PrivExecErrorCode::NonceReplay => "NONCE_REPLAY",
             PrivExecErrorCode::CommandIdConflict => "COMMAND_ID_CONFLICT",
+            PrivExecErrorCode::SessionRequired => "SESSION_REQUIRED",
+            PrivExecErrorCode::SessionNotFound => "SESSION_NOT_FOUND",
+            PrivExecErrorCode::SessionExpired => "SESSION_EXPIRED",
             PrivExecErrorCode::InvalidParameter => "INVALID_PARAMETER",
             PrivExecErrorCode::PathNotFound => "PATH_NOT_FOUND",
             PrivExecErrorCode::PathNotAllowed => "PATH_NOT_ALLOWED",
@@ -87,6 +94,9 @@ impl PrivExecErrorCode {
             PrivExecErrorCode::RequestNotYetValid => "Request is not yet valid",
             PrivExecErrorCode::NonceReplay => "Replay nonce detected",
             PrivExecErrorCode::CommandIdConflict => "Command ID conflict",
+            PrivExecErrorCode::SessionRequired => "Command requires a valid session",
+            PrivExecErrorCode::SessionNotFound => "Session not found",
+            PrivExecErrorCode::SessionExpired => "Session expired",
             PrivExecErrorCode::InvalidParameter => "Invalid command parameter",
             PrivExecErrorCode::PathNotFound => "Path not found",
             PrivExecErrorCode::PathNotAllowed => "Path not allowed by policy",
@@ -212,6 +222,8 @@ pub struct PolicySecurity {
     pub nonce_ttl_seconds: i64,
     #[serde(default = "default_clock_skew")]
     pub max_clock_skew_seconds: i64,
+    #[serde(default = "default_session_ttl")]
+    pub session_ttl_seconds: i64,
     #[serde(default)]
     pub public_keys: HashMap<String, String>,
 }
@@ -225,6 +237,7 @@ impl Default for PolicySecurity {
             require_nonce: true,
             nonce_ttl_seconds: 120,
             max_clock_skew_seconds: 30,
+            session_ttl_seconds: 120,
             public_keys: HashMap::new(),
         }
     }
@@ -236,6 +249,8 @@ pub struct PolicyCommand {
     pub name: String,
     #[serde(default)]
     pub enabled: bool,
+    #[serde(default)]
+    pub requires_session: bool,
     #[serde(default)]
     pub risk_level: Option<String>,
     #[serde(default)]
@@ -352,6 +367,15 @@ pub struct RunnerOutput {
 
 pub trait CommandRunner: Send + Sync {
     fn run_powershell(&self, script: &str) -> Result<RunnerOutput, String>;
+
+    fn run_powershell_with_env(
+        &self,
+        script: &str,
+        env: &HashMap<String, String>,
+    ) -> Result<RunnerOutput, String> {
+        let _ = env;
+        self.run_powershell(script)
+    }
 }
 
 #[derive(Debug, Default)]
@@ -361,6 +385,29 @@ impl CommandRunner for SystemCommandRunner {
     fn run_powershell(&self, script: &str) -> Result<RunnerOutput, String> {
         let mut command = Command::new("powershell");
         command.args(["-NoProfile", "-Command", script]);
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            command.creation_flags(CREATE_NO_WINDOW);
+        }
+        let output = command.output().map_err(|e| e.to_string())?;
+        Ok(RunnerOutput {
+            status_code: output.status.code().unwrap_or(-1),
+            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+        })
+    }
+
+    fn run_powershell_with_env(
+        &self,
+        script: &str,
+        env: &HashMap<String, String>,
+    ) -> Result<RunnerOutput, String> {
+        let mut command = Command::new("powershell");
+        command.args(["-NoProfile", "-Command", script]);
+        for (key, value) in env {
+            command.env(key, value);
+        }
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;
@@ -726,6 +773,18 @@ impl PrivExecCore {
             );
         }
 
+        if command_policy.requires_session && !request.payload.params.contains_key("sessionId") {
+            return (
+                self.error_response(
+                    &command_id,
+                    &command_name,
+                    PrivExecErrorCode::SessionRequired,
+                    false,
+                ),
+                true,
+            );
+        }
+
         let validated_params = match self.validate_params(command_policy, &request.payload.params) {
             Ok(p) => p,
             Err(code) => {
@@ -736,7 +795,30 @@ impl PrivExecCore {
             }
         };
 
-        let result = match self.execute_command(&request.payload.command, &validated_params) {
+        if command_policy.requires_session {
+            let session_id = match validated_params.get("sessionId").and_then(|v| v.as_str()) {
+                Some(v) if !v.trim().is_empty() => v.to_string(),
+                _ => {
+                    return (
+                        self.error_response(
+                            &command_id,
+                            &command_name,
+                            PrivExecErrorCode::SessionRequired,
+                            false,
+                        ),
+                        true,
+                    )
+                }
+            };
+            if let Err(code) = self.touch_session(&session_id, &request.payload.device_id) {
+                return (
+                    self.error_response(&command_id, &command_name, code, false),
+                    true,
+                );
+            }
+        }
+
+        let result = match self.execute_command(&request.payload, &policy, &validated_params) {
             Ok(value) => value,
             Err(code) => {
                 return (
@@ -868,6 +950,48 @@ impl PrivExecCore {
             .root_dir
             .join("state")
             .join(COMMAND_STATE_FILE_NAME)
+    }
+
+    fn session_state_path(&self) -> PathBuf {
+        self.config
+            .root_dir
+            .join("state")
+            .join(SESSION_STATE_FILE_NAME)
+    }
+
+    fn load_sessions(&self) -> HashMap<String, SessionRecord> {
+        let path = self.session_state_path();
+        read_json_file::<HashMap<String, SessionRecord>>(&path).unwrap_or_default()
+    }
+
+    fn store_sessions(
+        &self,
+        sessions: &HashMap<String, SessionRecord>,
+    ) -> Result<(), PrivExecErrorCode> {
+        let path = self.session_state_path();
+        write_json_atomic(&path, sessions).map_err(|_| PrivExecErrorCode::InternalError)
+    }
+
+    fn touch_session(&self, session_id: &str, device_id: &str) -> Result<(), PrivExecErrorCode> {
+        let mut sessions = self.load_sessions();
+        let now = Utc::now();
+        sessions.retain(|id, record| id == &session_id || record.expires_at > now);
+        let record = sessions
+            .get_mut(session_id)
+            .ok_or(PrivExecErrorCode::SessionNotFound)?;
+        if record.device_id != device_id {
+            return Err(PrivExecErrorCode::SessionNotFound);
+        }
+        if record.expires_at <= now {
+            sessions.remove(session_id);
+            self.store_sessions(&sessions)?;
+            return Err(PrivExecErrorCode::SessionExpired);
+        }
+        record.last_heartbeat_at = now;
+        let ttl = record.ttl_seconds.max(1);
+        record.expires_at = now + Duration::seconds(ttl);
+        self.store_sessions(&sessions)?;
+        Ok(())
     }
 
     fn reserve_nonce(&self, nonce: &str, ttl_seconds: i64) -> Result<(), PrivExecErrorCode> {
@@ -1090,20 +1214,117 @@ impl PrivExecCore {
 
     fn execute_command(
         &self,
-        command: &str,
+        payload: &CommandRequestPayload,
+        policy: &PrivExecPolicy,
         params: &Map<String, Value>,
     ) -> Result<Value, PrivExecErrorCode> {
+        let command = payload.command.as_str();
         if command.eq_ignore_ascii_case("restart_service") {
             return Err(PrivExecErrorCode::CommandDisabled);
         }
         match command.to_lowercase().as_str() {
+            "begin_session" => self.exec_begin_session(payload, policy),
+            "heartbeat" => self.exec_heartbeat(payload, params),
+            "end_session" => self.exec_end_session(payload, params),
             "mount_vhd" => self.exec_mount_vhd(params),
             "unmount_vhd" => self.exec_unmount_vhd(params),
+            "query_bitlocker_status" => self.exec_query_bitlocker_status(params),
+            "unlock_bitlocker" => self.exec_unlock_bitlocker(params),
+            "lock_bitlocker" => self.exec_lock_bitlocker(params),
             "query_disk" => self.exec_query_disk(),
             "query_service_status" => self.exec_query_service_status(params),
             "collect_log" => self.exec_collect_log(params),
             _ => Err(PrivExecErrorCode::PolicyDeny),
         }
+    }
+
+    fn exec_begin_session(
+        &self,
+        payload: &CommandRequestPayload,
+        policy: &PrivExecPolicy,
+    ) -> Result<Value, PrivExecErrorCode> {
+        let now = Utc::now();
+        let ttl_seconds = policy.security.session_ttl_seconds.max(1);
+        let seed = format!(
+            "{}:{}:{}:{}",
+            payload.device_id,
+            payload.command_id,
+            payload.nonce,
+            now.timestamp_nanos_opt().unwrap_or(0)
+        );
+        let session_id = sha256_hex(seed.as_bytes());
+
+        let mut sessions = self.load_sessions();
+        sessions.retain(|_, record| record.expires_at > now);
+        let record = SessionRecord {
+            device_id: payload.device_id.clone(),
+            issued_at: now,
+            expires_at: now + Duration::seconds(ttl_seconds),
+            last_heartbeat_at: now,
+            ttl_seconds,
+        };
+        sessions.insert(session_id.clone(), record.clone());
+        self.store_sessions(&sessions)?;
+
+        Ok(serde_json::json!({
+            "sessionId": session_id,
+            "issuedAt": record.issued_at,
+            "expiresAt": record.expires_at,
+            "ttlSeconds": ttl_seconds
+        }))
+    }
+
+    fn exec_heartbeat(
+        &self,
+        payload: &CommandRequestPayload,
+        params: &Map<String, Value>,
+    ) -> Result<Value, PrivExecErrorCode> {
+        let session_id = get_string(params, "sessionId")?;
+        let mut sessions = self.load_sessions();
+        let now = Utc::now();
+        sessions.retain(|id, record| id == &session_id || record.expires_at > now);
+        let record = sessions
+            .get_mut(&session_id)
+            .ok_or(PrivExecErrorCode::SessionNotFound)?;
+        if record.device_id != payload.device_id {
+            return Err(PrivExecErrorCode::SessionNotFound);
+        }
+        if record.expires_at <= now {
+            sessions.remove(&session_id);
+            self.store_sessions(&sessions)?;
+            return Err(PrivExecErrorCode::SessionExpired);
+        }
+        record.last_heartbeat_at = now;
+        record.expires_at = now + Duration::seconds(record.ttl_seconds.max(1));
+        let expires_at = record.expires_at;
+        let ttl_seconds = record.ttl_seconds;
+        self.store_sessions(&sessions)?;
+        Ok(serde_json::json!({
+            "sessionId": session_id,
+            "expiresAt": expires_at,
+            "ttlSeconds": ttl_seconds
+        }))
+    }
+
+    fn exec_end_session(
+        &self,
+        payload: &CommandRequestPayload,
+        params: &Map<String, Value>,
+    ) -> Result<Value, PrivExecErrorCode> {
+        let session_id = get_string(params, "sessionId")?;
+        let mut sessions = self.load_sessions();
+        let record = sessions
+            .get(&session_id)
+            .ok_or(PrivExecErrorCode::SessionNotFound)?;
+        if record.device_id != payload.device_id {
+            return Err(PrivExecErrorCode::SessionNotFound);
+        }
+        sessions.remove(&session_id);
+        self.store_sessions(&sessions)?;
+        Ok(serde_json::json!({
+            "ended": true,
+            "sessionId": session_id
+        }))
     }
 
     fn exec_mount_vhd(&self, params: &Map<String, Value>) -> Result<Value, PrivExecErrorCode> {
@@ -1127,6 +1348,91 @@ impl PrivExecCore {
         let script = format!(
             "$imagePath={};Dismount-DiskImage -ImagePath $imagePath -Confirm:$false -ErrorAction Stop;@{{ok=$true;imagePath=$imagePath}} | ConvertTo-Json -Compress",
             ps_quote(&path),
+        );
+        self.run_powershell_json(&script)
+    }
+
+    fn exec_query_bitlocker_status(
+        &self,
+        params: &Map<String, Value>,
+    ) -> Result<Value, PrivExecErrorCode> {
+        let mount_point = get_string(params, "mountPoint")?;
+        let script = format!(
+            "$mountPoint={};Get-BitLockerVolume -MountPoint $mountPoint -ErrorAction Stop | Select-Object MountPoint,VolumeStatus,ProtectionStatus,LockStatus,EncryptionPercentage,AutoUnlockEnabled | ConvertTo-Json -Compress",
+            ps_quote(&mount_point)
+        );
+        self.run_powershell_json(&script)
+    }
+
+    fn exec_unlock_bitlocker(&self, params: &Map<String, Value>) -> Result<Value, PrivExecErrorCode> {
+        let mount_point = get_string(params, "mountPoint")?;
+        let recovery_password = params
+            .get("recoveryPassword")
+            .and_then(|v| v.as_str())
+            .map(|v| v.to_string())
+            .filter(|v| !v.trim().is_empty());
+        let password = params
+            .get("password")
+            .and_then(|v| v.as_str())
+            .map(|v| v.to_string())
+            .filter(|v| !v.trim().is_empty());
+        let skip_if_unlocked = get_bool(params, "skipIfUnlocked").unwrap_or(true);
+        if recovery_password.is_some() == password.is_some() {
+            return Err(PrivExecErrorCode::InvalidParameter);
+        }
+
+        let secret = if let Some(recovery) = recovery_password {
+            recovery
+        } else if let Some(pass) = password {
+            pass
+        } else {
+            return Err(PrivExecErrorCode::InvalidParameter);
+        };
+        let env_key = "CONFIGARC_UNLOCK_SECRET";
+        let mut env = HashMap::new();
+        env.insert(env_key.to_string(), secret);
+
+        let unlock_cmd = if params
+            .get("recoveryPassword")
+            .and_then(|v| v.as_str())
+            .map(|v| !v.trim().is_empty())
+            .unwrap_or(false)
+        {
+            format!(
+                "$secret=$env:{};Unlock-BitLocker -MountPoint $mountPoint -RecoveryPassword $secret -ErrorAction Stop",
+                env_key
+            )
+        } else {
+            format!(
+                "$secret=$env:{};$secure=ConvertTo-SecureString -String $secret -AsPlainText -Force;Unlock-BitLocker -MountPoint $mountPoint -Password $secure -ErrorAction Stop",
+                env_key
+            )
+        };
+
+        let skip_flag = if skip_if_unlocked { "$true" } else { "$false" };
+        let script = format!(
+            "$mountPoint={};$vol=Get-BitLockerVolume -MountPoint $mountPoint -ErrorAction Stop;\
+            if ($vol.LockStatus -eq 'Unlocked' -and {}) {{ @{{ok=$true;mountPoint=$mountPoint;alreadyUnlocked=$true;lockStatus=$vol.LockStatus;protectionStatus=$vol.ProtectionStatus}} | ConvertTo-Json -Compress; exit 0 }};\
+            {};\
+            $after=Get-BitLockerVolume -MountPoint $mountPoint -ErrorAction Stop;\
+            @{{ok=$true;mountPoint=$mountPoint;alreadyUnlocked=$false;lockStatus=$after.LockStatus;protectionStatus=$after.ProtectionStatus}} | ConvertTo-Json -Compress",
+            ps_quote(&mount_point),
+            skip_flag,
+            unlock_cmd
+        );
+        self.run_powershell_json_with_env(&script, &env)
+    }
+
+    fn exec_lock_bitlocker(&self, params: &Map<String, Value>) -> Result<Value, PrivExecErrorCode> {
+        let mount_point = get_string(params, "mountPoint")?;
+        let force_dismount = get_bool(params, "forceDismount").unwrap_or(true);
+        let force_flag = if force_dismount { "$true" } else { "$false" };
+        let script = format!(
+            "$mountPoint={};Lock-BitLocker -MountPoint $mountPoint -ForceDismount:{} -ErrorAction Stop;\
+            @{{ok=$true;mountPoint=$mountPoint;forceDismount={}}} | ConvertTo-Json -Compress",
+            ps_quote(&mount_point),
+            force_flag,
+            force_flag
         );
         self.run_powershell_json(&script)
     }
@@ -1193,12 +1499,41 @@ impl PrivExecCore {
         }
         serde_json::from_str::<Value>(stdout).or_else(|_| Ok(Value::String(stdout.to_string())))
     }
+
+    fn run_powershell_json_with_env(
+        &self,
+        script: &str,
+        env: &HashMap<String, String>,
+    ) -> Result<Value, PrivExecErrorCode> {
+        let output = self
+            .runner
+            .run_powershell_with_env(script, env)
+            .map_err(|_| PrivExecErrorCode::CommandExecutionFailed)?;
+        if output.status_code != 0 {
+            return Err(PrivExecErrorCode::CommandExecutionFailed);
+        }
+        let stdout = output.stdout.trim();
+        if stdout.is_empty() {
+            return Ok(Value::Object(Map::new()));
+        }
+        serde_json::from_str::<Value>(stdout).or_else(|_| Ok(Value::String(stdout.to_string())))
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct StoredCommandRecord {
     request_hash: String,
     response: CommandResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SessionRecord {
+    device_id: String,
+    issued_at: DateTime<Utc>,
+    expires_at: DateTime<Utc>,
+    last_heartbeat_at: DateTime<Utc>,
+    ttl_seconds: i64,
 }
 
 fn validate_payload_basic(payload: &CommandRequestPayload) -> Result<(), PrivExecErrorCode> {
@@ -1426,6 +1761,10 @@ fn default_nonce_ttl() -> i64 {
 
 fn default_clock_skew() -> i64 {
     30
+}
+
+fn default_session_ttl() -> i64 {
+    120
 }
 
 #[cfg(test)]

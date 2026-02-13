@@ -23,6 +23,14 @@ impl MockRunner {
     fn script_count(&self) -> usize {
         self.scripts.lock().unwrap().len()
     }
+
+    fn script_contains(&self, needle: &str) -> bool {
+        self.scripts
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|script| script.contains(needle))
+    }
 }
 
 impl CommandRunner for MockRunner {
@@ -30,6 +38,8 @@ impl CommandRunner for MockRunner {
         self.scripts.lock().unwrap().push(script.to_string());
         let stdout = if script.contains("Get-Service") {
             r#"{"Name":"TermService","Status":"Running"}"#.to_string()
+        } else if script.contains("Get-BitLockerVolume") {
+            r#"{"MountPoint":"X:","LockStatus":"Unlocked","ProtectionStatus":"On"}"#.to_string()
         } else if script.contains("Get-Disk") {
             r#"[{"Number":1,"FriendlyName":"MockDisk"}]"#.to_string()
         } else {
@@ -136,6 +146,36 @@ fn build_policy(
             fixed_value: None,
         },
     );
+    unmount_params.insert(
+        "sessionId".to_string(),
+        ParamRule::String {
+            required: true,
+            default: None,
+            allow_values: vec![],
+            fixed_value: None,
+        },
+    );
+
+    mount_params.insert(
+        "sessionId".to_string(),
+        ParamRule::String {
+            required: true,
+            default: None,
+            allow_values: vec![],
+            fixed_value: None,
+        },
+    );
+
+    let mut session_params = HashMap::new();
+    session_params.insert(
+        "sessionId".to_string(),
+        ParamRule::String {
+            required: true,
+            default: None,
+            allow_values: vec![],
+            fixed_value: None,
+        },
+    );
 
     let mut service_params = HashMap::new();
     service_params.insert(
@@ -156,6 +196,91 @@ fn build_policy(
             default: None,
             allow_roots: vec![log_root.to_string_lossy().to_string()],
             allow_extensions: vec![".log".to_string(), ".txt".to_string()],
+            fixed_value: None,
+        },
+    );
+
+    let mut bitlocker_query_params = HashMap::new();
+    bitlocker_query_params.insert(
+        "mountPoint".to_string(),
+        ParamRule::String {
+            required: true,
+            default: None,
+            allow_values: vec!["X:".to_string(), "Y:".to_string(), "Z:".to_string()],
+            fixed_value: None,
+        },
+    );
+
+    let mut bitlocker_unlock_params = HashMap::new();
+    bitlocker_unlock_params.insert(
+        "mountPoint".to_string(),
+        ParamRule::String {
+            required: true,
+            default: None,
+            allow_values: vec!["X:".to_string(), "Y:".to_string(), "Z:".to_string()],
+            fixed_value: None,
+        },
+    );
+    bitlocker_unlock_params.insert(
+        "sessionId".to_string(),
+        ParamRule::String {
+            required: true,
+            default: None,
+            allow_values: vec![],
+            fixed_value: None,
+        },
+    );
+    bitlocker_unlock_params.insert(
+        "recoveryPassword".to_string(),
+        ParamRule::String {
+            required: false,
+            default: None,
+            allow_values: vec![],
+            fixed_value: None,
+        },
+    );
+    bitlocker_unlock_params.insert(
+        "password".to_string(),
+        ParamRule::String {
+            required: false,
+            default: None,
+            allow_values: vec![],
+            fixed_value: None,
+        },
+    );
+    bitlocker_unlock_params.insert(
+        "skipIfUnlocked".to_string(),
+        ParamRule::Bool {
+            required: false,
+            default: Some(true),
+            fixed_value: None,
+        },
+    );
+
+    let mut bitlocker_lock_params = HashMap::new();
+    bitlocker_lock_params.insert(
+        "mountPoint".to_string(),
+        ParamRule::String {
+            required: true,
+            default: None,
+            allow_values: vec!["X:".to_string(), "Y:".to_string(), "Z:".to_string()],
+            fixed_value: None,
+        },
+    );
+    bitlocker_lock_params.insert(
+        "sessionId".to_string(),
+        ParamRule::String {
+            required: true,
+            default: None,
+            allow_values: vec![],
+            fixed_value: None,
+        },
+    );
+    bitlocker_lock_params.insert(
+        "forceDismount".to_string(),
+        ParamRule::Bool {
+            required: false,
+            default: Some(true),
             fixed_value: None,
         },
     );
@@ -182,42 +307,91 @@ fn build_policy(
             require_nonce: true,
             nonce_ttl_seconds: 120,
             max_clock_skew_seconds: 30,
+            session_ttl_seconds: 120,
             public_keys: keys,
         },
         allowed_commands: vec![
             PolicyCommand {
+                name: "begin_session".to_string(),
+                enabled: true,
+                requires_session: false,
+                risk_level: Some("low".to_string()),
+                params: HashMap::new(),
+            },
+            PolicyCommand {
+                name: "heartbeat".to_string(),
+                enabled: true,
+                requires_session: false,
+                risk_level: Some("low".to_string()),
+                params: session_params.clone(),
+            },
+            PolicyCommand {
+                name: "end_session".to_string(),
+                enabled: true,
+                requires_session: false,
+                risk_level: Some("low".to_string()),
+                params: session_params,
+            },
+            PolicyCommand {
                 name: "mount_vhd".to_string(),
                 enabled: true,
+                requires_session: true,
                 risk_level: Some("medium".to_string()),
                 params: mount_params,
             },
             PolicyCommand {
                 name: "unmount_vhd".to_string(),
                 enabled: true,
+                requires_session: true,
                 risk_level: Some("medium".to_string()),
                 params: unmount_params,
             },
             PolicyCommand {
                 name: "query_disk".to_string(),
                 enabled: true,
+                requires_session: false,
                 risk_level: Some("low".to_string()),
                 params: HashMap::new(),
             },
             PolicyCommand {
+                name: "query_bitlocker_status".to_string(),
+                enabled: true,
+                requires_session: false,
+                risk_level: Some("low".to_string()),
+                params: bitlocker_query_params,
+            },
+            PolicyCommand {
+                name: "unlock_bitlocker".to_string(),
+                enabled: true,
+                requires_session: true,
+                risk_level: Some("high".to_string()),
+                params: bitlocker_unlock_params,
+            },
+            PolicyCommand {
+                name: "lock_bitlocker".to_string(),
+                enabled: true,
+                requires_session: true,
+                risk_level: Some("high".to_string()),
+                params: bitlocker_lock_params,
+            },
+            PolicyCommand {
                 name: "query_service_status".to_string(),
                 enabled: true,
+                requires_session: false,
                 risk_level: Some("low".to_string()),
                 params: service_params,
             },
             PolicyCommand {
                 name: "restart_service".to_string(),
                 enabled: false,
+                requires_session: false,
                 risk_level: Some("high".to_string()),
                 params: HashMap::new(),
             },
             PolicyCommand {
                 name: "collect_log".to_string(),
                 enabled: true,
+                requires_session: false,
                 risk_level: Some("low".to_string()),
                 params: collect_params,
             },
@@ -254,6 +428,21 @@ fn sign_request(payload: CommandRequestPayload, signing_key: &SigningKey) -> Sig
             signature: B64.encode(signature.to_bytes()),
         },
     }
+}
+
+fn begin_session(ctx: &TestContext, command_id: &str, nonce: &str) -> String {
+    let payload = base_payload(command_id, nonce, "begin_session", "device-1");
+    let response = ctx
+        .core
+        .execute_request(sign_request(payload, &ctx.signing_key));
+    assert!(response.ok);
+    response
+        .result
+        .as_ref()
+        .and_then(|v| v.get("sessionId"))
+        .and_then(|v| v.as_str())
+        .unwrap()
+        .to_string()
 }
 
 #[test]
@@ -329,6 +518,7 @@ fn wrong_device_id_is_rejected() {
 #[test]
 fn out_of_bounds_path_is_rejected() {
     let ctx = setup(false);
+    let session_id = begin_session(&ctx, "cmd-6s", "nonce-6s");
     let outside = ctx
         .vhd_root
         .parent()
@@ -349,6 +539,9 @@ fn out_of_bounds_path_is_rejected() {
     payload
         .params
         .insert("mountPoint".to_string(), Value::String("X:\\".to_string()));
+    payload
+        .params
+        .insert("sessionId".to_string(), Value::String(session_id));
     let response = ctx
         .core
         .execute_request(sign_request(payload, &ctx.signing_key));
@@ -360,6 +553,7 @@ fn out_of_bounds_path_is_rejected() {
 #[test]
 fn valid_mount_executes_and_writes_audit_log() {
     let ctx = setup(false);
+    let session_id = begin_session(&ctx, "cmd-7s", "nonce-7s");
     let vhd = ctx.vhd_root.join("ok.vhd");
     fs::write(&vhd, b"vhd").unwrap();
 
@@ -374,6 +568,9 @@ fn valid_mount_executes_and_writes_audit_log() {
     payload
         .params
         .insert("mountPoint".to_string(), Value::String("X:\\".to_string()));
+    payload
+        .params
+        .insert("sessionId".to_string(), Value::String(session_id));
     let response = ctx
         .core
         .execute_request(sign_request(payload, &ctx.signing_key));
@@ -388,6 +585,150 @@ fn valid_mount_executes_and_writes_audit_log() {
     assert_eq!(entry.command_id, "cmd-7");
     assert_eq!(entry.command, "mount_vhd");
     assert_eq!(entry.code, "OK");
+}
+
+#[test]
+fn mount_requires_session() {
+    let ctx = setup(false);
+    let vhd = ctx.vhd_root.join("needs_session.vhd");
+    fs::write(&vhd, b"vhd").unwrap();
+
+    let mut payload = base_payload("cmd-7b", "nonce-7b", "mount_vhd", "device-1");
+    payload.params.insert(
+        "path".to_string(),
+        Value::String(vhd.to_string_lossy().to_string()),
+    );
+    payload
+        .params
+        .insert("readOnly".to_string(), Value::Bool(false));
+    payload
+        .params
+        .insert("mountPoint".to_string(), Value::String("X:\\".to_string()));
+    let response = ctx
+        .core
+        .execute_request(sign_request(payload, &ctx.signing_key));
+
+    assert!(!response.ok);
+    assert_eq!(response.code, "SESSION_REQUIRED");
+}
+
+#[test]
+fn heartbeat_and_end_session_work() {
+    let ctx = setup(false);
+    let session_id = begin_session(&ctx, "cmd-7c", "nonce-7c");
+
+    let mut heartbeat = base_payload("cmd-7d", "nonce-7d", "heartbeat", "device-1");
+    heartbeat
+        .params
+        .insert("sessionId".to_string(), Value::String(session_id.clone()));
+    let heartbeat_response = ctx
+        .core
+        .execute_request(sign_request(heartbeat, &ctx.signing_key));
+    assert!(heartbeat_response.ok);
+
+    let mut end = base_payload("cmd-7e", "nonce-7e", "end_session", "device-1");
+    end.params
+        .insert("sessionId".to_string(), Value::String(session_id.clone()));
+    let end_response = ctx
+        .core
+        .execute_request(sign_request(end, &ctx.signing_key));
+    assert!(end_response.ok);
+
+    let mut heartbeat_after_end = base_payload("cmd-7f", "nonce-7f", "heartbeat", "device-1");
+    heartbeat_after_end
+        .params
+        .insert("sessionId".to_string(), Value::String(session_id));
+    let after_end_response = ctx
+        .core
+        .execute_request(sign_request(heartbeat_after_end, &ctx.signing_key));
+    assert!(!after_end_response.ok);
+    assert_eq!(after_end_response.code, "SESSION_NOT_FOUND");
+}
+
+#[test]
+fn heartbeat_returns_session_expired_when_ttl_elapsed() {
+    let ctx = setup(false);
+    let mut policy: PrivExecPolicy =
+        serde_json::from_slice(&fs::read(ctx.core.policy_path()).unwrap()).unwrap();
+    policy.security.session_ttl_seconds = 1;
+    fs::write(
+        ctx.core.policy_path(),
+        serde_json::to_vec_pretty(&policy).unwrap(),
+    )
+    .unwrap();
+
+    let session_id = begin_session(&ctx, "cmd-7ttl-a", "nonce-7ttl-a");
+    std::thread::sleep(std::time::Duration::from_millis(1200));
+
+    let mut heartbeat = base_payload("cmd-7ttl-b", "nonce-7ttl-b", "heartbeat", "device-1");
+    heartbeat
+        .params
+        .insert("sessionId".to_string(), Value::String(session_id));
+    let response = ctx
+        .core
+        .execute_request(sign_request(heartbeat, &ctx.signing_key));
+    assert!(!response.ok);
+    assert_eq!(response.code, "SESSION_EXPIRED");
+}
+
+#[test]
+fn unlock_bitlocker_requires_session() {
+    let ctx = setup(false);
+    let mut payload = base_payload("cmd-7g", "nonce-7g", "unlock_bitlocker", "device-1");
+    payload
+        .params
+        .insert("mountPoint".to_string(), Value::String("X:".to_string()));
+    payload.params.insert(
+        "recoveryPassword".to_string(),
+        Value::String("111111-222222-333333-444444-555555-666666-777777-888888".to_string()),
+    );
+
+    let response = ctx
+        .core
+        .execute_request(sign_request(payload, &ctx.signing_key));
+    assert!(!response.ok);
+    assert_eq!(response.code, "SESSION_REQUIRED");
+}
+
+#[test]
+fn unlock_and_lock_bitlocker_with_session() {
+    let ctx = setup(false);
+    let session_id = begin_session(&ctx, "cmd-7h", "nonce-7h");
+    let recovery_password = "111111-222222-333333-444444-555555-666666-777777-888888";
+
+    let mut unlock_payload = base_payload("cmd-7i", "nonce-7i", "unlock_bitlocker", "device-1");
+    unlock_payload
+        .params
+        .insert("mountPoint".to_string(), Value::String("X:".to_string()));
+    unlock_payload.params.insert(
+        "recoveryPassword".to_string(),
+        Value::String(recovery_password.to_string()),
+    );
+    unlock_payload
+        .params
+        .insert("sessionId".to_string(), Value::String(session_id.clone()));
+    let unlock_response = ctx
+        .core
+        .execute_request(sign_request(unlock_payload, &ctx.signing_key));
+    assert!(unlock_response.ok);
+    assert!(ctx.runner.script_contains("Unlock-BitLocker"));
+    assert!(!ctx.runner.script_contains(recovery_password));
+
+    let mut lock_payload = base_payload("cmd-7j", "nonce-7j", "lock_bitlocker", "device-1");
+    lock_payload
+        .params
+        .insert("mountPoint".to_string(), Value::String("X:".to_string()));
+    lock_payload
+        .params
+        .insert("forceDismount".to_string(), Value::Bool(true));
+    lock_payload
+        .params
+        .insert("sessionId".to_string(), Value::String(session_id));
+    let lock_response = ctx
+        .core
+        .execute_request(sign_request(lock_payload, &ctx.signing_key));
+    assert!(lock_response.ok);
+    assert!(ctx.runner.script_contains("Lock-BitLocker"));
 }
 
 #[test]

@@ -204,6 +204,8 @@ function GameListPage() {
     switch (launchProgress.stage) {
       case 'mounting':
         return t('games.launchProgress.mounting');
+      case 'unlocking':
+        return t('games.launchProgress.unlocking', { defaultValue: 'Unlocking BitLocker...' });
       case 'detecting':
         return t('games.launchProgress.detecting');
       case 'configuring':
