@@ -405,6 +405,8 @@ fn scan_game_folder_logic(path: &str) -> ApiResult<Game> {
 fn detect_game_on_mount() -> ApiResult<DetectedGameInfo> {
     let candidates = [
         Path::new("X:\\"),
+        Path::new("X:\\Package"),
+        Path::new("X:\\Package\\bin"),
         Path::new("X:\\app"),
         Path::new("X:\\app\\bin"),
         Path::new("X:\\app\\Package"),
