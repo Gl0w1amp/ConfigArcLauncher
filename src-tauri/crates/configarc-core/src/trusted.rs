@@ -458,7 +458,7 @@ fn active_game_ctx() -> Result<ActiveGameContext, TrustedError> {
 
 fn canonical_game_name(name: &str) -> String {
     let lower = name.trim().to_lowercase();
-    if lower.starts_with("sdez") {
+    if lower.starts_with("sdga") || lower.starts_with("sdgb") || lower.starts_with("sdez") {
         return "sinmai".to_string();
     }
     lower

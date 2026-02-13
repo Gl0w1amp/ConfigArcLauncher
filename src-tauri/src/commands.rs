@@ -249,7 +249,7 @@ fn blacklist_sections_for_game(name: &str) -> HashSet<&'static str> {
 
 fn canonical_game_key(name: &str) -> String {
     let lower = name.trim().to_lowercase();
-    if lower.starts_with("sdez") {
+    if lower.starts_with("sdga") || lower.starts_with("sdgb") || lower.starts_with("sdez") {
         return "sinmai".to_string();
     }
     lower
@@ -1777,7 +1777,11 @@ pub struct VfsScanResult {
 pub fn scan_game_vfs_folders_cmd() -> ApiResult<VfsScanResult> {
     let game = active_game()?;
     if matches!(game.launch_mode, LaunchMode::Vhd) {
-        let vfs = detect_vfs_paths_on_drive()?;
+        let vfs = detect_vfs_paths_on_drive().unwrap_or(VfsResolved {
+            amfs: "Y:\\amfs".to_string(),
+            appdata: "Y:\\appdata".to_string(),
+            option: "Z:\\".to_string(),
+        });
         return Ok(VfsScanResult {
             amfs: Some(vfs.amfs),
             appdata: Some(vfs.appdata),
