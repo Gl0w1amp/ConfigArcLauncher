@@ -1,3 +1,8 @@
+
+param(
+    [string]$ConfigPath
+)
+
 $ErrorActionPreference = 'Stop'
 
 function Write-Result {
@@ -20,57 +25,44 @@ function Write-Result {
     [System.IO.File]::WriteAllText($ResultPath, $json, $utf8NoBom)
 }
 
-$appBase = $null
-$appPatch = $null
-$appData = $null
-$option = $null
-$delta = '1'
-$result = $null
-$signal = $null
-$done = $null
+if (-not $ConfigPath -or -not (Test-Path $ConfigPath)) {
+    # Try to write to a fallback log if we can't determine the result path
+    $fallbackLog = "$env:TEMP\configarc_vhd_helper_error.log"
+    "Missing ConfigPath argument. Args: $($args | Out-String)" | Out-File -FilePath $fallbackLog -Append -Encoding utf8
+    exit 1
+}
 
-for ($i = 0; $i -lt $args.Length; $i++) {
-    $key = $args[$i]
-    switch ($key) {
-        '--base' { $appBase = $args[$i + 1]; $i++ }
-        '--patch' { $appPatch = $args[$i + 1]; $i++ }
-        '--appdata' { $appData = $args[$i + 1]; $i++ }
-        '--option' { $option = $args[$i + 1]; $i++ }
-        '--delta' { $delta = $args[$i + 1]; $i++ }
-        '--result' { $result = $args[$i + 1]; $i++ }
-        '--signal' { $signal = $args[$i + 1]; $i++ }
-        '--done' { $done = $args[$i + 1]; $i++ }
+# Read params from JSON
+try {
+    $paramsContent = Get-Content -Path $ConfigPath -Raw -Encoding UTF8
+    $params = $paramsContent | ConvertFrom-Json
+} catch {
+    $fallbackLog = "$env:TEMP\configarc_vhd_helper_error.log"
+    "Failed to read/parse params JSON: $_" | Out-File -FilePath $fallbackLog -Append -Encoding utf8
+    exit 1
+}
+
+$appBase = $params.app_base
+$appPatch = $params.app_patch
+$appData = $params.app_data
+$option = $params.option
+$delta = $params.delta
+$result = $params.result_path
+$signal = $params.signal_path
+$done = $params.done_path
+
+
+try {
+    if (-not (Test-Path $appBase)) { throw "App base VHD not found: $appBase" }
+    if (-not (Test-Path $appPatch)) { throw "App patch VHD not found: $appPatch" }
+    if (-not (Test-Path $appData)) { throw "AppData VHD not found: $appData" }
+    if (-not (Test-Path $option)) { throw "Option VHD not found: $option" }
+
+    if ((Test-Path 'X:\') -or (Test-Path 'Y:\') -or (Test-Path 'Z:\')) {
+        throw 'Drive X:, Y:, or Z: is already in use. Please eject or change the assigned drives.'
     }
-}
 
-if (-not $appBase -or -not $appPatch -or -not $appData -or -not $option -or -not $result -or -not $signal -or -not $done) {
-    Write-Result $false $null $null 'Missing arguments' $result
-    exit 1
-}
-
-if (-not (Test-Path $appBase)) {
-    Write-Result $false $null $null "App base VHD not found: $appBase" $result
-    exit 1
-}
-if (-not (Test-Path $appPatch)) {
-    Write-Result $false $null $null "App patch VHD not found: $appPatch" $result
-    exit 1
-}
-if (-not (Test-Path $appData)) {
-    Write-Result $false $null $null "AppData VHD not found: $appData" $result
-    exit 1
-}
-if (-not (Test-Path $option)) {
-    Write-Result $false $null $null "Option VHD not found: $option" $result
-    exit 1
-}
-
-if (Test-Path 'X:\' -or Test-Path 'Y:\' -or Test-Path 'Z:\') {
-    Write-Result $false $null $null 'Drive X:, Y:, or Z: is already in use. Please eject or change the assigned drives.' $result
-    exit 1
-}
-
-function Mount-ToDrive {
+    function Mount-ToDrive {
     param(
         [string]$ImagePath,
         [string]$DrivePath
@@ -95,13 +87,13 @@ function Dismount-Image {
     }
 }
 
+
 $appMountPath = $appPatch
 $appRuntimePath = $null
 $mountedApp = $false
 $mountedAppdata = $false
 $mountedOption = $false
 
-try {
     if ($delta -eq '1' -or $delta -eq 'true' -or $delta -eq 'True') {
         $parentDir = Split-Path $appPatch -Parent
         $stem = [System.IO.Path]::GetFileNameWithoutExtension($appPatch)
@@ -149,6 +141,13 @@ try {
 
     Write-Result $true $appMountPath $appRuntimePath $null $result
 } catch {
+    $e = $_
+    $fallbackLog = "$env:TEMP\configarc_vhd_helper_error.log"
+    try {
+        "$(Get-Date) - Error occurred" | Out-File -FilePath $fallbackLog -Append -Encoding utf8
+        $e | Out-String | Out-File -FilePath $fallbackLog -Append -Encoding utf8
+    } catch {}
+
     if ($mountedOption) {
         Dismount-Image -ImagePath $option
     }

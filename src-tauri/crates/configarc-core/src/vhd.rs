@@ -64,6 +64,18 @@ struct HelperResult {
     error: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct VhdHelperParams {
+    pub app_base: PathBuf,
+    pub app_patch: PathBuf,
+    pub app_data: PathBuf,
+    pub option: PathBuf,
+    pub delta: bool,
+    pub result_path: PathBuf,
+    pub signal_path: PathBuf,
+    pub done_path: PathBuf,
+}
+
 const VHD_HELPER_SCRIPT: &str = include_str!("../scripts/vhd-helper.ps1");
 
 pub fn vhd_config_path_for_game_id(game_id: &str) -> PathBuf {
@@ -294,14 +306,31 @@ fn mount_vhd_via_helper(cfg: &ResolvedVhdConfig) -> Result<ElevatedVhdMount, Str
     let tag = temp_tag();
     let temp = std::env::temp_dir();
     let script_path = temp.join(format!("configarc_vhd_helper_{tag}.ps1"));
+    let params_path = temp.join(format!("configarc_vhd_params_{tag}.json"));
     let result_path = temp.join(format!("configarc_vhd_result_{tag}.json"));
     let signal_path = temp.join(format!("configarc_vhd_signal_{tag}.flag"));
     let done_path = temp.join(format!("configarc_vhd_done_{tag}.flag"));
 
     fs::write(&script_path, VHD_HELPER_SCRIPT.as_bytes()).map_err(|e| e.to_string())?;
+    // Cleanup old files
     let _ = fs::remove_file(&result_path);
     let _ = fs::remove_file(&signal_path);
     let _ = fs::remove_file(&done_path);
+    let _ = fs::remove_file(&params_path);
+
+    let params = VhdHelperParams {
+        app_base: cfg.app_base_path.clone(),
+        app_patch: cfg.app_patch_path.clone(),
+        app_data: cfg.appdata_path.clone(),
+        option: cfg.option_path.clone(),
+        delta: cfg.delta_enabled,
+        result_path: result_path.clone(),
+        signal_path: signal_path.clone(),
+        done_path: done_path.clone(),
+    };
+
+    let params_json = serde_json::to_string_pretty(&params).map_err(|e| e.to_string())?;
+    fs::write(&params_path, params_json).map_err(|e| e.to_string())?;
 
     let args = vec![
         "-NoProfile".to_string(),
@@ -309,22 +338,8 @@ fn mount_vhd_via_helper(cfg: &ResolvedVhdConfig) -> Result<ElevatedVhdMount, Str
         "Bypass".to_string(),
         "-File".to_string(),
         script_path.to_string_lossy().to_string(),
-        "--base".to_string(),
-        cfg.app_base_path.to_string_lossy().to_string(),
-        "--patch".to_string(),
-        cfg.app_patch_path.to_string_lossy().to_string(),
-        "--appdata".to_string(),
-        cfg.appdata_path.to_string_lossy().to_string(),
-        "--option".to_string(),
-        cfg.option_path.to_string_lossy().to_string(),
-        "--delta".to_string(),
-        if cfg.delta_enabled { "1".to_string() } else { "0".to_string() },
-        "--result".to_string(),
-        result_path.to_string_lossy().to_string(),
-        "--signal".to_string(),
-        signal_path.to_string_lossy().to_string(),
-        "--done".to_string(),
-        done_path.to_string_lossy().to_string(),
+        "-ConfigPath".to_string(),
+        params_path.to_string_lossy().to_string(),
     ];
 
     let arg_list = args
@@ -339,7 +354,7 @@ fn mount_vhd_via_helper(cfg: &ResolvedVhdConfig) -> Result<ElevatedVhdMount, Str
     );
     run_powershell(&cmd)?;
 
-    let result = wait_for_helper_result(&result_path, Duration::from_secs(60))?;
+    let result = wait_for_helper_result(&result_path, Duration::from_secs(30))?;
     if !result.ok {
         let message = result.error.unwrap_or_else(|| "Elevated mount helper failed".to_string());
         return Err(message);
