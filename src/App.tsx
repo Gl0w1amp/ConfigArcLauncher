@@ -6,6 +6,7 @@ import SettingsPage from './routes/SettingsPage';
 import JsonEditorPage from './routes/JsonEditorPage';
 import AppLayout from './components/Layout/AppLayout';
 import SegatoolsDeployPage from './routes/SegatoolsDeployPage';
+import GameDeployPage from './routes/GameDeployPage';
 import ManageDataPage from './routes/ManageDataPage';
 import ManageModsPage from './routes/ManageModsPage';
 import ManageAimePage from './routes/ManageAimePage';
@@ -20,13 +21,13 @@ import { formatError } from './errors';
 function AppRoutes() {
   const { extensions } = useExtensions();
   const utilities = extensions.filter((ext) => ext.category === 'utility');
-  const decrypterRoute = utilities.find((ext) => ext.id === 'game-image-decrypter')?.route || '/extensions';
 
   return (
     <Routes>
       <Route path="/games" element={<GameListPage />} />
       <Route path="/config" element={<ConfigEditorPage />} />
       <Route path="/deploy" element={<SegatoolsDeployPage />} />
+      <Route path="/deploy/game" element={<GameDeployPage />} />
       <Route path="/extensions" element={<ExtensionsPage />} />
       {utilities.map((extension) => (
         <Route
@@ -36,7 +37,7 @@ function AppRoutes() {
         />
       ))}
       <Route path="/utilities" element={<Navigate to="/extensions" replace />} />
-      <Route path="/deploy/games" element={<Navigate to={decrypterRoute} replace />} />
+      <Route path="/deploy/games" element={<Navigate to="/deploy/game" replace />} />
       <Route path="/json" element={<JsonEditorPage />} />
       <Route path="/manage/data" element={<ManageDataPage />} />
       <Route path="/manage/aime" element={<ManageAimePage />} />

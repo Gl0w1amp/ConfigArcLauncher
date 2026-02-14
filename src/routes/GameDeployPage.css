@@ -1,0 +1,72 @@
+﻿.deploy-games-container {
+  gap: var(--spacing-lg);
+}
+
+.deploy-games-container .deploy-games-form-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.deploy-games-container .deploy-games-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.deploy-games-container .deploy-games-label > span {
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.deploy-games-container .deploy-games-label input {
+  width: 100%;
+  min-height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  padding: 0 12px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.deploy-games-container .deploy-games-label input:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 20%, transparent);
+}
+
+.deploy-games-container .deploy-games-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+}
+
+.deploy-games-container .deploy-games-check input {
+  width: 16px;
+  height: 16px;
+}
+
+.deploy-games-container .deploy-games-progress-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.deploy-games-container .deploy-games-progress-track {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+.deploy-games-container .deploy-games-progress-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent-primary), color-mix(in srgb, var(--accent-primary) 60%, white));
+  transition: width 0.12s linear;
+}
