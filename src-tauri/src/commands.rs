@@ -2532,6 +2532,57 @@ fn unique_filename(base: &str, used: &mut HashSet<String>, dir: &Path) -> String
     }
 }
 
+fn decode_http_chunked(body: &[u8]) -> Result<Vec<u8>, String> {
+    let mut cursor = 0usize;
+    let mut decoded = Vec::with_capacity(body.len());
+
+    loop {
+        let line_end_rel = body[cursor..]
+            .windows(2)
+            .position(|window| window == b"\r\n")
+            .ok_or_else(|| "Invalid chunked response: missing chunk size terminator".to_string())?;
+        let line_end = cursor + line_end_rel;
+        let size_line = std::str::from_utf8(&body[cursor..line_end])
+            .map_err(|e| format!("Invalid chunked response: {}", e))?;
+        let size_token = size_line.split(';').next().unwrap_or("").trim();
+        let chunk_size = usize::from_str_radix(size_token, 16)
+            .map_err(|e| format!("Invalid chunk size '{}': {}", size_token, e))?;
+        cursor = line_end + 2;
+
+        if chunk_size == 0 {
+            if cursor + 2 <= body.len() && &body[cursor..cursor + 2] == b"\r\n" {
+                return Ok(decoded);
+            }
+            while cursor < body.len() {
+                let trailer_end_rel = body[cursor..]
+                    .windows(2)
+                    .position(|window| window == b"\r\n")
+                    .ok_or_else(|| "Invalid chunked response: unterminated trailer".to_string())?;
+                let trailer_end = cursor + trailer_end_rel;
+                cursor = trailer_end + 2;
+                if trailer_end_rel == 0 {
+                    return Ok(decoded);
+                }
+            }
+            return Ok(decoded);
+        }
+
+        let chunk_end = cursor
+            .checked_add(chunk_size)
+            .ok_or_else(|| "Invalid chunked response: chunk size overflow".to_string())?;
+        if chunk_end > body.len() {
+            return Err("Invalid chunked response: chunk exceeds body length".to_string());
+        }
+        decoded.extend_from_slice(&body[cursor..chunk_end]);
+        cursor = chunk_end;
+
+        if cursor + 2 > body.len() || &body[cursor..cursor + 2] != b"\r\n" {
+            return Err("Invalid chunked response: missing chunk terminator".to_string());
+        }
+        cursor += 2;
+    }
+}
+
 #[command]
 pub async fn download_order_fetch_text_cmd(
     app: AppHandle,
@@ -2923,10 +2974,12 @@ pub async fn download_order_cmd(app: AppHandle, payload: DownloadOrderRequest) -
                 let mut response_bytes = Vec::new();
                 stream.read_to_end(&mut response_bytes).map_err(|e| ApiError::from(e.to_string()))?;
                 
-                let response_str = String::from_utf8_lossy(&response_bytes);
-                let mut parts = response_str.splitn(2, "\r\n\r\n");
-                let header_part = parts.next().unwrap_or("");
-                let body_part = parts.next().unwrap_or("");
+                let header_end = response_bytes
+                    .windows(4)
+                    .position(|window| window == b"\r\n\r\n")
+                    .ok_or_else(|| ApiError::from("Invalid HTTP response: missing header separator".to_string()))?;
+                let header_part = String::from_utf8_lossy(&response_bytes[..header_end]).to_string();
+                let body_bytes = &response_bytes[header_end + 4..];
                 
                 let status_line = header_part.lines().next().unwrap_or("");
                 let mut status_parts = status_line.split_whitespace();
@@ -2939,12 +2992,28 @@ pub async fn download_order_cmd(app: AppHandle, payload: DownloadOrderRequest) -
                     .find(|l| l.to_lowercase().starts_with("content-length:"))
                     .and_then(|l| l.split(':').nth(1))
                     .and_then(|v| v.trim().parse::<u64>().ok());
+                let is_chunked = header_part.lines().any(|line| {
+                    let lower = line.to_ascii_lowercase();
+                    lower.starts_with("transfer-encoding:") && lower.contains("chunked")
+                });
+                let decoded_body = if is_chunked {
+                    decode_http_chunked(body_bytes)
+                        .map_err(ApiError::from)?
+                } else {
+                    body_bytes.to_vec()
+                };
+                let body_part = String::from_utf8_lossy(&decoded_body).to_string();
 
                 if debug_logs {
-                     eprintln!("[download_order] raw response status={} len={}", status_code, body_part.len());
+                     eprintln!(
+                        "[download_order] raw response status={} len={} chunked={}",
+                        status_code,
+                        body_part.len(),
+                        is_chunked
+                    );
                 }
 
-                Ok((status_code, status_text, content_length, body_part.to_string()))
+                Ok((status_code, status_text, content_length, body_part))
             } else {
                 let response = client
                     .post(&url)
