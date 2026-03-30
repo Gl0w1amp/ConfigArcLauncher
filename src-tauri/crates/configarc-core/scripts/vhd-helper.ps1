@@ -71,7 +71,7 @@ try {
     Mount-DiskImage -ImagePath $ImagePath -StorageType VHD -NoDriveLetter -Passthru -Access ReadWrite -Confirm:$false -ErrorAction Stop |
         Get-Disk |
         Get-Partition |
-        Where-Object { ($_ | Get-Volume) -ne $Null } |
+        Where-Object { $Null -ne ($_ | Get-Volume) } |
         Add-PartitionAccessPath -AccessPath $DrivePath -ErrorAction Stop |
         Out-Null
 }
