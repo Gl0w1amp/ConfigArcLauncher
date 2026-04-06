@@ -50,6 +50,7 @@ if ($null -ne $params.app_patches) {
 $appData = $params.app_data
 $option = $params.option
 $delta = $params.delta
+$repairRoot = $params.repair_root
 $result = $params.result_path
 $signal = $params.signal_path
 $done = $params.done_path
@@ -169,6 +170,9 @@ $mountedOption = $false
             Remove-Item $appRuntimePath -Force -ErrorAction SilentlyContinue
         }
     }
+    if (-not [string]::IsNullOrWhiteSpace($repairRoot) -and (Test-Path $repairRoot)) {
+        Remove-Item $repairRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
     Write-Result $false $null $null $_.Exception.Message $result
     exit 1
 }
@@ -186,6 +190,9 @@ try {
         if (Test-Path $appRuntimePath) {
             Remove-Item $appRuntimePath -Force -ErrorAction SilentlyContinue
         }
+    }
+    if (-not [string]::IsNullOrWhiteSpace($repairRoot) -and (Test-Path $repairRoot)) {
+        Remove-Item $repairRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
 } catch {
 }

@@ -1,11 +1,13 @@
 use crate::config::paths::segatools_root_for_game_id;
 use crate::error::ConfigError;
 use serde::{Deserialize, Deserializer, Serialize};
+use std::ffi::c_void;
 use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::os::windows::process::CommandExt;
+use std::os::windows::ffi::OsStrExt;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use std::thread::sleep;
 
@@ -93,6 +95,7 @@ pub struct MountedVhd {
     pub app_runtime_path: Option<PathBuf>,
     pub appdata_mount_path: PathBuf,
     pub option_mount_path: PathBuf,
+    pub repair_root: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
@@ -124,9 +127,108 @@ struct VhdHelperParams {
     pub app_data: PathBuf,
     pub option: PathBuf,
     pub delta: bool,
+    pub repair_root: Option<PathBuf>,
     pub result_path: PathBuf,
     pub signal_path: PathBuf,
     pub done_path: PathBuf,
+}
+
+#[derive(Debug, Clone)]
+struct PreparedPatchChain {
+    app_patch_paths: Vec<PathBuf>,
+    repair_root: PathBuf,
+}
+
+#[cfg(target_os = "windows")]
+#[derive(Clone, Copy)]
+#[repr(C)]
+struct Guid {
+    data1: u32,
+    data2: u16,
+    data3: u16,
+    data4: [u8; 8],
+}
+
+#[cfg(target_os = "windows")]
+#[derive(Clone, Copy)]
+#[repr(C)]
+struct VirtualStorageType {
+    device_id: u32,
+    vendor_id: Guid,
+}
+
+#[cfg(target_os = "windows")]
+#[derive(Clone, Copy)]
+#[repr(C)]
+struct OpenVirtualDiskParametersVersion1 {
+    rw_depth: u32,
+}
+
+#[cfg(target_os = "windows")]
+#[derive(Clone, Copy)]
+#[repr(C)]
+union OpenVirtualDiskParametersUnion {
+    version1: OpenVirtualDiskParametersVersion1,
+}
+
+#[cfg(target_os = "windows")]
+#[derive(Clone, Copy)]
+#[repr(C)]
+struct OpenVirtualDiskParameters {
+    version: u32,
+    union_data: OpenVirtualDiskParametersUnion,
+}
+
+#[cfg(target_os = "windows")]
+#[derive(Clone, Copy)]
+#[repr(C)]
+union SetVirtualDiskInfoUnion {
+    parent_file_path: *const u16,
+}
+
+#[cfg(target_os = "windows")]
+#[derive(Clone, Copy)]
+#[repr(C)]
+struct SetVirtualDiskInfo {
+    version: u32,
+    union_data: SetVirtualDiskInfoUnion,
+}
+
+#[cfg(target_os = "windows")]
+const VIRTUAL_STORAGE_TYPE_DEVICE_VHD: u32 = 2;
+#[cfg(target_os = "windows")]
+const VIRTUAL_STORAGE_TYPE_DEVICE_VHDX: u32 = 3;
+#[cfg(target_os = "windows")]
+const VIRTUAL_DISK_ACCESS_METAOPS: u32 = 0x0020_0000;
+#[cfg(target_os = "windows")]
+const OPEN_VIRTUAL_DISK_VERSION_1: u32 = 1;
+#[cfg(target_os = "windows")]
+const OPEN_VIRTUAL_DISK_FLAG_NO_PARENTS: u32 = 0x0000_0001;
+#[cfg(target_os = "windows")]
+const SET_VIRTUAL_DISK_INFO_PARENT_PATH: u32 = 1;
+
+#[cfg(target_os = "windows")]
+#[link(name = "VirtDisk")]
+extern "system" {
+    fn OpenVirtualDisk(
+        virtual_storage_type: *const VirtualStorageType,
+        path: *const u16,
+        virtual_disk_access_mask: u32,
+        flags: u32,
+        parameters: *const OpenVirtualDiskParameters,
+        handle: *mut *mut c_void,
+    ) -> u32;
+
+    fn SetVirtualDiskInformation(
+        virtual_disk_handle: *mut c_void,
+        virtual_disk_info: *const SetVirtualDiskInfo,
+    ) -> u32;
+}
+
+#[cfg(target_os = "windows")]
+#[link(name = "kernel32")]
+extern "system" {
+    fn CloseHandle(handle: *mut c_void) -> i32;
 }
 
 const VHD_HELPER_SCRIPT: &str = include_str!("../scripts/vhd-helper.ps1");
@@ -308,6 +410,141 @@ fn temp_tag() -> String {
         .to_string()
 }
 
+fn cleanup_repair_root(repair_root: &Option<PathBuf>) {
+    if let Some(root) = repair_root {
+        if root.exists() {
+            let _ = fs::remove_dir_all(root);
+        }
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn win32_error(status: u32) -> String {
+    std::io::Error::from_raw_os_error(status as i32).to_string()
+}
+
+#[cfg(target_os = "windows")]
+fn to_wide_path(path: &Path) -> Vec<u16> {
+    path.as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect()
+}
+
+#[cfg(target_os = "windows")]
+fn device_id_for_path(path: &Path) -> Result<u32, String> {
+    match path
+        .extension()
+        .and_then(OsStr::to_str)
+        .map(|ext| ext.to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("vhd") => Ok(VIRTUAL_STORAGE_TYPE_DEVICE_VHD),
+        Some("vhdx") => Ok(VIRTUAL_STORAGE_TYPE_DEVICE_VHDX),
+        _ => Err(format!(
+            "Unsupported virtual disk type for auto-repair: {}",
+            path.to_string_lossy()
+        )),
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn set_vhd_parent_path(child_path: &Path, parent_path: &Path) -> Result<(), String> {
+    let storage_type = VirtualStorageType {
+        device_id: device_id_for_path(child_path)?,
+        vendor_id: Guid {
+            data1: 0xec98_4aec,
+            data2: 0xa0f9,
+            data3: 0x47e9,
+            data4: [0x90, 0x1f, 0x71, 0x41, 0x5a, 0x66, 0x34, 0x5b],
+        },
+    };
+    let child_wide = to_wide_path(child_path);
+    let parent_wide = to_wide_path(parent_path);
+    let open_params = OpenVirtualDiskParameters {
+        version: OPEN_VIRTUAL_DISK_VERSION_1,
+        union_data: OpenVirtualDiskParametersUnion {
+            version1: OpenVirtualDiskParametersVersion1 { rw_depth: 1 },
+        },
+    };
+    let mut handle: *mut c_void = std::ptr::null_mut();
+    let open_status = unsafe {
+        OpenVirtualDisk(
+            &storage_type,
+            child_wide.as_ptr(),
+            VIRTUAL_DISK_ACCESS_METAOPS,
+            OPEN_VIRTUAL_DISK_FLAG_NO_PARENTS,
+            &open_params,
+            &mut handle,
+        )
+    };
+    if open_status != 0 {
+        return Err(format!(
+            "Failed to open differencing VHD for repair ({}): {}",
+            child_path.to_string_lossy(),
+            win32_error(open_status)
+        ));
+    }
+
+    let set_info = SetVirtualDiskInfo {
+        version: SET_VIRTUAL_DISK_INFO_PARENT_PATH,
+        union_data: SetVirtualDiskInfoUnion {
+            parent_file_path: parent_wide.as_ptr(),
+        },
+    };
+    let set_status = unsafe { SetVirtualDiskInformation(handle, &set_info) };
+    unsafe {
+        let _ = CloseHandle(handle);
+    }
+    if set_status != 0 {
+        return Err(format!(
+            "Failed to set differencing VHD parent (child: {}, parent: {}): {}",
+            child_path.to_string_lossy(),
+            parent_path.to_string_lossy(),
+            win32_error(set_status)
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(not(target_os = "windows"))]
+fn set_vhd_parent_path(_child_path: &Path, _parent_path: &Path) -> Result<(), String> {
+    Err("Auto-repair is only supported on Windows".to_string())
+}
+
+fn prepare_repaired_patch_chain(cfg: &ResolvedVhdConfig) -> Result<PreparedPatchChain, String> {
+    let repair_root = std::env::temp_dir().join(format!("configarc_vhd_repair_{}", temp_tag()));
+    fs::create_dir_all(&repair_root).map_err(|e| e.to_string())?;
+
+    let mut parent_path = cfg.app_base_path.clone();
+    let mut repaired_patch_paths = Vec::with_capacity(cfg.app_patch_paths.len());
+    for (index, patch_path) in cfg.app_patch_paths.iter().enumerate() {
+        let file_name = patch_path
+            .file_name()
+            .and_then(OsStr::to_str)
+            .ok_or_else(|| format!("Invalid patch VHD filename: {}", patch_path.to_string_lossy()))?;
+        let repaired_path = repair_root.join(format!("{:02}_{}", index + 1, file_name));
+        fs::copy(patch_path, &repaired_path).map_err(|e| {
+            format!(
+                "Failed to copy patch VHD for auto-repair ({}): {}",
+                patch_path.to_string_lossy(),
+                e
+            )
+        })?;
+        if let Err(err) = set_vhd_parent_path(&repaired_path, &parent_path) {
+            cleanup_repair_root(&Some(repair_root.clone()));
+            return Err(err);
+        }
+        parent_path = repaired_path.clone();
+        repaired_patch_paths.push(repaired_path);
+    }
+
+    Ok(PreparedPatchChain {
+        app_patch_paths: repaired_patch_paths,
+        repair_root,
+    })
+}
+
 fn mount_image_to_drive(image_path: &Path, drive_letter: char) -> Result<(), String> {
     let drive = drive_letter.to_ascii_uppercase();
     let access_path = format!("{}:\\", drive);
@@ -364,7 +601,7 @@ fn wait_for_helper_result(path: &Path, timeout: Duration) -> Result<HelperResult
     }
 }
 
-fn mount_vhd_via_helper(cfg: &ResolvedVhdConfig) -> Result<ElevatedVhdMount, String> {
+fn mount_vhd_via_helper(cfg: &ResolvedVhdConfig, repair_root: Option<PathBuf>) -> Result<ElevatedVhdMount, String> {
     let tag = temp_tag();
     let temp = std::env::temp_dir();
     let script_path = temp.join(format!("configarc_vhd_helper_{tag}.ps1"));
@@ -386,6 +623,7 @@ fn mount_vhd_via_helper(cfg: &ResolvedVhdConfig) -> Result<ElevatedVhdMount, Str
         app_data: cfg.appdata_path.clone(),
         option: cfg.option_path.clone(),
         delta: cfg.delta_enabled,
+        repair_root,
         result_path: result_path.clone(),
         signal_path: signal_path.clone(),
         done_path: done_path.clone(),
@@ -433,7 +671,7 @@ fn mount_vhd_via_helper(cfg: &ResolvedVhdConfig) -> Result<ElevatedVhdMount, Str
     })
 }
 
-pub fn mount_vhd(cfg: &ResolvedVhdConfig) -> Result<MountedVhd, String> {
+fn mount_vhd_once(cfg: &ResolvedVhdConfig, repair_root: Option<PathBuf>) -> Result<MountedVhd, String> {
     ensure_mount_points_free()?;
 
     let app_parent_path = cfg.app_parent_path();
@@ -463,17 +701,20 @@ pub fn mount_vhd(cfg: &ResolvedVhdConfig) -> Result<MountedVhd, String> {
 
     if let Err(err) = mount_image_to_drive(&app_mount_path, 'X') {
         cleanup_runtime(&app_runtime_path);
+        cleanup_repair_root(&repair_root);
         return Err(err);
     }
     if let Err(err) = mount_image_to_drive(&cfg.appdata_path, 'Y') {
         dismount_image(&app_mount_path);
         cleanup_runtime(&app_runtime_path);
+        cleanup_repair_root(&repair_root);
         return Err(err);
     }
     if let Err(err) = mount_image_to_drive(&cfg.option_path, 'Z') {
         dismount_image(&cfg.appdata_path);
         dismount_image(&app_mount_path);
         cleanup_runtime(&app_runtime_path);
+        cleanup_repair_root(&repair_root);
         return Err(err);
     }
 
@@ -484,7 +725,12 @@ pub fn mount_vhd(cfg: &ResolvedVhdConfig) -> Result<MountedVhd, String> {
         app_runtime_path,
         appdata_mount_path: cfg.appdata_path.clone(),
         option_mount_path: cfg.option_path.clone(),
+        repair_root,
     })
+}
+
+pub fn mount_vhd(cfg: &ResolvedVhdConfig) -> Result<MountedVhd, String> {
+    mount_vhd_once(cfg, None)
 }
 
 pub fn unmount_vhd(mounted: &MountedVhd) -> Result<(), String> {
@@ -492,14 +738,36 @@ pub fn unmount_vhd(mounted: &MountedVhd) -> Result<(), String> {
     dismount_image(&mounted.appdata_mount_path);
     dismount_image(&mounted.app_mount_path);
     cleanup_runtime(&mounted.app_runtime_path);
+    cleanup_repair_root(&mounted.repair_root);
     Ok(())
 }
 
 pub fn mount_vhd_with_elevation(cfg: &ResolvedVhdConfig) -> Result<VhdMountHandle, String> {
-    if is_running_as_admin() {
-        mount_vhd(cfg).map(VhdMountHandle::Direct)
-    } else {
-        mount_vhd_via_helper(cfg).map(VhdMountHandle::Elevated)
+    let try_mount = |cfg: &ResolvedVhdConfig, repair_root: Option<PathBuf>| -> Result<VhdMountHandle, String> {
+        if is_running_as_admin() {
+            mount_vhd_once(cfg, repair_root).map(VhdMountHandle::Direct)
+        } else {
+            mount_vhd_via_helper(cfg, repair_root).map(VhdMountHandle::Elevated)
+        }
+    };
+
+    match try_mount(cfg, None) {
+        Ok(handle) => Ok(handle),
+        Err(first_err) if !cfg.app_patch_paths.is_empty() => {
+            let prepared = prepare_repaired_patch_chain(cfg)
+                .map_err(|repair_err| format!("{first_err} | Auto-repair setup failed: {repair_err}"))?;
+            let mut repaired_cfg = cfg.clone();
+            repaired_cfg.app_patch_paths = prepared.app_patch_paths.clone();
+            let repair_root = prepared.repair_root.clone();
+            match try_mount(&repaired_cfg, Some(repair_root.clone())) {
+                Ok(handle) => Ok(handle),
+                Err(second_err) => {
+                    cleanup_repair_root(&Some(repair_root));
+                    Err(format!("{first_err} | Auto-repair retry failed: {second_err}"))
+                }
+            }
+        }
+        Err(err) => Err(err),
     }
 }
 

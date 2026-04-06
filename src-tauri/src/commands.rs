@@ -40,6 +40,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use std::os::windows::process::CommandExt;
 use std::io::{Read, Write};
+use zip::read::ZipArchive;
 
 static DOWNLOAD_ORDER_CANCELLED: AtomicBool = AtomicBool::new(false);
 const APP_SETTINGS_FILE_NAME: &str = "settings.json";
@@ -694,22 +695,43 @@ fn resolve_bitlocker_secret_for_mount(
     None
 }
 
-fn unlock_bitlocker_mount_if_needed(mount_letter: char) -> ApiResult<()> {
+fn is_bitlocker_probe_access_denied(err: &ApiError) -> bool {
+    err.message.to_ascii_lowercase().contains("access denied")
+        || err
+            .details
+            .as_deref()
+            .unwrap_or("")
+            .to_ascii_lowercase()
+            .contains("access denied")
+}
+
+fn locked_bitlocker_mounts() -> ApiResult<Vec<char>> {
     if !bitlocker_cmdlets_available() {
-        return Ok(());
+        return Ok(Vec::new());
     }
 
+    let mut locked = Vec::new();
+    for mount_letter in ['X', 'Y', 'Z'] {
+        let mount = format!("{}:", mount_letter.to_ascii_uppercase());
+        let status = match query_bitlocker_status(&mount) {
+            Ok(status) => status,
+            Err(err) if is_bitlocker_probe_access_denied(&err) => continue,
+            Err(err) => return Err(err),
+        };
+        let lock_status = status
+            .get("LockStatus")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        if lock_status == "locked" {
+            locked.push(mount_letter);
+        }
+    }
+    Ok(locked)
+}
+
+fn unlock_bitlocker_mount_if_needed(mount_letter: char) -> ApiResult<()> {
     let mount = format!("{}:", mount_letter.to_ascii_uppercase());
-    let status = query_bitlocker_status(&mount)?;
-    let lock_status = status
-        .get("LockStatus")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_ascii_lowercase();
-    if lock_status != "locked" {
-        return Ok(());
-    }
-
     let (kind, env_name, secret) = resolve_bitlocker_secret_for_mount(mount_letter).ok_or_else(|| {
         ApiError::from(format!(
             "BitLocker volume {} is locked. Set {} or CONFIGARC_BITLOCKER_{}_PASSWORD.",
@@ -748,9 +770,9 @@ fn unlock_bitlocker_mount_if_needed(mount_letter: char) -> ApiResult<()> {
     Ok(())
 }
 
-fn unlock_mounted_vhd_bitlocker_volumes() -> ApiResult<()> {
-    for drive in ['X', 'Y', 'Z'] {
-        unlock_bitlocker_mount_if_needed(drive)?;
+fn unlock_mounted_vhd_bitlocker_volumes(drives: &[char]) -> ApiResult<()> {
+    for drive in drives {
+        unlock_bitlocker_mount_if_needed(*drive)?;
     }
     Ok(())
 }
@@ -1100,6 +1122,104 @@ fn parse_app_vhd_name(path: &Path) -> Option<ParsedAppVhdName> {
     }
 
     None
+}
+
+fn unpacked_zip_stems_for_parent(path: &Path) -> Vec<String> {
+    let mut stems = Vec::new();
+    if let Some(stem) = path.file_stem().and_then(|value| value.to_str()) {
+        stems.push(format!("{stem}_Unpacked"));
+    }
+
+    if let Some(parsed) = parse_app_vhd_name(path) {
+        stems.push(format!("{}_{}_Unpacked", parsed.prefix, parsed.version));
+        let short_version = parsed
+            .version
+            .split('.')
+            .take(2)
+            .collect::<Vec<_>>()
+            .join(".");
+        if !short_version.is_empty() && short_version != parsed.version {
+            stems.push(format!("{}_{}_Unpacked", parsed.prefix, short_version));
+        }
+    }
+
+    let mut seen = HashSet::new();
+    stems
+        .into_iter()
+        .filter(|stem| seen.insert(stem.to_lowercase()))
+        .collect()
+}
+
+fn find_unpacked_zip_for_parent(parent_path: &Path) -> Option<PathBuf> {
+    let parent_dir = parent_path.parent()?;
+    let candidates = unpacked_zip_stems_for_parent(parent_path)
+        .into_iter()
+        .map(|stem| stem.to_lowercase())
+        .collect::<Vec<_>>();
+
+    let mut entries = fs::read_dir(parent_dir)
+        .ok()?
+        .filter_map(|entry| entry.ok().map(|item| item.path()))
+        .filter(|path| {
+            path.is_file()
+                && path.extension().and_then(|ext| ext.to_str()).map(|ext| ext.eq_ignore_ascii_case("zip")).unwrap_or(false)
+        })
+        .collect::<Vec<_>>();
+    entries.sort();
+
+    entries.into_iter().find(|path| {
+        let stem = path.file_stem().and_then(|value| value.to_str()).unwrap_or("").to_lowercase();
+        candidates.iter().any(|candidate| stem == *candidate)
+    })
+}
+
+fn find_unpacked_zip_for_chain(app_base_path: &Path, app_patch_paths: &[PathBuf]) -> Option<PathBuf> {
+    app_patch_paths
+        .iter()
+        .rev()
+        .map(PathBuf::as_path)
+        .chain(std::iter::once(app_base_path))
+        .find_map(|path| find_unpacked_zip_for_parent(path))
+}
+
+fn clean_zip_entry_path(name: &str) -> Option<PathBuf> {
+    let mut relative = PathBuf::new();
+    for component in Path::new(name).components() {
+        match component {
+            std::path::Component::Normal(part) => relative.push(part),
+            std::path::Component::CurDir => {}
+            std::path::Component::Prefix(_)
+            | std::path::Component::RootDir
+            | std::path::Component::ParentDir => return None,
+        }
+    }
+    if relative.as_os_str().is_empty() {
+        None
+    } else {
+        Some(relative)
+    }
+}
+
+fn apply_unpacked_zip_overlay(mount_root: &Path, zip_path: &Path) -> ApiResult<()> {
+    let file = fs::File::open(zip_path).map_err(|e| ApiError::from(e.to_string()))?;
+    let mut zip = ZipArchive::new(file).map_err(|e| ApiError::from(e.to_string()))?;
+    for index in 0..zip.len() {
+        let mut entry = zip.by_index(index).map_err(|e| ApiError::from(e.to_string()))?;
+        let Some(relative) = clean_zip_entry_path(entry.name()) else {
+            continue;
+        };
+        let target = mount_root.join(relative);
+        if entry.is_dir() {
+            fs::create_dir_all(&target).map_err(|e| ApiError::from(e.to_string()))?;
+            continue;
+        }
+        if let Some(parent) = target.parent() {
+            fs::create_dir_all(parent).map_err(|e| ApiError::from(e.to_string()))?;
+        }
+        let mut out = fs::File::create(&target).map_err(|e| ApiError::from(e.to_string()))?;
+        std::io::copy(&mut entry, &mut out).map_err(|e| ApiError::from(e.to_string()))?;
+    }
+    Ok(())
 }
 
 fn select_base_vhd(app_candidates: &[PathBuf]) -> Option<PathBuf> {
@@ -1786,7 +1906,12 @@ fn launch_vhd_game(game: &Game, profile_id: Option<String>, window: &Window) -> 
         return Err(("Game is disabled".to_string()).into());
     }
     let vhd_cfg = load_vhd_config(&game.id).map_err(|e| ApiError::from(e.to_string()))?;
-    let resolved = resolve_vhd_config(&game.id, &vhd_cfg)?;
+    let mut resolved = resolve_vhd_config(&game.id, &vhd_cfg)?;
+    let unpacked_zip = find_unpacked_zip_for_chain(&resolved.app_base_path, &resolved.app_patch_paths);
+    if unpacked_zip.is_some() && !resolved.delta_enabled {
+        // Overlay extraction must target a disposable runtime so source VHDs stay untouched.
+        resolved.delta_enabled = true;
+    }
     emit_launch_progress(window, &game.id, "mounting");
     let mounted = match mount_vhd_with_elevation(&resolved) {
         Ok(mounted) => mounted,
@@ -1797,8 +1922,15 @@ fn launch_vhd_game(game: &Game, profile_id: Option<String>, window: &Window) -> 
     };
 
     let result = (|| -> ApiResult<()> {
-        emit_launch_progress(window, &game.id, "unlocking");
-        unlock_mounted_vhd_bitlocker_volumes()?;
+        let locked_drives = locked_bitlocker_mounts()?;
+        if !locked_drives.is_empty() {
+            emit_launch_progress(window, &game.id, "unlocking");
+            unlock_mounted_vhd_bitlocker_volumes(&locked_drives)?;
+        }
+
+        if let Some(zip_path) = unpacked_zip.as_ref() {
+            apply_unpacked_zip_overlay(Path::new("X:\\"), zip_path)?;
+        }
 
         emit_launch_progress(window, &game.id, "detecting");
         let detected = detect_game_on_mount()?;
@@ -3410,8 +3542,12 @@ pub fn privexec_apply_policy_update_cmd(
 
 #[cfg(test)]
 mod tests {
-    use super::{order_patch_vhds, parse_app_vhd_name, select_base_vhd, ParsedAppVhdKind};
+    use super::{
+        find_unpacked_zip_for_chain, find_unpacked_zip_for_parent, order_patch_vhds, parse_app_vhd_name, select_base_vhd,
+        ParsedAppVhdKind,
+    };
     use std::path::PathBuf;
+    use tempfile::TempDir;
 
     #[test]
     fn parses_versioned_patch_name() {
@@ -3470,5 +3606,41 @@ mod tests {
             vec![patch_2.clone(), patch_1.clone()],
         );
         assert_eq!(ordered, vec![patch_1, patch_2]);
+    }
+
+    #[test]
+    fn finds_short_version_unpacked_zip_for_parent() {
+        let temp = TempDir::new().unwrap();
+        let parent = temp
+            .path()
+            .join("SDGA_1.62.00_20260401120000_2_1.61.00.vhd");
+        let overlay = temp.path().join("SDGA_1.62_Unpacked.zip");
+
+        std::fs::write(&parent, b"vhd").unwrap();
+        std::fs::write(&overlay, b"zip").unwrap();
+
+        let found = find_unpacked_zip_for_parent(&parent).unwrap();
+        assert_eq!(found, overlay);
+    }
+
+    #[test]
+    fn falls_back_to_older_unpacked_zip_in_chain() {
+        let temp = TempDir::new().unwrap();
+        let base = temp.path().join("SDGA_1.60.00_20251023171735_0.vhd");
+        let patch_1 = temp
+            .path()
+            .join("SDGA_1.61.00_20260309140300_1_1.60.00.vhd");
+        let patch_2 = temp
+            .path()
+            .join("SDGA_1.62.00_20260401120000_2_1.61.00.vhd");
+        let overlay = temp.path().join("SDGA_1.60_Unpacked.zip");
+
+        std::fs::write(&base, b"vhd").unwrap();
+        std::fs::write(&patch_1, b"vhd").unwrap();
+        std::fs::write(&patch_2, b"vhd").unwrap();
+        std::fs::write(&overlay, b"zip").unwrap();
+
+        let found = find_unpacked_zip_for_chain(&base, &[patch_1, patch_2]).unwrap();
+        assert_eq!(found, overlay);
     }
 }
