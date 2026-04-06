@@ -29,6 +29,7 @@ use flate2::{Compression, write::DeflateEncoder, write::ZlibEncoder, read::ZlibD
 use reqwest::blocking::Client;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue, CONTENT_TYPE, USER_AGENT};
 use reqwest::Proxy;
+use std::cmp::Ordering as CmpOrdering;
 use std::collections::{HashMap, HashSet};
 use tauri::{command, AppHandle, Emitter, Manager, Window};
 use serde_json::Value;
@@ -999,6 +1000,233 @@ pub struct AutoDetectResult {
     pub vhd: Option<VhdConfig>,
 }
 
+#[derive(Debug, Clone)]
+enum ParsedAppVhdKind {
+    Base,
+    Patch { parent_version: String },
+}
+
+#[derive(Debug, Clone)]
+struct ParsedAppVhdName {
+    prefix: String,
+    version: String,
+    timestamp: String,
+    kind: ParsedAppVhdKind,
+}
+
+fn is_version_token(value: &str) -> bool {
+    let parts = value.split('.').collect::<Vec<_>>();
+    parts.len() >= 2
+        && parts
+            .iter()
+            .all(|part| !part.is_empty() && part.chars().all(|c| c.is_ascii_digit()))
+}
+
+fn is_timestamp_token(value: &str) -> bool {
+    value.len() >= 8 && value.chars().all(|c| c.is_ascii_digit())
+}
+
+fn is_patch_marker_token(value: &str) -> bool {
+    value.parse::<u32>().map(|marker| marker >= 1).unwrap_or(false)
+}
+
+fn parse_version_key(value: &str) -> Vec<u32> {
+    value
+        .split('.')
+        .map(|part| part.parse::<u32>().unwrap_or(0))
+        .collect()
+}
+
+fn compare_version_tokens(left: &str, right: &str) -> CmpOrdering {
+    let left_parts = parse_version_key(left);
+    let right_parts = parse_version_key(right);
+    let len = left_parts.len().max(right_parts.len());
+    for index in 0..len {
+        let left_part = *left_parts.get(index).unwrap_or(&0);
+        let right_part = *right_parts.get(index).unwrap_or(&0);
+        match left_part.cmp(&right_part) {
+            CmpOrdering::Equal => continue,
+            other => return other,
+        }
+    }
+    left.cmp(right)
+}
+
+fn parse_app_vhd_name(path: &Path) -> Option<ParsedAppVhdName> {
+    let stem = path.file_stem()?.to_str()?;
+    let parts = stem.split('_').collect::<Vec<_>>();
+    if parts.len() < 4 {
+        return None;
+    }
+
+    let marker = *parts.last()?;
+    if marker == "0" {
+        let version = *parts.get(parts.len().checked_sub(3)?)?;
+        let timestamp = *parts.get(parts.len().checked_sub(2)?)?;
+        if !is_version_token(version) || !is_timestamp_token(timestamp) {
+            return None;
+        }
+        let prefix = parts[..parts.len() - 3].join("_");
+        if prefix.is_empty() {
+            return None;
+        }
+        return Some(ParsedAppVhdName {
+            prefix,
+            version: version.to_string(),
+            timestamp: timestamp.to_string(),
+            kind: ParsedAppVhdKind::Base,
+        });
+    }
+
+    if parts.len() >= 5 && is_patch_marker_token(parts[parts.len() - 2]) {
+        let version = parts[parts.len() - 4];
+        let timestamp = parts[parts.len() - 3];
+        let parent_version = parts[parts.len() - 1];
+        if !is_version_token(version) || !is_version_token(parent_version) || !is_timestamp_token(timestamp) {
+            return None;
+        }
+        let prefix = parts[..parts.len() - 4].join("_");
+        if prefix.is_empty() {
+            return None;
+        }
+        return Some(ParsedAppVhdName {
+            prefix,
+            version: version.to_string(),
+            timestamp: timestamp.to_string(),
+            kind: ParsedAppVhdKind::Patch {
+                parent_version: parent_version.to_string(),
+            },
+        });
+    }
+
+    None
+}
+
+fn select_base_vhd(app_candidates: &[PathBuf]) -> Option<PathBuf> {
+    let parsed = app_candidates
+        .iter()
+        .filter_map(|path| parse_app_vhd_name(path).map(|meta| (path, meta)))
+        .collect::<Vec<_>>();
+
+    let patch_roots = parsed
+        .iter()
+        .filter_map(|(_, meta)| match &meta.kind {
+            ParsedAppVhdKind::Patch { parent_version } => Some(parent_version.clone()),
+            ParsedAppVhdKind::Base => None,
+        })
+        .collect::<HashSet<_>>();
+    let patch_targets = parsed
+        .iter()
+        .filter_map(|(_, meta)| match &meta.kind {
+            ParsedAppVhdKind::Patch { .. } => Some(meta.version.clone()),
+            ParsedAppVhdKind::Base => None,
+        })
+        .collect::<HashSet<_>>();
+
+    let root_versions = patch_roots
+        .difference(&patch_targets)
+        .cloned()
+        .collect::<HashSet<_>>();
+
+    if root_versions.len() == 1 {
+        let root_version = root_versions.iter().next().cloned().unwrap_or_default();
+        if let Some((path, _)) = parsed.iter().find(|(_, meta)| {
+            matches!(meta.kind, ParsedAppVhdKind::Base) && meta.version == root_version
+        }) {
+            return Some((*path).clone());
+        }
+    }
+
+    parsed
+        .iter()
+        .find(|(_, meta)| matches!(meta.kind, ParsedAppVhdKind::Base))
+        .map(|(path, _)| (*path).clone())
+}
+
+fn order_patch_vhds(base: &Path, patches: Vec<PathBuf>) -> Vec<PathBuf> {
+    #[derive(Clone)]
+    struct PatchEntry {
+        path: PathBuf,
+        meta: Option<ParsedAppVhdName>,
+    }
+
+    let base_meta = parse_app_vhd_name(base);
+    let mut parsed = patches
+        .into_iter()
+        .map(|path| PatchEntry {
+            meta: parse_app_vhd_name(&path),
+            path,
+        })
+        .collect::<Vec<_>>();
+
+    let mut ordered = Vec::new();
+    let mut current_version = base_meta.as_ref().and_then(|meta| match &meta.kind {
+        ParsedAppVhdKind::Base => Some(meta.version.clone()),
+        ParsedAppVhdKind::Patch { .. } => None,
+    });
+    let base_prefix = base_meta.as_ref().map(|meta| meta.prefix.as_str());
+
+    while let Some(version) = current_version.clone() {
+        let next_index = parsed
+            .iter()
+            .enumerate()
+            .filter_map(|(index, entry)| {
+                let meta = entry.meta.as_ref()?;
+                let parent_version = match &meta.kind {
+                    ParsedAppVhdKind::Patch { parent_version } => parent_version,
+                    ParsedAppVhdKind::Base => return None,
+                };
+                if parent_version != &version {
+                    return None;
+                }
+                if let Some(prefix) = base_prefix {
+                    if meta.prefix != prefix {
+                        return None;
+                    }
+                }
+                Some((index, meta))
+            })
+            .min_by(|(_, left), (_, right)| {
+                compare_version_tokens(&left.version, &right.version)
+                    .then_with(|| left.timestamp.cmp(&right.timestamp))
+            })
+            .map(|(index, _)| index);
+
+        let Some(index) = next_index else {
+            break;
+        };
+
+        let next = parsed.remove(index);
+        current_version = next.meta.as_ref().and_then(|meta| match &meta.kind {
+            ParsedAppVhdKind::Patch { .. } => Some(meta.version.clone()),
+            ParsedAppVhdKind::Base => None,
+        });
+        ordered.push(next.path);
+    }
+
+    parsed.sort_by(|left, right| match (&left.meta, &right.meta) {
+        (Some(left_meta), Some(right_meta)) => {
+            let left_parent = match &left_meta.kind {
+                ParsedAppVhdKind::Patch { parent_version } => parent_version.as_str(),
+                ParsedAppVhdKind::Base => "",
+            };
+            let right_parent = match &right_meta.kind {
+                ParsedAppVhdKind::Patch { parent_version } => parent_version.as_str(),
+                ParsedAppVhdKind::Base => "",
+            };
+            compare_version_tokens(left_parent, right_parent)
+                .then_with(|| compare_version_tokens(&left_meta.version, &right_meta.version))
+                .then_with(|| left_meta.timestamp.cmp(&right_meta.timestamp))
+                .then_with(|| left.path.cmp(&right.path))
+        }
+        (Some(_), None) => CmpOrdering::Less,
+        (None, Some(_)) => CmpOrdering::Greater,
+        (None, None) => left.path.cmp(&right.path),
+    });
+    ordered.extend(parsed.into_iter().map(|entry| entry.path));
+    ordered
+}
+
 fn detect_vhd_files_in_dir(dir: &Path) -> ApiResult<VhdConfig> {
     fn file_size(path: &Path) -> u64 {
         fs::metadata(path).map(|m| m.len()).unwrap_or(0)
@@ -1046,9 +1274,9 @@ fn detect_vhd_files_in_dir(dir: &Path) -> ApiResult<VhdConfig> {
         .cloned()
         .collect();
 
-    if app_candidates.len() < 2 {
+    if app_candidates.is_empty() {
         return Err(
-            "App base/patch VHD files not found. Please ensure folder includes app base, app patch, appdata, and option VHDs."
+            "App base VHD not found. Please ensure folder includes app base, appdata, and option VHDs."
                 .to_string()
                 .into(),
         );
@@ -1056,30 +1284,24 @@ fn detect_vhd_files_in_dir(dir: &Path) -> ApiResult<VhdConfig> {
 
     app_candidates.sort_by_key(|p| file_size(p));
 
-    let base = app_candidates
-        .iter()
-        .filter(|p| !file_name_contains(p, &["patch", "unpack"]))
-        .max_by_key(|p| file_size(p))
-        .cloned()
+    let base = select_base_vhd(&app_candidates)
         .or_else(|| app_candidates.iter().max_by_key(|p| file_size(p)).cloned())
         .ok_or_else(|| "App base VHD not found. Please select manually.".to_string())?;
 
-    let patch = app_candidates
-        .iter()
-        .find(|p| *p != &base && file_name_contains(p, &["patch", "unpack"]))
-        .cloned()
-        .or_else(|| {
-            app_candidates
-                .iter()
-                .filter(|p| *p != &base)
-                .min_by_key(|p| file_size(p))
-                .cloned()
-        })
-        .ok_or_else(|| "App patch VHD not found. Please select manually.".to_string())?;
+    let patches = order_patch_vhds(
+        &base,
+        app_candidates
+        .into_iter()
+        .filter(|p| p != &base)
+        .collect::<Vec<_>>(),
+    );
 
     Ok(VhdConfig {
         app_base_path: base.to_string_lossy().to_string(),
-        app_patch_path: patch.to_string_lossy().to_string(),
+        app_patch_paths: patches
+            .into_iter()
+            .map(|patch| patch.to_string_lossy().to_string())
+            .collect(),
         appdata_path: appdata.to_string_lossy().to_string(),
         option_path: option.to_string_lossy().to_string(),
         delta_enabled: true,
@@ -3184,4 +3406,69 @@ pub fn privexec_apply_policy_update_cmd(
         bootstrap_public_keys,
     )?;
     Ok(core.apply_policy_update_json(&update_json))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{order_patch_vhds, parse_app_vhd_name, select_base_vhd, ParsedAppVhdKind};
+    use std::path::PathBuf;
+
+    #[test]
+    fn parses_versioned_patch_name() {
+        let parsed = parse_app_vhd_name(&PathBuf::from(
+            "SDGA_1.61.00_20260309140300_1_1.60.00.vhd",
+        ))
+        .unwrap();
+
+        assert_eq!(parsed.prefix, "SDGA");
+        assert_eq!(parsed.version, "1.61.00");
+        assert_eq!(parsed.timestamp, "20260309140300");
+        match parsed.kind {
+            ParsedAppVhdKind::Patch { parent_version } => {
+                assert_eq!(parent_version, "1.60.00");
+            }
+            ParsedAppVhdKind::Base => panic!("expected patch kind"),
+        }
+    }
+
+    #[test]
+    fn parses_versioned_patch_name_with_non_one_marker() {
+        let parsed = parse_app_vhd_name(&PathBuf::from(
+            "SDGA_1.62.00_20260401120000_2_1.61.00.vhd",
+        ))
+        .unwrap();
+
+        assert_eq!(parsed.prefix, "SDGA");
+        assert_eq!(parsed.version, "1.62.00");
+        assert_eq!(parsed.timestamp, "20260401120000");
+        match parsed.kind {
+            ParsedAppVhdKind::Patch { parent_version } => {
+                assert_eq!(parent_version, "1.61.00");
+            }
+            ParsedAppVhdKind::Base => panic!("expected patch kind"),
+        }
+    }
+
+    #[test]
+    fn prefers_chain_root_base_and_orders_patches_by_parent_version() {
+        let base = PathBuf::from("SDGA_1.60.00_20251023171735_0.vhd");
+        let patch_1 = PathBuf::from("SDGA_1.61.00_20260309140300_1_1.60.00.vhd");
+        let patch_2 = PathBuf::from("SDGA_1.62.00_20260401120000_2_1.61.00.vhd");
+        let appdata = PathBuf::from("SDGA_AppData.vhd");
+
+        let selected_base = select_base_vhd(&[
+            patch_2.clone(),
+            appdata,
+            base.clone(),
+            patch_1.clone(),
+        ])
+        .unwrap();
+        assert_eq!(selected_base, base);
+
+        let ordered = order_patch_vhds(
+            &selected_base,
+            vec![patch_2.clone(), patch_1.clone()],
+        );
+        assert_eq!(ordered, vec![patch_1, patch_2]);
+    }
 }

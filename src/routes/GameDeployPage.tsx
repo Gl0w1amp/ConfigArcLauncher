@@ -38,7 +38,7 @@ type DownloadProgress = {
 
 type VhdPaths = {
   app_base_path: string;
-  app_patch_path: string;
+  app_patch_paths: string[];
   appdata_path: string;
   option_path: string;
 };
@@ -118,7 +118,7 @@ const mapVhdPaths = (items: DownloadOrderDownloadResult[]): VhdPaths => {
     const same = items[0].path;
     return {
       app_base_path: same,
-      app_patch_path: same,
+      app_patch_paths: [],
       appdata_path: same,
       option_path: same,
     };
@@ -128,7 +128,6 @@ const mapVhdPaths = (items: DownloadOrderDownloadResult[]): VhdPaths => {
   const mapped: Partial<VhdPaths> = {
     appdata_path: pickByKeywords(items, used, ['appdata', 'data']),
     option_path: pickByKeywords(items, used, ['option', '/opt', '_opt', '-opt']),
-    app_patch_path: pickByKeywords(items, used, ['patch', 'delta', 'update']),
     app_base_path: pickByKeywords(items, used, ['base', 'app', 'os']),
   };
 
@@ -136,9 +135,8 @@ const mapVhdPaths = (items: DownloadOrderDownloadResult[]): VhdPaths => {
     .filter((item) => !used.has(item.path))
     .sort((a, b) => a.filename.localeCompare(b.filename));
 
-  const fallbackOrder: (keyof VhdPaths)[] = [
+  const fallbackOrder: Array<'app_base_path' | 'appdata_path' | 'option_path'> = [
     'app_base_path',
-    'app_patch_path',
     'appdata_path',
     'option_path',
   ];
@@ -152,6 +150,18 @@ const mapVhdPaths = (items: DownloadOrderDownloadResult[]): VhdPaths => {
     mapped[slot] = next.path;
     fallbackIndex += 1;
   }
+
+  const patchCandidates = remaining
+    .filter((item) => item.path !== mapped.app_base_path && item.path !== mapped.appdata_path && item.path !== mapped.option_path)
+    .sort((a, b) => {
+      const aPatch = ['patch', 'delta', 'update'].some((kw) => sourceKey(a).includes(kw));
+      const bPatch = ['patch', 'delta', 'update'].some((kw) => sourceKey(b).includes(kw));
+      if (aPatch !== bPatch) {
+        return aPatch ? -1 : 1;
+      }
+      return a.filename.localeCompare(b.filename);
+    });
+  mapped.app_patch_paths = patchCandidates.map((item) => item.path);
 
   return mapped as VhdPaths;
 };

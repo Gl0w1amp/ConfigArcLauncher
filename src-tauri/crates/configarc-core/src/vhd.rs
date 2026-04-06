@@ -1,6 +1,6 @@
 use crate::config::paths::segatools_root_for_game_id;
 use crate::error::ConfigError;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -15,23 +15,76 @@ fn default_true() -> bool {
     true
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct VhdConfig {
+fn normalize_patch_paths(paths: Vec<String>) -> Vec<String> {
+    paths
+        .into_iter()
+        .map(|path| path.trim().to_string())
+        .filter(|path| !path.is_empty())
+        .collect()
+}
+
+#[derive(Debug, Deserialize)]
+struct RawVhdConfig {
     pub app_base_path: String,
-    pub app_patch_path: String,
+    #[serde(default)]
+    pub app_patch_paths: Vec<String>,
+    #[serde(default)]
+    pub app_patch_path: Option<String>,
     pub appdata_path: String,
     pub option_path: String,
     #[serde(default = "default_true")]
     pub delta_enabled: bool,
 }
 
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct VhdConfig {
+    pub app_base_path: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub app_patch_paths: Vec<String>,
+    pub appdata_path: String,
+    pub option_path: String,
+    #[serde(default = "default_true")]
+    pub delta_enabled: bool,
+}
+
+impl<'de> Deserialize<'de> for VhdConfig {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let raw = RawVhdConfig::deserialize(deserializer)?;
+        let mut app_patch_paths = normalize_patch_paths(raw.app_patch_paths);
+        if app_patch_paths.is_empty() {
+            if let Some(legacy_path) = raw.app_patch_path {
+                app_patch_paths = normalize_patch_paths(vec![legacy_path]);
+            }
+        }
+        Ok(Self {
+            app_base_path: raw.app_base_path,
+            app_patch_paths,
+            appdata_path: raw.appdata_path,
+            option_path: raw.option_path,
+            delta_enabled: raw.delta_enabled,
+        })
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ResolvedVhdConfig {
     pub app_base_path: PathBuf,
-    pub app_patch_path: PathBuf,
+    pub app_patch_paths: Vec<PathBuf>,
     pub appdata_path: PathBuf,
     pub option_path: PathBuf,
     pub delta_enabled: bool,
+}
+
+impl ResolvedVhdConfig {
+    fn app_parent_path(&self) -> &Path {
+        self.app_patch_paths
+            .last()
+            .map(PathBuf::as_path)
+            .unwrap_or_else(|| self.app_base_path.as_path())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -67,7 +120,7 @@ struct HelperResult {
 #[derive(Debug, Serialize, Deserialize)]
 struct VhdHelperParams {
     pub app_base: PathBuf,
-    pub app_patch: PathBuf,
+    pub app_patches: Vec<PathBuf>,
     pub app_data: PathBuf,
     pub option: PathBuf,
     pub delta: bool,
@@ -107,16 +160,25 @@ pub fn resolve_vhd_config(game_id: &str, cfg: &VhdConfig) -> Result<ResolvedVhdC
         .parent()
         .map(Path::to_path_buf)
         .ok_or_else(|| "Missing vhd.json parent directory".to_string())?;
-    let app_base_path = resolve_with_base(&base_dir, &cfg.app_base_path);
-    let app_patch_path = resolve_with_base(&base_dir, &cfg.app_patch_path);
-    let appdata_path = resolve_with_base(&base_dir, &cfg.appdata_path);
-    let option_path = resolve_with_base(&base_dir, &cfg.option_path);
+    let app_base_path = resolve_with_base(&base_dir, cfg.app_base_path.trim());
+    let app_patch_paths = normalize_patch_paths(cfg.app_patch_paths.clone())
+        .iter()
+        .map(|path| resolve_with_base(&base_dir, path))
+        .collect::<Vec<_>>();
+    let appdata_path = resolve_with_base(&base_dir, cfg.appdata_path.trim());
+    let option_path = resolve_with_base(&base_dir, cfg.option_path.trim());
 
     if !app_base_path.exists() {
         return Err(format!("App base VHD not found: {}", app_base_path.to_string_lossy()));
     }
-    if !app_patch_path.exists() {
-        return Err(format!("App patch VHD not found: {}", app_patch_path.to_string_lossy()));
+    for (index, app_patch_path) in app_patch_paths.iter().enumerate() {
+        if !app_patch_path.exists() {
+            return Err(format!(
+                "App patch VHD not found at position {}: {}",
+                index + 1,
+                app_patch_path.to_string_lossy()
+            ));
+        }
     }
     if !appdata_path.exists() {
         return Err(format!("AppData VHD not found: {}", appdata_path.to_string_lossy()));
@@ -127,7 +189,7 @@ pub fn resolve_vhd_config(game_id: &str, cfg: &VhdConfig) -> Result<ResolvedVhdC
 
     Ok(ResolvedVhdConfig {
         app_base_path,
-        app_patch_path,
+        app_patch_paths,
         appdata_path,
         option_path,
         delta_enabled: cfg.delta_enabled,
@@ -143,13 +205,13 @@ fn resolve_with_base(base: &Path, raw: &str) -> PathBuf {
     }
 }
 
-fn runtime_path_for_patch(patch_path: &Path) -> PathBuf {
-    let parent = patch_path.parent().unwrap_or_else(|| Path::new("."));
-    let stem = patch_path
+fn runtime_path_for_parent(parent_path: &Path) -> PathBuf {
+    let parent = parent_path.parent().unwrap_or_else(|| Path::new("."));
+    let stem = parent_path
         .file_stem()
         .and_then(OsStr::to_str)
         .unwrap_or("runtime");
-    let ext = patch_path.extension().and_then(OsStr::to_str).unwrap_or("vhd");
+    let ext = parent_path.extension().and_then(OsStr::to_str).unwrap_or("vhd");
     parent.join(format!("{}-runtime.{}", stem, ext))
 }
 
@@ -320,7 +382,7 @@ fn mount_vhd_via_helper(cfg: &ResolvedVhdConfig) -> Result<ElevatedVhdMount, Str
 
     let params = VhdHelperParams {
         app_base: cfg.app_base_path.clone(),
-        app_patch: cfg.app_patch_path.clone(),
+        app_patches: cfg.app_patch_paths.clone(),
         app_data: cfg.appdata_path.clone(),
         option: cfg.option_path.clone(),
         delta: cfg.delta_enabled,
@@ -374,10 +436,11 @@ fn mount_vhd_via_helper(cfg: &ResolvedVhdConfig) -> Result<ElevatedVhdMount, Str
 pub fn mount_vhd(cfg: &ResolvedVhdConfig) -> Result<MountedVhd, String> {
     ensure_mount_points_free()?;
 
-    let mut app_mount_path = cfg.app_patch_path.clone();
+    let app_parent_path = cfg.app_parent_path();
+    let mut app_mount_path = app_parent_path.to_path_buf();
     let mut app_runtime_path = None;
     if cfg.delta_enabled {
-        let delta_path = runtime_path_for_patch(&cfg.app_patch_path);
+        let delta_path = runtime_path_for_parent(app_parent_path);
         let dismount = format!(
             "Dismount-DiskImage -ImagePath \"{}\" -Confirm:$false -ErrorAction SilentlyContinue",
             delta_path.to_string_lossy()
@@ -388,7 +451,7 @@ pub fn mount_vhd(cfg: &ResolvedVhdConfig) -> Result<MountedVhd, String> {
         }
         let script = format!("create vdisk file=\"{}\" parent=\"{}\"\n",
             delta_path.to_string_lossy(),
-            cfg.app_patch_path.to_string_lossy()
+            app_parent_path.to_string_lossy()
         );
         run_diskpart(&script)?;
         if !delta_path.exists() {
@@ -465,5 +528,65 @@ pub fn unmount_vhd_handle(handle: &VhdMountHandle) -> Result<(), String> {
                 Err("Timed out waiting for elevated unmount".to_string())
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ResolvedVhdConfig, VhdConfig};
+    use std::path::Path;
+    use std::path::PathBuf;
+
+    #[test]
+    fn deserializes_legacy_single_patch_config() {
+        let cfg: VhdConfig = serde_json::from_str(
+            r#"{
+                "app_base_path":"base.vhd",
+                "app_patch_path":"patch-1.vhd",
+                "appdata_path":"appdata.vhd",
+                "option_path":"option.vhd",
+                "delta_enabled":true
+            }"#,
+        )
+        .unwrap();
+
+        assert_eq!(cfg.app_patch_paths, vec!["patch-1.vhd"]);
+    }
+
+    #[test]
+    fn deserializes_multi_patch_config_and_drops_blank_entries() {
+        let cfg: VhdConfig = serde_json::from_str(
+            r#"{
+                "app_base_path":"base.vhd",
+                "app_patch_paths":["patch-1.vhd"," ","patch-2.vhd"],
+                "appdata_path":"appdata.vhd",
+                "option_path":"option.vhd"
+            }"#,
+        )
+        .unwrap();
+
+        assert_eq!(cfg.app_patch_paths, vec!["patch-1.vhd", "patch-2.vhd"]);
+        assert!(cfg.delta_enabled);
+    }
+
+    #[test]
+    fn uses_latest_patch_as_runtime_parent_or_base_when_empty() {
+        let with_patches = ResolvedVhdConfig {
+            app_base_path: PathBuf::from("base.vhd"),
+            app_patch_paths: vec![PathBuf::from("patch-1.vhd"), PathBuf::from("patch-2.vhd")],
+            appdata_path: PathBuf::from("appdata.vhd"),
+            option_path: PathBuf::from("option.vhd"),
+            delta_enabled: true,
+        };
+        assert_eq!(with_patches.app_parent_path(), Path::new("patch-2.vhd"));
+
+        let without_patches = ResolvedVhdConfig {
+            app_base_path: PathBuf::from("base.vhd"),
+            app_patch_paths: vec![],
+            appdata_path: PathBuf::from("appdata.vhd"),
+            option_path: PathBuf::from("option.vhd"),
+            delta_enabled: true,
+        };
+        assert_eq!(without_patches.app_parent_path(), Path::new("base.vhd"));
     }
 }

@@ -18,6 +18,21 @@ type Props = {
 type ArgRow = { id: string; param: string; value: string };
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
+const emptyVhdConfig = (): VhdConfig => ({
+  app_base_path: '',
+  app_patch_paths: [],
+  appdata_path: '',
+  option_path: '',
+  delta_enabled: true,
+});
+
+const parsePatchPaths = (value: string) =>
+  value
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+const patchPathsText = (paths: string[]) => paths.join('\n');
 
 function parseArgs(args: string[]): ArgRow[] {
   const rows: ArgRow[] = [];
@@ -59,7 +74,7 @@ function GameEditorDialog({ game, onSave, onCancel, initialField, lockMode }: Pr
   const vhdPanelRef = useRef<HTMLDivElement>(null);
   const folderPanelRef = useRef<HTMLDivElement>(null);
   const baseVhdInputRef = useRef<HTMLInputElement>(null);
-  const patchVhdInputRef = useRef<HTMLInputElement>(null);
+  const patchVhdInputRef = useRef<HTMLTextAreaElement>(null);
   const appdataVhdInputRef = useRef<HTMLInputElement>(null);
   const optionVhdInputRef = useRef<HTMLInputElement>(null);
   const execInputRef = useRef<HTMLInputElement>(null);
@@ -86,11 +101,8 @@ function GameEditorDialog({ game, onSave, onCancel, initialField, lockMode }: Pr
       .catch(() => {
         if (game.executable_path) {
           setVhdConfig({
+            ...emptyVhdConfig(),
             app_base_path: game.executable_path,
-            app_patch_path: '',
-            appdata_path: '',
-            option_path: '',
-            delta_enabled: true,
           });
         } else {
           setVhdConfig(null);
@@ -110,7 +122,7 @@ function GameEditorDialog({ game, onSave, onCancel, initialField, lockMode }: Pr
   }, [
     isVhd,
     vhdConfig?.app_base_path,
-    vhdConfig?.app_patch_path,
+    patchPathsText(vhdConfig?.app_patch_paths ?? []),
     vhdConfig?.appdata_path,
     vhdConfig?.option_path,
     vhdConfig?.delta_enabled,
@@ -222,7 +234,7 @@ function GameEditorDialog({ game, onSave, onCancel, initialField, lockMode }: Pr
     e.preventDefault();
     try {
       if ((draft.launch_mode ?? 'folder') === 'vhd') {
-        if (!vhdConfig || !vhdConfig.app_base_path || !vhdConfig.app_patch_path || !vhdConfig.appdata_path || !vhdConfig.option_path) {
+        if (!vhdConfig || !vhdConfig.app_base_path || !vhdConfig.appdata_path || !vhdConfig.option_path) {
           setError(t('games.editor.vhdMissing'));
           return;
         }
@@ -339,7 +351,7 @@ function GameEditorDialog({ game, onSave, onCancel, initialField, lockMode }: Pr
                     const app_base_path = e.target.value;
                     setVhdConfig(prev => ({
                       app_base_path,
-                      app_patch_path: prev?.app_patch_path ?? '',
+                      app_patch_paths: prev?.app_patch_paths ?? [],
                       appdata_path: prev?.appdata_path ?? '',
                       option_path: prev?.option_path ?? '',
                       delta_enabled: prev?.delta_enabled ?? true,
@@ -354,22 +366,23 @@ function GameEditorDialog({ game, onSave, onCancel, initialField, lockMode }: Pr
             {showPatchVhdPath && (
               <label className="game-editor-label">
                 <div className="game-editor-label-text">{t('games.editor.appPatchVhdPath')}</div>
-                <input
+                <textarea
                   ref={patchVhdInputRef}
-                  value={vhdConfig?.app_patch_path ?? ''}
+                  value={patchPathsText(vhdConfig?.app_patch_paths ?? [])}
                   disabled={!isVhd}
                   onChange={(e) => {
-                    const app_patch_path = e.target.value;
+                    const app_patch_paths = parsePatchPaths(e.target.value);
                     setVhdConfig(prev => ({
                       app_base_path: prev?.app_base_path ?? '',
-                      app_patch_path,
+                      app_patch_paths,
                       appdata_path: prev?.appdata_path ?? '',
                       option_path: prev?.option_path ?? '',
                       delta_enabled: prev?.delta_enabled ?? true,
                     }));
                   }}
-                  className="game-editor-input"
-                  required
+                  className="game-editor-input monospace"
+                  rows={Math.max(3, (vhdConfig?.app_patch_paths?.length ?? 0) + 1)}
+                  style={{ minHeight: 88, resize: 'vertical' }}
                 />
               </label>
             )}
@@ -384,7 +397,7 @@ function GameEditorDialog({ game, onSave, onCancel, initialField, lockMode }: Pr
                     const appdata_path = e.target.value;
                     setVhdConfig(prev => ({
                       app_base_path: prev?.app_base_path ?? '',
-                      app_patch_path: prev?.app_patch_path ?? '',
+                      app_patch_paths: prev?.app_patch_paths ?? [],
                       appdata_path,
                       option_path: prev?.option_path ?? '',
                       delta_enabled: prev?.delta_enabled ?? true,
@@ -406,7 +419,7 @@ function GameEditorDialog({ game, onSave, onCancel, initialField, lockMode }: Pr
                     const option_path = e.target.value;
                     setVhdConfig(prev => ({
                       app_base_path: prev?.app_base_path ?? '',
-                      app_patch_path: prev?.app_patch_path ?? '',
+                      app_patch_paths: prev?.app_patch_paths ?? [],
                       appdata_path: prev?.appdata_path ?? '',
                       option_path,
                       delta_enabled: prev?.delta_enabled ?? true,
@@ -425,7 +438,7 @@ function GameEditorDialog({ game, onSave, onCancel, initialField, lockMode }: Pr
                   disabled={!isVhd}
                   onChange={(e) => setVhdConfig(prev => ({
                     app_base_path: prev?.app_base_path ?? '',
-                    app_patch_path: prev?.app_patch_path ?? '',
+                    app_patch_paths: prev?.app_patch_paths ?? [],
                     appdata_path: prev?.appdata_path ?? '',
                     option_path: prev?.option_path ?? '',
                     delta_enabled: e.target.checked,

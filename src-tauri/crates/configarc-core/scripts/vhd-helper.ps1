@@ -43,7 +43,10 @@ try {
 }
 
 $appBase = $params.app_base
-$appPatch = $params.app_patch
+$appPatches = @()
+if ($null -ne $params.app_patches) {
+    $appPatches = @($params.app_patches | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+}
 $appData = $params.app_data
 $option = $params.option
 $delta = $params.delta
@@ -54,7 +57,9 @@ $done = $params.done_path
 
 try {
     if (-not (Test-Path $appBase)) { throw "App base VHD not found: $appBase" }
-    if (-not (Test-Path $appPatch)) { throw "App patch VHD not found: $appPatch" }
+    for ($i = 0; $i -lt $appPatches.Count; $i++) {
+        if (-not (Test-Path $appPatches[$i])) { throw "App patch VHD not found at position $($i + 1): $($appPatches[$i])" }
+    }
     if (-not (Test-Path $appData)) { throw "AppData VHD not found: $appData" }
     if (-not (Test-Path $option)) { throw "Option VHD not found: $option" }
 
@@ -88,16 +93,17 @@ function Dismount-Image {
 }
 
 
-$appMountPath = $appPatch
+$appParent = if ($appPatches.Count -gt 0) { $appPatches[$appPatches.Count - 1] } else { $appBase }
+$appMountPath = $appParent
 $appRuntimePath = $null
 $mountedApp = $false
 $mountedAppdata = $false
 $mountedOption = $false
 
     if ($delta -eq '1' -or $delta -eq 'true' -or $delta -eq 'True') {
-        $parentDir = Split-Path $appPatch -Parent
-        $stem = [System.IO.Path]::GetFileNameWithoutExtension($appPatch)
-        $ext = [System.IO.Path]::GetExtension($appPatch)
+        $parentDir = Split-Path $appParent -Parent
+        $stem = [System.IO.Path]::GetFileNameWithoutExtension($appParent)
+        $ext = [System.IO.Path]::GetExtension($appParent)
         if ([string]::IsNullOrWhiteSpace($ext)) {
             $ext = '.vhd'
         }
@@ -109,7 +115,7 @@ $mountedOption = $false
         }
 
         $dpPath = Join-Path $env:TEMP ("configarc_vhd_diskpart_{0}.txt" -f $PID)
-        $dpScript = "create vdisk file=`"$appRuntimePath`" parent=`"$appPatch`"`n"
+        $dpScript = "create vdisk file=`"$appRuntimePath`" parent=`"$appParent`"`n"
         Set-Content -Path $dpPath -Value $dpScript -Encoding ASCII
         & diskpart.exe /s $dpPath | Out-Null
         Remove-Item $dpPath -Force -ErrorAction SilentlyContinue

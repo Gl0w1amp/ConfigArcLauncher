@@ -70,12 +70,12 @@
       "modeFolder": "文件夹",
       "modeVhd": "VHD",
       "appVhdPath": "应用基础 VHD 路径",
-      "appPatchVhdPath": "应用补丁 VHD 路径",
+      "appPatchVhdPath": "应用补丁 VHD 路径（每行一个）",
       "appdataVhdPath": "AppData VHD 路径",
       "optionVhdPath": "Option VHD 路径",
       "deltaEnabled": "启用运行时增量",
       "modeLocked": "模式已锁定，无法切换。",
-      "vhdMissing": "VHD 模式需要填写应用基础、应用补丁、AppData 和 Option 四个 VHD 路径。"
+      "vhdMissing": "VHD 模式需要填写应用基础、AppData 和 Option 的 VHD 路径；应用补丁路径可选。"
     },
     "mode": "模式",
     "modeFolder": "文件夹",

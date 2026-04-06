@@ -75,7 +75,7 @@
       "modeVhd": "VHD",
       "execPath": "Executable Path",
       "appVhdPath": "App Base VHD Path",
-      "appPatchVhdPath": "App Patch VHD Path",
+      "appPatchVhdPath": "App Patch VHD Paths (one per line)",
       "appdataVhdPath": "AppData VHD Path",
       "optionVhdPath": "Option VHD Path",
       "workdirOptional": "Working Directory (optional)",
@@ -89,7 +89,7 @@
       "removeArg": "Remove argument",
       "deltaEnabled": "Enable runtime delta",
       "modeLocked": "Launch mode is locked and cannot be changed.",
-      "vhdMissing": "App base, app patch, appdata, and option VHD paths are required for VHD mode.",
+      "vhdMissing": "App base, appdata, and option VHD paths are required for VHD mode. App patch paths are optional.",
       "save": "Save Game"
     }
   },

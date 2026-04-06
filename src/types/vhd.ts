@@ -2,7 +2,7 @@ import { Game } from './games';
 
 export interface VhdConfig {
   app_base_path: string;
-  app_patch_path: string;
+  app_patch_paths: string[];
   appdata_path: string;
   option_path: string;
   delta_enabled: boolean;

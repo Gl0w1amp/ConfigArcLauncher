@@ -22,6 +22,7 @@ Thumbs.db
 # Rust / Tauri build artifacts
 src-tauri/target
 src-tauri/.cargo
+src-tauri/crates/configarc-core/target
 
 # Lock files
 src-tauri/Cargo.lock
